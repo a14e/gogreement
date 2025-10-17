@@ -1,0 +1,15 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - gosec
+    - bodyclose
+    - errorlint
+    - copyloopvar
+
+issues:
+  max-same-issues: 50
