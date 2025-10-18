@@ -35,8 +35,8 @@ type InterfaceQuery struct {
 func LoadInterfaces(pass *analysis.Pass, queries []InterfaceQuery) []*InterfaceModel {
 	var result []*InterfaceModel
 
-	// Group queries by package
-	pkgToInterface := make(map[string]map[string]bool)
+	// Group queries by package for efficient lookup
+	pkgToInterface := make(map[string]map[string]bool) // pkg -> interface names
 	for _, q := range queries {
 		pkg := q.PackageName
 		if pkg == "" {
@@ -51,19 +51,17 @@ func LoadInterfaces(pass *analysis.Pass, queries []InterfaceQuery) []*InterfaceM
 	// Collect all packages to scan (current + imports)
 	packagesToScan := make([]*types.Package, 0)
 
-	// Add current package
 	if pkgToInterface[pass.Pkg.Path()] != nil {
 		packagesToScan = append(packagesToScan, pass.Pkg)
 	}
 
-	// Add imported packages
 	for _, imp := range pass.Pkg.Imports() {
 		if pkgToInterface[imp.Path()] != nil {
 			packagesToScan = append(packagesToScan, imp)
 		}
 	}
 
-	// Scan all packages uniformly
+	// Scan all packages uniformly using types.Package
 	for _, pkg := range packagesToScan {
 		interfaces := findInterfacesInPackage(pkg, pkgToInterface[pkg.Path()])
 		result = append(result, interfaces...)
@@ -72,7 +70,7 @@ func LoadInterfaces(pass *analysis.Pass, queries []InterfaceQuery) []*InterfaceM
 	return result
 }
 
-// findInterfacesInPackage extracts interfaces from imported package using types.Package
+// findInterfacesInPackage extracts interfaces from package using types.Package
 func findInterfacesInPackage(
 	pkg *types.Package,
 	targetInterfaces map[string]bool,
@@ -104,7 +102,7 @@ func findInterfacesInPackage(
 
 		model := &InterfaceModel{
 			Name:    name,
-			Package: pkg.Path(),
+			Package: pkg.Path(), // Full import path
 			Methods: extractMethodsFromInterface(iface),
 		}
 
@@ -145,8 +143,15 @@ func extractTypesFromTuple(tuple *types.Tuple, isVariadic bool) []InterfaceType 
 		result[i] = convertTypesToInterfaceType(param.Type())
 
 		// Mark last parameter as variadic if needed
+		// For variadic params, the type is []T, so we need to unwrap it
 		if isVariadic && i == tuple.Len()-1 {
 			result[i].IsVariadic = true
+
+			// Unwrap slice type for variadic: []string -> string
+			if slice, ok := param.Type().(*types.Slice); ok {
+				result[i] = convertTypesToInterfaceType(slice.Elem())
+				result[i].IsVariadic = true
+			}
 		}
 	}
 

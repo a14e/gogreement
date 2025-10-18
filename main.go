@@ -12,12 +12,12 @@ type TestInterface interface {
 
 // MyStruct
 // @implements &TestInterface
-// @implements &main.TestInterface
+// @implements TestInterface
 // @immutable
 // @usein main.go, main
 // @constructor New
-// @shouldcall (Func | Func2) & Cleanup
-// @shouldvaludate
+// @shouldcall Cleanup
+// @shouldcalloneof Func, Func2
 type MyStruct struct {
 	// @notnil
 	x interface{}
