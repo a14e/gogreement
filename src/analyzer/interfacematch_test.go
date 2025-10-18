@@ -13,6 +13,7 @@ func TestFindMissingPackages(t *testing.T) {
 		name        string
 		annotations []ImplementsAnnotation
 		expected    []MissingPackageReport
+		expectEmpty bool // NEW: flag for empty results
 	}{
 		{
 			name: "no missing packages",
@@ -24,7 +25,7 @@ func TestFindMissingPackages(t *testing.T) {
 					OnTypePos:       100,
 				},
 			},
-			expected: []MissingPackageReport{},
+			expectEmpty: true, // Changed
 		},
 		{
 			name: "single missing package",
@@ -88,14 +89,19 @@ func TestFindMissingPackages(t *testing.T) {
 		{
 			name:        "empty annotations",
 			annotations: []ImplementsAnnotation{},
-			expected:    []MissingPackageReport{},
+			expectEmpty: true, // Changed
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := findMissingPackages(tt.annotations)
-			assert.Equal(t, tt.expected, result)
+
+			if tt.expectEmpty {
+				assert.Empty(t, result)
+			} else {
+				assert.Equal(t, tt.expected, result)
+			}
 		})
 	}
 }
@@ -108,6 +114,7 @@ func TestFindMissingInterfaces(t *testing.T) {
 		annotations []ImplementsAnnotation
 		interfaces  []*InterfaceModel
 		expected    []MissingInterfaceReport
+		expectEmpty bool
 	}{
 		{
 			name: "all interfaces found",
@@ -127,7 +134,7 @@ func TestFindMissingInterfaces(t *testing.T) {
 					Package: "io",
 				},
 			},
-			expected: []MissingInterfaceReport{},
+			expectEmpty: true,
 		},
 		{
 			name: "interface not found",
@@ -164,12 +171,12 @@ func TestFindMissingInterfaces(t *testing.T) {
 					InterfaceName:   "Writer",
 					PackageName:     "http",
 					PackageFullPath: "",
-					PackageNotFound: true, // Should skip this
+					PackageNotFound: true,
 					OnTypePos:       200,
 				},
 			},
-			interfaces: []*InterfaceModel{},
-			expected:   []MissingInterfaceReport{}, // Empty because we skip PackageNotFound
+			interfaces:  []*InterfaceModel{},
+			expectEmpty: true,
 		},
 		{
 			name: "mixed - some found, some not",
@@ -204,7 +211,6 @@ func TestFindMissingInterfaces(t *testing.T) {
 					Name:    "Reader",
 					Package: "io",
 				},
-				// Writer and Closer not loaded
 			},
 			expected: []MissingInterfaceReport{
 				{
@@ -226,7 +232,12 @@ func TestFindMissingInterfaces(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := findMissingInterfaces(tt.annotations, tt.interfaces)
-			assert.Equal(t, tt.expected, result)
+
+			if tt.expectEmpty {
+				assert.Empty(t, result)
+			} else {
+				assert.Equal(t, tt.expected, result)
+			}
 		})
 	}
 }
@@ -240,6 +251,7 @@ func TestFindMissingMethods(t *testing.T) {
 		interfaces  []*InterfaceModel
 		types       []*TypeModel
 		expected    []MissingMethodsReport
+		expectEmpty bool
 	}{
 		{
 			name: "type implements interface fully",
@@ -290,7 +302,7 @@ func TestFindMissingMethods(t *testing.T) {
 					},
 				},
 			},
-			expected: []MissingMethodsReport{},
+			expectEmpty: true,
 		},
 		{
 			name: "type missing method",
@@ -343,7 +355,6 @@ func TestFindMissingMethods(t *testing.T) {
 								{TypeName: "error"},
 							},
 						},
-						// Missing Close method
 					},
 				},
 			},
@@ -441,7 +452,7 @@ func TestFindMissingMethods(t *testing.T) {
 					InterfaceName:   "Reader",
 					PackageName:     "io",
 					PackageFullPath: "io",
-					IsPointer:       false, // Requires value receiver
+					IsPointer:       false,
 					PackageNotFound: false,
 					OnTypePos:       100,
 				},
@@ -470,7 +481,7 @@ func TestFindMissingMethods(t *testing.T) {
 					Methods: []TypeMethod{
 						{
 							Name:              "Read",
-							ReceiverIsPointer: true, // Only pointer receiver
+							ReceiverIsPointer: true,
 							Inputs: []MethodType{
 								{TypeName: "[]byte"},
 							},
@@ -516,9 +527,9 @@ func TestFindMissingMethods(t *testing.T) {
 					OnTypePos:       100,
 				},
 			},
-			interfaces: []*InterfaceModel{},
-			types:      []*TypeModel{},
-			expected:   []MissingMethodsReport{},
+			interfaces:  []*InterfaceModel{},
+			types:       []*TypeModel{},
+			expectEmpty: true,
 		},
 		{
 			name: "skip when interface not found",
@@ -546,14 +557,19 @@ func TestFindMissingMethods(t *testing.T) {
 					Methods: []TypeMethod{},
 				},
 			},
-			expected: []MissingMethodsReport{},
+			expectEmpty: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := findMissingMethods(tt.annotations, tt.interfaces, tt.types)
-			assert.Equal(t, tt.expected, result)
+
+			if tt.expectEmpty {
+				assert.Empty(t, result)
+			} else {
+				assert.Equal(t, tt.expected, result)
+			}
 		})
 	}
 }

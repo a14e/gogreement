@@ -64,6 +64,18 @@ func TestParseImplementsAnnotation(t *testing.T) {
 			},
 		},
 		{
+			name:      "with extra text before",
+			comment:   "// text before @implements &io.Reader",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "with extra text after before",
+			comment:   "//  @implements &io.Reader text after",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
 			name:      "with extra spaces",
 			comment:   "//   @implements   &io.Reader   ",
 			typeName:  "MyStruct",

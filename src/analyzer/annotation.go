@@ -52,6 +52,10 @@ func toTypeQuery(input []ImplementsAnnotation) []TypeQuery {
 	var dedupMap = make(map[string]bool)
 
 	for _, v := range input {
+		if v.PackageNotFound {
+			continue
+		}
+
 		if _, ok := dedupMap[v.OnType]; ok {
 			continue
 		}
@@ -69,7 +73,7 @@ func toTypeQuery(input []ImplementsAnnotation) []TypeQuery {
 // Compile regex once
 var implementsRegex = regexp.MustCompile(
 	`^\s*//\s*@implements\s+(&)?(?:(\w+)\.)?(\w+)\s*$`,
-	//                   ^1   ^2     ^3
+	//                           ^1   ^2         ^3
 	// 1: pointer (optional)
 	// 2: package (optional)
 	// 3: interface name (required)
@@ -97,6 +101,7 @@ func parseImplementsAnnotation(commentText string, typeName string, pos token.Po
 }
 
 // resolvePackagePath resolves a short package name to a full import path
+// FIXME should be a pure function
 func resolvePackagePath(annotation *ImplementsAnnotation, pkg *types.Package) {
 	// Empty package name means current package
 	if annotation.PackageName == "" {
@@ -166,7 +171,7 @@ func ReadAllImplementsAnnotations(pass *analysis.Pass) []ImplementsAnnotation {
 						continue // Failed to parse
 					}
 
-					// Resolve package path
+					// Resolve the package path
 					resolvePackagePath(annotation, pass.Pkg)
 
 					result = append(result, *annotation)

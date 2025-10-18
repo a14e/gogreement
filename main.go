@@ -8,11 +8,12 @@ import (
 
 type TestInterface interface {
 	Func(int) int
+	Func3(int) int
+	Func4(string2 string) (int, string)
 }
 
 // MyStruct
 // @implements &TestInterface
-// @implements TestInterface
 // @immutable
 // @usein main.go, main
 // @constructor New
