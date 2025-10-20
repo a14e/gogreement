@@ -12,6 +12,7 @@ type InterfaceModel struct {
 	Methods []InterfaceMethod
 }
 
+// FIXME store signature
 type InterfaceMethod struct {
 	Name    string
 	Inputs  []InterfaceType
@@ -99,6 +100,8 @@ func findInterfacesInPackage(
 		if !ok {
 			continue
 		}
+		//  we need to complete the interface
+		iface = iface.Complete()
 
 		model := &InterfaceModel{
 			Name:    name,

@@ -1,13 +1,27 @@
 package analyzer
 
 import (
+	"go/ast"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"goagreement/src/util"
 )
 
 func TestParseImplementsAnnotation(t *testing.T) {
+	// Create mock import map
+	imports := &importmap.ImportMap{}
+	imports.Add(&ast.ImportSpec{
+		Path: &ast.BasicLit{Value: `"io"`},
+	})
+	imports.Add(&ast.ImportSpec{
+		Path: &ast.BasicLit{Value: `"context"`},
+	})
+
+	currentPkgPath := "mypackage/path"
+
 	tests := []struct {
 		name          string
 		comment       string
@@ -21,10 +35,12 @@ func TestParseImplementsAnnotation(t *testing.T) {
 			typeName:  "MyStruct",
 			expectNil: false,
 			expectedAnnot: &ImplementsAnnotation{
-				OnType:        "MyStruct",
-				InterfaceName: "MyInterface",
-				PackageName:   "",
-				IsPointer:     false,
+				OnType:          "MyStruct",
+				InterfaceName:   "MyInterface",
+				PackageName:     "",
+				IsPointer:       false,
+				PackageFullPath: currentPkgPath,
+				PackageNotFound: false,
 			},
 		},
 		{
@@ -33,10 +49,12 @@ func TestParseImplementsAnnotation(t *testing.T) {
 			typeName:  "MyStruct",
 			expectNil: false,
 			expectedAnnot: &ImplementsAnnotation{
-				OnType:        "MyStruct",
-				InterfaceName: "MyInterface",
-				PackageName:   "",
-				IsPointer:     true,
+				OnType:          "MyStruct",
+				InterfaceName:   "MyInterface",
+				PackageName:     "",
+				IsPointer:       true,
+				PackageFullPath: currentPkgPath,
+				PackageNotFound: false,
 			},
 		},
 		{
@@ -45,10 +63,12 @@ func TestParseImplementsAnnotation(t *testing.T) {
 			typeName:  "MyStruct",
 			expectNil: false,
 			expectedAnnot: &ImplementsAnnotation{
-				OnType:        "MyStruct",
-				InterfaceName: "Reader",
-				PackageName:   "io",
-				IsPointer:     false,
+				OnType:          "MyStruct",
+				InterfaceName:   "Reader",
+				PackageName:     "io",
+				IsPointer:       false,
+				PackageFullPath: "io",
+				PackageNotFound: false,
 			},
 		},
 		{
@@ -57,10 +77,26 @@ func TestParseImplementsAnnotation(t *testing.T) {
 			typeName:  "MyStruct",
 			expectNil: false,
 			expectedAnnot: &ImplementsAnnotation{
-				OnType:        "MyStruct",
-				InterfaceName: "Reader",
-				PackageName:   "io",
-				IsPointer:     true,
+				OnType:          "MyStruct",
+				InterfaceName:   "Reader",
+				PackageName:     "io",
+				IsPointer:       true,
+				PackageFullPath: "io",
+				PackageNotFound: false,
+			},
+		},
+		{
+			name:      "package not found",
+			comment:   "// @implements http.Handler",
+			typeName:  "MyStruct",
+			expectNil: false,
+			expectedAnnot: &ImplementsAnnotation{
+				OnType:          "MyStruct",
+				InterfaceName:   "Handler",
+				PackageName:     "http",
+				IsPointer:       false,
+				PackageFullPath: "",
+				PackageNotFound: true,
 			},
 		},
 		{
@@ -81,10 +117,12 @@ func TestParseImplementsAnnotation(t *testing.T) {
 			typeName:  "MyStruct",
 			expectNil: false,
 			expectedAnnot: &ImplementsAnnotation{
-				OnType:        "MyStruct",
-				InterfaceName: "Reader",
-				PackageName:   "io",
-				IsPointer:     true,
+				OnType:          "MyStruct",
+				InterfaceName:   "Reader",
+				PackageName:     "io",
+				IsPointer:       true,
+				PackageFullPath: "io",
+				PackageNotFound: false,
 			},
 		},
 		{
@@ -109,7 +147,7 @@ func TestParseImplementsAnnotation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parseImplementsAnnotation(tt.comment, tt.typeName, 0)
+			result := parseImplementsAnnotation(tt.comment, tt.typeName, 0, imports, currentPkgPath)
 
 			if tt.expectNil {
 				assert.Nil(t, result)
@@ -119,179 +157,324 @@ func TestParseImplementsAnnotation(t *testing.T) {
 				assert.Equal(t, tt.expectedAnnot.InterfaceName, result.InterfaceName)
 				assert.Equal(t, tt.expectedAnnot.PackageName, result.PackageName)
 				assert.Equal(t, tt.expectedAnnot.IsPointer, result.IsPointer)
+				assert.Equal(t, tt.expectedAnnot.PackageFullPath, result.PackageFullPath)
+				assert.Equal(t, tt.expectedAnnot.PackageNotFound, result.PackageNotFound)
 			}
 		})
 	}
 }
 
-func TestReadAllImplementsAnnotations(t *testing.T) {
-	pass := createTestPass(t, "withimports")
-
-	annotations := ReadAllImplementsAnnotations(pass)
-
-	// We expect annotations from withimports.go:
-	// - MyReader implements &io.Reader
-	// - MyWriteCloser implements &io.Writer
-	// - MyWriteCloser implements &io.Closer
-	// - MyContext implements &context.Context
-
-	require.NotEmpty(t, annotations, "expected to find annotations")
-
-	// Helper to find annotation
-	findAnnotation := func(onType, interfaceName string) *ImplementsAnnotation {
-		for _, a := range annotations {
-			if a.OnType == onType && a.InterfaceName == interfaceName {
-				return &a
-			}
-		}
-		return nil
-	}
-
-	t.Run("MyReader implements io.Reader", func(t *testing.T) {
-		annot := findAnnotation("MyReader", "Reader")
-		require.NotNil(t, annot, "annotation not found")
-
-		assert.Equal(t, "MyReader", annot.OnType)
-		assert.Equal(t, "Reader", annot.InterfaceName)
-		assert.Equal(t, "io", annot.PackageName)
-		assert.True(t, annot.IsPointer)
-		assert.Equal(t, "io", annot.PackageFullPath)
-		assert.False(t, annot.PackageNotFound)
-	})
-
-	t.Run("MyWriteCloser implements io.Writer", func(t *testing.T) {
-		annot := findAnnotation("MyWriteCloser", "Writer")
-		require.NotNil(t, annot, "annotation not found")
-
-		assert.Equal(t, "MyWriteCloser", annot.OnType)
-		assert.Equal(t, "Writer", annot.InterfaceName)
-		assert.Equal(t, "io", annot.PackageName)
-		assert.True(t, annot.IsPointer)
-		assert.Equal(t, "io", annot.PackageFullPath)
-		assert.False(t, annot.PackageNotFound)
-	})
-
-	t.Run("MyWriteCloser implements io.Closer", func(t *testing.T) {
-		annot := findAnnotation("MyWriteCloser", "Closer")
-		require.NotNil(t, annot, "annotation not found")
-
-		assert.Equal(t, "MyWriteCloser", annot.OnType)
-		assert.Equal(t, "Closer", annot.InterfaceName)
-		assert.Equal(t, "io", annot.PackageName)
-		assert.True(t, annot.IsPointer)
-		assert.Equal(t, "io", annot.PackageFullPath)
-		assert.False(t, annot.PackageNotFound)
-	})
-
-	t.Run("MyContext implements context.Context", func(t *testing.T) {
-		annot := findAnnotation("MyContext", "Context")
-		require.NotNil(t, annot, "annotation not found")
-
-		assert.Equal(t, "MyContext", annot.OnType)
-		assert.Equal(t, "Context", annot.InterfaceName)
-		assert.Equal(t, "context", annot.PackageName)
-		assert.True(t, annot.IsPointer)
-		assert.Equal(t, "context", annot.PackageFullPath)
-		assert.False(t, annot.PackageNotFound)
-	})
-
-	t.Run("count all annotations", func(t *testing.T) {
-		// Should have at least 4 annotations
-		assert.GreaterOrEqual(t, len(annotations), 4)
-	})
-}
-
-func TestResolvePackagePath(t *testing.T) {
-	pass := createTestPass(t, "withimports")
-
+func TestParseConstructorAnnotation(t *testing.T) {
 	tests := []struct {
-		name             string
-		annotation       ImplementsAnnotation
-		expectedFullPath string
-		expectedNotFound bool
+		name          string
+		comment       string
+		typeName      string
+		expectNil     bool
+		expectedNames []string
 	}{
 		{
-			name: "current package (empty)",
-			annotation: ImplementsAnnotation{
-				PackageName: "",
-			},
-			expectedFullPath: pass.Pkg.Path(),
-			expectedNotFound: false,
+			name:          "single constructor",
+			comment:       "// @constructor New",
+			typeName:      "MyStruct",
+			expectNil:     false,
+			expectedNames: []string{"New"},
 		},
 		{
-			name: "stdlib io package",
-			annotation: ImplementsAnnotation{
-				PackageName: "io",
-			},
-			expectedFullPath: "io",
-			expectedNotFound: false,
+			name:          "multiple constructors",
+			comment:       "// @constructor New, Create",
+			typeName:      "MyStruct",
+			expectNil:     false,
+			expectedNames: []string{"New", "Create"},
 		},
 		{
-			name: "stdlib context package",
-			annotation: ImplementsAnnotation{
-				PackageName: "context",
-			},
-			expectedFullPath: "context",
-			expectedNotFound: false,
+			name:          "three constructors",
+			comment:       "// @constructor New, Create, Build",
+			typeName:      "MyStruct",
+			expectNil:     false,
+			expectedNames: []string{"New", "Create", "Build"},
 		},
 		{
-			name: "non-imported package",
-			annotation: ImplementsAnnotation{
-				PackageName: "http", // not imported in withimports
-			},
-			expectedFullPath: "",
-			expectedNotFound: true,
+			name:      "no constructor name - should return nil",
+			comment:   "// @constructor",
+			typeName:  "User",
+			expectNil: true,
 		},
 		{
-			name: "non-existent package",
-			annotation: ImplementsAnnotation{
-				PackageName: "nonexistent",
-			},
-			expectedFullPath: "",
-			expectedNotFound: true,
+			name:          "with extra spaces",
+			comment:       "//   @constructor   New  ,  Create   ",
+			typeName:      "MyStruct",
+			expectNil:     false,
+			expectedNames: []string{"New", "Create"},
+		},
+		{
+			name:          "with trailing comma",
+			comment:       "// @constructor New, Create,",
+			typeName:      "MyStruct",
+			expectNil:     false,
+			expectedNames: []string{"New", "Create"},
+		},
+		{
+			name:      "only commas - should return nil",
+			comment:   "// @constructor , , ,",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "not an annotation",
+			comment:   "// This is a regular comment",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "wrong annotation",
+			comment:   "// @implements Something",
+			typeName:  "MyStruct",
+			expectNil: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			annot := tt.annotation
-			resolvePackagePath(&annot, pass.Pkg)
+			result := parseConstructorAnnotation(tt.comment, tt.typeName, 0)
 
-			assert.Equal(t, tt.expectedFullPath, annot.PackageFullPath)
-			assert.Equal(t, tt.expectedNotFound, annot.PackageNotFound)
+			if tt.expectNil {
+				assert.Nil(t, result)
+			} else {
+				require.NotNil(t, result)
+				assert.Equal(t, tt.typeName, result.OnType)
+				assert.Equal(t, tt.expectedNames, result.ConstructorNames)
+			}
 		})
 	}
 }
 
-func TestToInterfaceQuery(t *testing.T) {
-	annotations := []ImplementsAnnotation{
+func TestReadAllAnnotations(t *testing.T) {
+	pass := createTestPass(t, "withimports")
+
+	annotations := ReadAllAnnotations(pass)
+
+	require.NotEmpty(t, annotations.ImplementsAnnotations, "expected to find implements annotations")
+
+	// Test @implements annotations
+	t.Run("ImplementsAnnotations", func(t *testing.T) {
+		// Helper to find annotation
+		findImplements := func(onType, interfaceName string) *ImplementsAnnotation {
+			for _, a := range annotations.ImplementsAnnotations {
+				if a.OnType == onType && a.InterfaceName == interfaceName {
+					return &a
+				}
+			}
+			return nil
+		}
+
+		t.Run("MyReader implements io.Reader", func(t *testing.T) {
+			annot := findImplements("MyReader", "Reader")
+			require.NotNil(t, annot, "annotation not found")
+
+			assert.Equal(t, "MyReader", annot.OnType)
+			assert.Equal(t, "Reader", annot.InterfaceName)
+			assert.Equal(t, "io", annot.PackageName)
+			assert.True(t, annot.IsPointer)
+			assert.Equal(t, "io", annot.PackageFullPath)
+			assert.False(t, annot.PackageNotFound)
+		})
+
+		t.Run("MyWriteCloser implements io.Writer", func(t *testing.T) {
+			annot := findImplements("MyWriteCloser", "Writer")
+			require.NotNil(t, annot, "annotation not found")
+
+			assert.Equal(t, "MyWriteCloser", annot.OnType)
+			assert.Equal(t, "Writer", annot.InterfaceName)
+			assert.Equal(t, "io", annot.PackageName)
+			assert.True(t, annot.IsPointer)
+			assert.Equal(t, "io", annot.PackageFullPath)
+			assert.False(t, annot.PackageNotFound)
+		})
+
+		t.Run("MyWriteCloser implements io.Closer", func(t *testing.T) {
+			annot := findImplements("MyWriteCloser", "Closer")
+			require.NotNil(t, annot, "annotation not found")
+
+			assert.Equal(t, "MyWriteCloser", annot.OnType)
+			assert.Equal(t, "Closer", annot.InterfaceName)
+			assert.Equal(t, "io", annot.PackageName)
+			assert.True(t, annot.IsPointer)
+			assert.Equal(t, "io", annot.PackageFullPath)
+			assert.False(t, annot.PackageNotFound)
+		})
+
+		t.Run("MyContext implements context.Context", func(t *testing.T) {
+			annot := findImplements("MyContext", "Context")
+			require.NotNil(t, annot, "annotation not found")
+
+			assert.Equal(t, "MyContext", annot.OnType)
+			assert.Equal(t, "Context", annot.InterfaceName)
+			assert.Equal(t, "context", annot.PackageName)
+			assert.True(t, annot.IsPointer)
+			assert.Equal(t, "context", annot.PackageFullPath)
+			assert.False(t, annot.PackageNotFound)
+		})
+	})
+}
+
+func TestImportMapAdd(t *testing.T) {
+	importMap := &ImportMap{}
+
+	// Add simple import
+	importMap.Add(&ast.ImportSpec{
+		Path: &ast.BasicLit{Value: `"io"`},
+	})
+
+	// Add import with alias
+	importMap.Add(&ast.ImportSpec{
+		Name: &ast.Ident{Name: "foo"},
+		Path: &ast.BasicLit{Value: `"github.com/example/bar"`},
+	})
+
+	// Add another import
+	importMap.Add(&ast.ImportSpec{
+		Path: &ast.BasicLit{Value: `"context"`},
+	})
+
+	assert.Len(t, *importMap, 3)
+
+	assert.Equal(t, "io", (*importMap)[0].FullPath)
+	assert.Equal(t, "", (*importMap)[0].Alias)
+
+	assert.Equal(t, "github.com/example/bar", (*importMap)[1].FullPath)
+	assert.Equal(t, "foo", (*importMap)[1].Alias)
+
+	assert.Equal(t, "context", (*importMap)[2].FullPath)
+	assert.Equal(t, "", (*importMap)[2].Alias)
+}
+
+func TestImportMapFind(t *testing.T) {
+	importMap := &ImportMap{}
+
+	// Add imports
+	importMap.Add(&ast.ImportSpec{
+		Path: &ast.BasicLit{Value: `"io"`},
+	})
+	importMap.Add(&ast.ImportSpec{
+		Name: &ast.Ident{Name: "foo"},
+		Path: &ast.BasicLit{Value: `"github.com/example/bar"`},
+	})
+	importMap.Add(&ast.ImportSpec{
+		Path: &ast.BasicLit{Value: `"github.com/example/baz"`},
+	})
+	importMap.Add(&ast.ImportSpec{
+		Path: &ast.BasicLit{Value: `"context"`},
+	})
+
+	tests := []struct {
+		name         string
+		shortName    string
+		expectNil    bool
+		expectedPath string
+	}{
 		{
-			InterfaceName:   "Reader",
-			PackageName:     "io",
-			PackageFullPath: "io",
-			PackageNotFound: false,
+			name:         "find by alias first",
+			shortName:    "foo",
+			expectNil:    false,
+			expectedPath: "github.com/example/bar",
 		},
 		{
-			InterfaceName:   "Writer",
-			PackageName:     "io",
-			PackageFullPath: "io",
-			PackageNotFound: false,
+			name:         "find by suffix when no alias",
+			shortName:    "io",
+			expectNil:    false,
+			expectedPath: "io",
 		},
 		{
-			InterfaceName:   "ResponseWriter",
-			PackageName:     "http",
-			PackageFullPath: "",
-			PackageNotFound: true, // Should be skipped
+			name:         "find by last path component",
+			shortName:    "baz",
+			expectNil:    false,
+			expectedPath: "github.com/example/baz",
 		},
 		{
-			InterfaceName:   "MyInterface",
-			PackageName:     "",
-			PackageFullPath: "current/pkg/path",
-			PackageNotFound: false,
+			name:         "find context",
+			shortName:    "context",
+			expectNil:    false,
+			expectedPath: "context",
+		},
+		{
+			name:      "not found",
+			shortName: "nonexistent",
+			expectNil: true,
+		},
+		{
+			name:      "empty string",
+			shortName: "",
+			expectNil: true,
 		},
 	}
 
-	queries := toInterfaceQuery(annotations)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := importMap.Find(tt.shortName)
+
+			if tt.expectNil {
+				assert.Nil(t, result)
+			} else {
+				require.NotNil(t, result)
+				assert.Equal(t, tt.expectedPath, result.FullPath)
+			}
+		})
+	}
+}
+
+func TestImportMapFindPriority(t *testing.T) {
+	// Test that alias has priority over suffix match
+	importMap := &ImportMap{}
+
+	// Add import with path "github.com/example/bar"
+	importMap.Add(&ast.ImportSpec{
+		Path: &ast.BasicLit{Value: `"github.com/example/bar"`},
+	})
+
+	// Add import with alias "bar" pointing to different package
+	importMap.Add(&ast.ImportSpec{
+		Name: &ast.Ident{Name: "bar"},
+		Path: &ast.BasicLit{Value: `"github.com/other/package"`},
+	})
+
+	// When searching for "bar", should find the aliased one first
+	result := importMap.Find("bar")
+	require.NotNil(t, result)
+	assert.Equal(t, "github.com/other/package", result.FullPath)
+	assert.Equal(t, "bar", result.Alias)
+}
+
+func TestToInterfaceQuery(t *testing.T) {
+	packageAnnotations := PackageAnnotations{
+		ImplementsAnnotations: []ImplementsAnnotation{
+			{
+				InterfaceName:   "Reader",
+				PackageName:     "io",
+				PackageFullPath: "io",
+				PackageNotFound: false,
+			},
+			{
+				InterfaceName:   "Writer",
+				PackageName:     "io",
+				PackageFullPath: "io",
+				PackageNotFound: false,
+			},
+			{
+				InterfaceName:   "ResponseWriter",
+				PackageName:     "http",
+				PackageFullPath: "",
+				PackageNotFound: true, // Should be skipped
+			},
+			{
+				InterfaceName:   "MyInterface",
+				PackageName:     "",
+				PackageFullPath: "current/pkg/path",
+				PackageNotFound: false,
+			},
+		},
+	}
+
+	queries := packageAnnotations.toInterfaceQuery()
 
 	require.Len(t, queries, 3, "should skip unresolved packages")
 
@@ -306,15 +489,17 @@ func TestToInterfaceQuery(t *testing.T) {
 }
 
 func TestToTypeQuery(t *testing.T) {
-	annotations := []ImplementsAnnotation{
-		{OnType: "MyReader"},
-		{OnType: "MyReader"}, // duplicate
-		{OnType: "MyWriter"},
-		{OnType: "MyContext"},
-		{OnType: "MyWriter"}, // duplicate
+	packageAnnotations := PackageAnnotations{
+		ImplementsAnnotations: []ImplementsAnnotation{
+			{OnType: "MyReader"},
+			{OnType: "MyReader"}, // duplicate
+			{OnType: "MyWriter"},
+			{OnType: "MyContext"},
+			{OnType: "MyWriter"}, // duplicate
+		},
 	}
 
-	queries := toTypeQuery(annotations)
+	queries := packageAnnotations.toTypeQuery()
 
 	require.Len(t, queries, 3, "should deduplicate")
 

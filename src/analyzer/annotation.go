@@ -3,15 +3,27 @@ package analyzer
 import (
 	"go/ast"
 	"go/token"
-	"go/types"
 	"regexp"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
+
+	"goagreement/src/util"
 )
+
+// PackageAnnotations
+// @implements &analysis.Fact
+// @constructor ReadAllAnnotations
+type PackageAnnotations struct {
+	ImplementsAnnotations  []ImplementsAnnotation
+	ConstructorAnnotations []ConstructorAnnotation
+}
+
+func (*PackageAnnotations) AFact() {}
 
 // ImplementsAnnotation
 // parse result of "@implements MyStruct" annotation
+// @constructor parseImplementsAnnotation
 type ImplementsAnnotation struct {
 	// Type on which annotation is placed
 	OnType    string // "MyStruct"
@@ -22,14 +34,25 @@ type ImplementsAnnotation struct {
 	PackageName   string // "" for the current package, "io" for imported (short name from annotation)
 	IsPointer     bool   // true if "@implements &Interface"
 
-	// Resolved package information (only available after ReadAllImplementsAnnotations)
+	// Resolved package information (only available after ReadAllAnnotations)
 	// NOTE: This is the only place where we have access to both AST (for comments)
 	// and package imports (for resolution). Other loaders are file-agnostic.
 	PackageFullPath string // Full import path: "io", "github.com/user/pkg"
 	PackageNotFound bool   // true if package was referenced but not found in imports
 }
 
-func toInterfaceQuery(input []ImplementsAnnotation) []InterfaceQuery {
+// @constructor parseConstructorAnnotation
+type ConstructorAnnotation struct {
+	// Type on which annotation is placed
+	OnType    string // "MyStruct"
+	OnTypePos token.Pos
+
+	ConstructorNames []string // ["New", "Create"]
+}
+
+func (p *PackageAnnotations) toInterfaceQuery() []InterfaceQuery {
+	input := p.ImplementsAnnotations
+
 	var result []InterfaceQuery
 
 	for _, v := range input {
@@ -46,7 +69,9 @@ func toInterfaceQuery(input []ImplementsAnnotation) []InterfaceQuery {
 	return result
 }
 
-func toTypeQuery(input []ImplementsAnnotation) []TypeQuery {
+func (p *PackageAnnotations) toTypeQuery() []TypeQuery {
+	input := p.ImplementsAnnotations
+
 	var result []TypeQuery
 
 	var dedupMap = make(map[string]bool)
@@ -79,8 +104,21 @@ var implementsRegex = regexp.MustCompile(
 	// 3: interface name (required)
 )
 
+var constructorRegex = regexp.MustCompile(
+	`^\s*//\s*@constructor(?:\s+(.+?))?\s*$`,
+	//                              ^1
+	// 1: comma-separated constructor names (optional)
+)
+
 // parseImplementsAnnotation parses string "@implements &pkg.Interface" or "@implements Interface"
-func parseImplementsAnnotation(commentText string, typeName string, pos token.Pos) *ImplementsAnnotation {
+// and resolves package path immediately using importMap
+func parseImplementsAnnotation(
+	commentText string,
+	typeName string,
+	pos token.Pos,
+	imports *importmap.ImportMap,
+	currentPkgPath string,
+) *ImplementsAnnotation {
 	match := implementsRegex.FindStringSubmatch(commentText)
 	if match == nil {
 		return nil
@@ -90,55 +128,154 @@ func parseImplementsAnnotation(commentText string, typeName string, pos token.Po
 	// match[2] = "pkg" or ""
 	// match[3] = "Interface"
 
-	return &ImplementsAnnotation{
+	annotation := &ImplementsAnnotation{
 		IsPointer:     match[1] == "&",
 		PackageName:   match[2],
 		InterfaceName: match[3],
 		OnType:        typeName,
 		OnTypePos:     pos,
-		// ResolvePackagePath will set packageFullPath and PackageNotFound
 	}
-}
 
-// resolvePackagePath resolves a short package name to a full import path
-// FIXME should be a pure function
-func resolvePackagePath(annotation *ImplementsAnnotation, pkg *types.Package) {
-	// Empty package name means current package
+	// Resolve package path immediately
 	if annotation.PackageName == "" {
-		annotation.PackageFullPath = pkg.Path()
+		// Current package
+		annotation.PackageFullPath = currentPkgPath
 		annotation.PackageNotFound = false
-		return
-	}
-
-	// Search in imports by package name (alias or actual name)
-	for _, imp := range pkg.Imports() {
-		// Check both package name and potential alias
-		// Note: we don't have access to actual aliases from AST here,
-		// so we match by package's last component name
-		if imp.Name() == annotation.PackageName {
-			annotation.PackageFullPath = imp.Path()
+	} else {
+		// Look up in imports
+		imp := imports.Find(annotation.PackageName)
+		if imp != nil {
+			annotation.PackageFullPath = imp.FullPath
 			annotation.PackageNotFound = false
-			return
+		} else {
+			annotation.PackageFullPath = ""
+			annotation.PackageNotFound = true
 		}
 	}
 
-	// Package not found in imports
-	annotation.PackageNotFound = true
-	annotation.PackageFullPath = "" // Keep empty to signal unresolved
+	return annotation
 }
 
-func ReadAllImplementsAnnotations(pass *analysis.Pass) []ImplementsAnnotation {
-	var result []ImplementsAnnotation
+// parseConstructorAnnotation parses string "@constructor New" or "@constructor New, Create"
+func parseConstructorAnnotation(commentText string, typeName string, pos token.Pos) *ConstructorAnnotation {
+	match := constructorRegex.FindStringSubmatch(commentText)
+	if match == nil {
+		return nil
+	}
+
+	// match[1] = "New, Create" or ""
+	namesStr := strings.TrimSpace(match[1])
+
+	// If no names provided, return nil (user must specify constructor names explicitly)
+	if namesStr == "" {
+		return nil
+	}
+
+	// Split by comma and trim each name
+	var names []string
+	parts := strings.Split(namesStr, ",")
+	for _, part := range parts {
+		name := strings.TrimSpace(part)
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+
+	// If after trimming we have no names, return nil
+	if len(names) == 0 {
+		return nil
+	}
+
+	return &ConstructorAnnotation{
+		OnType:           typeName,
+		OnTypePos:        pos,
+		ConstructorNames: names,
+	}
+}
+
+// Import represents a single import from AST
+type Import struct {
+	Alias    string          // explicit alias (if present) or empty
+	FullPath string          // full import path like "io" or "github.com/user/pkg"
+	Spec     *ast.ImportSpec // original AST node
+}
+
+// ImportMap is a collection of imports with lookup methods
+type ImportMap []Import
+
+// Add adds an import spec to the map
+func (m *ImportMap) Add(spec *ast.ImportSpec) {
+	if spec == nil || spec.Path == nil {
+		return
+	}
+
+	fullPath := strings.Trim(spec.Path.Value, `"`)
+
+	var alias string
+	if spec.Name != nil {
+		// Explicit alias: import foo "path"
+		alias = spec.Name.Name
+	}
+
+	*m = append(*m, Import{
+		Alias:    alias,
+		FullPath: fullPath,
+		Spec:     spec,
+	})
+}
+
+// Find searches for an import by short name
+// Returns nil if not found
+func (m *ImportMap) Find(shortName string) *Import {
+	if shortName == "" {
+		return nil
+	}
+
+	// Step 1: Search by explicit alias first
+	for i := range *m {
+		imp := &(*m)[i]
+		if imp.Alias != "" && imp.Alias == shortName {
+			return imp
+		}
+	}
+
+	// Step 2: Fallback to suffix match (last path component)
+	for i := range *m {
+		imp := &(*m)[i]
+		// Extract last component from path
+		parts := strings.Split(imp.FullPath, "/")
+		lastComponent := parts[len(parts)-1]
+
+		if lastComponent == shortName {
+			return imp
+		}
+	}
+
+	// Not found
+	return nil
+}
+
+func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
+	var implements []ImplementsAnnotation
+	var constructors []ConstructorAnnotation
+
+	currentPkgPath := pass.Pkg.Path()
 
 	for _, file := range pass.Files {
-		ast.Inspect(file, func(n ast.Node) bool {
+		// Build import map for this file
+		imports := &importmap.ImportMap{}
+		for _, imp := range file.Imports {
+			imports.Add(imp)
+		}
+
+		for _, n := range file.Decls {
 			genDecl, ok := n.(*ast.GenDecl)
 			if !ok {
-				return true
+				continue
 			}
 
 			if genDecl.Tok != token.TYPE {
-				return true
+				continue
 			}
 
 			for _, spec := range genDecl.Specs {
@@ -157,30 +294,40 @@ func ReadAllImplementsAnnotations(pass *analysis.Pass) []ImplementsAnnotation {
 					continue
 				}
 
+				typeName := typeSpec.Name.Name
+				pos := typeSpec.Pos()
+
 				for _, comment := range doc.List {
 					text := comment.Text
-					if !strings.Contains(text, "@implements") {
+
+					// Micro-optimization: skip comments without annotations
+					if !strings.Contains(text, "@") {
 						continue
 					}
 
-					// Parse annotation
-					typeName := typeSpec.Name.Name
-					pos := typeSpec.Pos()
-					annotation := parseImplementsAnnotation(text, typeName, pos)
-					if annotation == nil {
-						continue // Failed to parse
+					// Parse @implements
+					if strings.Contains(text, "@implements") {
+						annotation := parseImplementsAnnotation(text, typeName, pos, imports, currentPkgPath)
+						if annotation != nil {
+							implements = append(implements, *annotation)
+						}
 					}
 
-					// Resolve the package path
-					resolvePackagePath(annotation, pass.Pkg)
-
-					result = append(result, *annotation)
+					// Parse @constructor
+					if strings.Contains(text, "@constructor") {
+						annotation := parseConstructorAnnotation(text, typeName, pos)
+						if annotation != nil {
+							constructors = append(constructors, *annotation)
+						}
+					}
 				}
 			}
+		}
 
-			return true
-		})
 	}
 
-	return result
+	return PackageAnnotations{
+		ImplementsAnnotations:  implements,
+		ConstructorAnnotations: constructors,
+	}
 }

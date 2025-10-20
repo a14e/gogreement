@@ -233,8 +233,9 @@ func reportProblems(
 		pass.Report(analysis.Diagnostic{
 			Pos: mp.Pos,
 			Message: fmt.Sprintf(
-				"package %q referenced in @implements annotation is not imported",
+				"package %q referenced in @implements annotation on type \"%s\" is not imported",
 				mp.PackageName,
+				mp.TypeName,
 			),
 		})
 	}
@@ -248,7 +249,7 @@ func reportProblems(
 		pass.Report(analysis.Diagnostic{
 			Pos: mi.Pos,
 			Message: fmt.Sprintf(
-				"interface %s%s not found for type %s",
+				"interface \"%s%s\" not found for type \"%s\"",
 				pkgPrefix,
 				mi.InterfaceName,
 				mi.TypeName,
@@ -270,7 +271,7 @@ func reportProblems(
 		}
 
 		message := fmt.Sprintf(
-			"type %s does not implement interface \"%s%s\"\nmissing methods:\n%s",
+			"type \"%s\" does not implement interface \"%s%s\"\nmissing methods:\n%s",
 			mm.TypeName,
 			pkgPrefix,
 			mm.InterfaceName,
