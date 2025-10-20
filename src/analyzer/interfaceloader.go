@@ -6,19 +6,25 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
+// InterfaceModel
+// @immutable
 type InterfaceModel struct {
 	Name    string
 	Package string
 	Methods []InterfaceMethod
 }
 
+// InterfaceMethod
 // FIXME store signature
+// @immutable
 type InterfaceMethod struct {
 	Name    string
 	Inputs  []InterfaceType
 	Outputs []InterfaceType
 }
 
+// InterfaceType
+// @immutable
 type InterfaceType struct {
 	TypeName    string
 	TypePackage string
@@ -27,6 +33,7 @@ type InterfaceType struct {
 }
 
 // InterfaceQuery represents what interface we're looking for
+// @immutable
 type InterfaceQuery struct {
 	InterfaceName string
 	PackageName   string // empty string means current package

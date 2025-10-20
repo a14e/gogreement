@@ -10,12 +10,14 @@ import (
 
 // ========== Error Types ==========
 
+// @immutable
 type MissingPackageReport struct {
 	PackageName string
 	TypeName    string
 	Pos         token.Pos
 }
 
+// @immutable
 type MissingInterfaceReport struct {
 	InterfaceName string
 	PackageName   string
@@ -23,6 +25,7 @@ type MissingInterfaceReport struct {
 	Pos           token.Pos
 }
 
+// @immutable
 type MissingMethodsReport struct {
 	InterfaceName string
 	PackageName   string

@@ -7,14 +7,16 @@ import (
 )
 
 // TypeModel represents a parsed named type with its methods
+// @immutable
 type TypeModel struct {
 	Name           string
 	Package        string
-	UnderlyingType string // "struct", "int", "string", etc.
+	UnderlyingType string // "struct", "int", "string", etc. // FIXME Do We need this?
 	Methods        []TypeMethod
 }
 
 // TypeMethod represents a method of a type
+// @immutable
 type TypeMethod struct {
 	Name              string
 	Inputs            []MethodType
@@ -23,6 +25,7 @@ type TypeMethod struct {
 }
 
 // MethodType represents a type in method signature
+// @immutable
 type MethodType struct {
 	TypeName    string
 	TypePackage string
@@ -31,9 +34,10 @@ type MethodType struct {
 }
 
 // TypeQuery represents what type we're looking for
+// @immutable
 type TypeQuery struct {
 	TypeName string
-	// No PackageName - we only search in current package
+	// No PackageName - we only search in the current package
 }
 
 // LoadTypes loads specified named types from the current package

@@ -14,9 +14,11 @@ import (
 // PackageAnnotations
 // @implements &analysis.Fact
 // @constructor ReadAllAnnotations
+// @immutable
 type PackageAnnotations struct {
 	ImplementsAnnotations  []ImplementsAnnotation
 	ConstructorAnnotations []ConstructorAnnotation
+	ImmutableAnnotations   []ImmutableAnnotation
 }
 
 func (*PackageAnnotations) AFact() {}
@@ -24,6 +26,7 @@ func (*PackageAnnotations) AFact() {}
 // ImplementsAnnotation
 // parse result of "@implements MyStruct" annotation
 // @constructor parseImplementsAnnotation
+// @immutable
 type ImplementsAnnotation struct {
 	// Type on which annotation is placed
 	OnType    string // "MyStruct"
@@ -42,12 +45,20 @@ type ImplementsAnnotation struct {
 }
 
 // @constructor parseConstructorAnnotation
+// @immutable
 type ConstructorAnnotation struct {
 	// Type on which annotation is placed
 	OnType    string // "MyStruct"
 	OnTypePos token.Pos
 
 	ConstructorNames []string // ["New", "Create"]
+}
+
+// @immutable
+type ImmutableAnnotation struct {
+	// Type on which annotation is placed
+	OnType    string // "MyStruct"
+	OnTypePos token.Pos
 }
 
 func (p *PackageAnnotations) toInterfaceQuery() []InterfaceQuery {
@@ -106,6 +117,12 @@ var implementsRegex = regexp.MustCompile(
 
 var constructorRegex = regexp.MustCompile(
 	`^\s*//\s*@constructor(?:\s+(.+?))?\s*$`,
+	//                              ^1
+	// 1: comma-separated constructor names (optional)
+)
+
+var immutableRegex = regexp.MustCompile(
+	`^\s*//\s*@immutable\s*$`,
 	//                              ^1
 	// 1: comma-separated constructor names (optional)
 )
@@ -193,6 +210,18 @@ func parseConstructorAnnotation(commentText string, typeName string, pos token.P
 	}
 }
 
+func parseImmutableAnnotation(commentText string, typeName string, pos token.Pos) *ImmutableAnnotation {
+	match := immutableRegex.FindStringSubmatch(commentText)
+	if match == nil {
+		return nil
+	}
+
+	return &ImmutableAnnotation{
+		OnType:    typeName,
+		OnTypePos: pos,
+	}
+}
+
 // Import represents a single import from AST
 type Import struct {
 	Alias    string          // explicit alias (if present) or empty
@@ -258,6 +287,7 @@ func (m *ImportMap) Find(shortName string) *Import {
 func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
 	var implements []ImplementsAnnotation
 	var constructors []ConstructorAnnotation
+	var immutables []ImmutableAnnotation
 
 	currentPkgPath := pass.Pkg.Path()
 
@@ -320,6 +350,14 @@ func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
 							constructors = append(constructors, *annotation)
 						}
 					}
+
+					// Parse @immutable
+					if strings.Contains(text, "@immutable") {
+						annotation := parseImmutableAnnotation(text, typeName, pos)
+						if annotation != nil {
+							immutables = append(immutables, *annotation)
+						}
+					}
 				}
 			}
 		}
@@ -329,5 +367,6 @@ func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
 	return PackageAnnotations{
 		ImplementsAnnotations:  implements,
 		ConstructorAnnotations: constructors,
+		ImmutableAnnotations:   immutables,
 	}
 }

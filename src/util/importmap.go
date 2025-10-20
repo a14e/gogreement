@@ -6,6 +6,7 @@ import (
 )
 
 // Import represents a single import from AST
+// @immutable
 type Import struct {
 	Alias    string // explicit alias (if present) or empty
 	FullPath string // full import path like "io" or "github.com/user/pkg"
