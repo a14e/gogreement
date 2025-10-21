@@ -1,8 +1,9 @@
-package analyzer
+package implements
 
 import (
 	"fmt"
 	"go/token"
+	"goagreement/src/annotations"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -34,10 +35,8 @@ type MissingMethodsReport struct {
 	Pos           token.Pos
 }
 
-// ========== Phase 2: Validation Functions ==========
-
-// findMissingPackages identifies annotations with unresolved package references
-func findMissingPackages(annotations []ImplementsAnnotation) []MissingPackageReport {
+// FindMissingPackages identifies annotations with unresolved package references
+func FindMissingPackages(annotations []annotations.ImplementsAnnotation) []MissingPackageReport {
 	var result []MissingPackageReport
 
 	for _, ann := range annotations {
@@ -53,9 +52,9 @@ func findMissingPackages(annotations []ImplementsAnnotation) []MissingPackageRep
 	return result
 }
 
-// findMissingInterfaces identifies annotations where the interface was not found
-func findMissingInterfaces(
-	annotations []ImplementsAnnotation,
+// FindMissingInterfaces identifies annotations where the interface was not found
+func FindMissingInterfaces(
+	annotations []annotations.ImplementsAnnotation,
 	interfaces []*InterfaceModel,
 ) []MissingInterfaceReport {
 	var result []MissingInterfaceReport
@@ -88,9 +87,9 @@ func findMissingInterfaces(
 	return result
 }
 
-// findMissingMethods identifies types that don't implement required interfaces
-func findMissingMethods(
-	annotations []ImplementsAnnotation,
+// FindMissingMethods identifies types that don't implement required interfaces
+func FindMissingMethods(
+	annotations []annotations.ImplementsAnnotation,
 	interfaces []*InterfaceModel,
 	types []*TypeModel,
 ) []MissingMethodsReport {
@@ -118,7 +117,7 @@ func findMissingMethods(
 		ifaceKey := ann.PackageFullPath + "." + ann.InterfaceName
 		iface, ifaceExists := interfaceIndex[ifaceKey]
 		if !ifaceExists {
-			continue // Already reported in findMissingInterfaces
+			continue // Already reported in FindMissingInterfaces
 		}
 
 		typeModel, typeExists := typeIndex[ann.OnType]
@@ -225,7 +224,7 @@ func typesMatch(t1 *MethodType, t2 *InterfaceType) bool {
 
 // ========== Phase 3: Reporting Functions ==========
 
-func reportProblems(
+func ReportProblems(
 	pass *analysis.Pass,
 	missingPackages []MissingPackageReport,
 	missingInterfaces []MissingInterfaceReport,

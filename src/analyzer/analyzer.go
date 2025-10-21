@@ -1,33 +1,84 @@
 package analyzer
 
 import (
+	"goagreement/src/annotations"
+	"goagreement/src/implements"
+	"reflect"
+
 	"golang.org/x/tools/go/analysis"
 )
 
-// Analyzer is the entry point for go/analysis
+// AnnotationReader reads annotations from code and exports them as facts
+var AnnotationReader = &analysis.Analyzer{
+	Name:       "annotationreader",
+	Doc:        "Reads @implements, @immutable, @constructor annotations from code",
+	Run:        runAnnotationReader,
+	ResultType: reflect.TypeOf(annotations.PackageAnnotations{}),
+	FactTypes: []analysis.Fact{
+		new(annotations.PackageAnnotations),
+	},
+}
+
+func runAnnotationReader(pass *analysis.Pass) (interface{}, error) {
+	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	pass.ExportPackageFact(&packageAnnotations)
+	return packageAnnotations, nil
+}
+
+// ImplementsChecker checks @implements annotations
+var ImplementsChecker = &analysis.Analyzer{
+	Name: "implementschecker",
+	Doc:  "Checks that types implement interfaces as declared by @implements",
+	Run:  runImplementsChecker,
+	Requires: []*analysis.Analyzer{
+		AnnotationReader,
+	},
+}
+
+func runImplementsChecker(pass *analysis.Pass) (interface{}, error) {
+	result := pass.ResultOf[AnnotationReader]
+	if result == nil {
+		return nil, nil
+	}
+
+	localAnnotations, ok := result.(annotations.PackageAnnotations)
+	if !ok {
+		return nil, nil
+	}
+
+	if len(localAnnotations.ImplementsAnnotations) == 0 {
+		return nil, nil
+	}
+
+	// Load interfaces and types
+	interfaceQueries := localAnnotations.ToInterfaceQuery()
+	interfaces := implements.LoadInterfaces(pass, interfaceQueries)
+
+	typeQueries := localAnnotations.ToTypeQuery()
+	types := implements.LoadTypes(pass, typeQueries)
+
+	// Validate
+	missingPackages := implements.FindMissingPackages(localAnnotations.ImplementsAnnotations)
+	missingInterfaces := implements.FindMissingInterfaces(localAnnotations.ImplementsAnnotations, interfaces)
+	missingMethods := implements.FindMissingMethods(localAnnotations.ImplementsAnnotations, interfaces, types)
+
+	// Report problems
+	implements.ReportProblems(pass, missingPackages, missingInterfaces, missingMethods)
+
+	return nil, nil
+}
+
+// Analyzer is the main entry point combining all checks
 var Analyzer = &analysis.Analyzer{
 	Name: "goagreement",
 	Doc:  "Checks code contracts via annotations",
 	Run:  run,
+	Requires: []*analysis.Analyzer{
+		AnnotationReader,
+		ImplementsChecker,
+	},
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	// ========== Phase 1: Loading ==========
-	annotations := ReadAllAnnotations(pass)
-
-	interfaceQueries := annotations.toInterfaceQuery()
-	interfaces := LoadInterfaces(pass, interfaceQueries)
-
-	typeQueries := annotations.toTypeQuery()
-	types := LoadTypes(pass, typeQueries)
-
-	// ========== Phase 2: Validation ==========
-	missingPackages := findMissingPackages(annotations.ImplementsAnnotations)
-	missingInterfaces := findMissingInterfaces(annotations.ImplementsAnnotations, interfaces)
-	missingMethods := findMissingMethods(annotations.ImplementsAnnotations, interfaces, types)
-
-	// ========== Phase 3: Reporting ==========
-	reportProblems(pass, missingPackages, missingInterfaces, missingMethods)
-
 	return nil, nil
 }

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"golang.org/x/tools/go/analysis/singlechecker"
+	"golang.org/x/tools/go/analysis/multichecker"
 
 	"goagreement/src/analyzer"
 )
@@ -41,5 +41,8 @@ func New() *MyStruct {
 }
 
 func main() {
-	singlechecker.Main(analyzer.Analyzer)
+	multichecker.Main(
+		analyzer.AnnotationReader,
+		analyzer.ImplementsChecker,
+	)
 }

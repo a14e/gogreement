@@ -1,17 +1,19 @@
-package analyzer
+package implements
 
 import (
+	"goagreement/src/annotations"
+	"goagreement/src/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLoadTypesVariousKinds(t *testing.T) {
-	pass := createTestPass(t, "withimports")
+	pass := testutil.CreateTestPass(t, "withimports")
 
 	tests := []struct {
 		name               string
-		queries            []TypeQuery
+		queries            []annotations.TypeQuery
 		expectedCount      int
 		expectedType       string
 		expectedUnderlying string
@@ -19,7 +21,7 @@ func TestLoadTypesVariousKinds(t *testing.T) {
 	}{
 		{
 			name: "load struct type",
-			queries: []TypeQuery{
+			queries: []annotations.TypeQuery{
 				{TypeName: "MyReader"},
 			},
 			expectedCount:      1,
@@ -29,7 +31,7 @@ func TestLoadTypesVariousKinds(t *testing.T) {
 		},
 		{
 			name: "load int alias",
-			queries: []TypeQuery{
+			queries: []annotations.TypeQuery{
 				{TypeName: "Duration"},
 			},
 			expectedCount:      1,
@@ -39,7 +41,7 @@ func TestLoadTypesVariousKinds(t *testing.T) {
 		},
 		{
 			name: "load string alias",
-			queries: []TypeQuery{
+			queries: []annotations.TypeQuery{
 				{TypeName: "MyString"},
 			},
 			expectedCount:      1,
@@ -49,7 +51,7 @@ func TestLoadTypesVariousKinds(t *testing.T) {
 		},
 		{
 			name: "load func type",
-			queries: []TypeQuery{
+			queries: []annotations.TypeQuery{
 				{TypeName: "HandlerFunc"},
 			},
 			expectedCount:      1,
@@ -59,7 +61,7 @@ func TestLoadTypesVariousKinds(t *testing.T) {
 		},
 		{
 			name: "load slice type",
-			queries: []TypeQuery{
+			queries: []annotations.TypeQuery{
 				{TypeName: "ByteSlice"},
 			},
 			expectedCount:      1,

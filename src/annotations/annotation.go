@@ -1,4 +1,4 @@
-package analyzer
+package annotations
 
 import (
 	"go/ast"
@@ -57,6 +57,13 @@ type ConstructorAnnotation struct {
 	ConstructorNames []string // ["New", "Create"]
 }
 
+// TypeQuery represents what type we're looking for
+// @immutable
+type TypeQuery struct {
+	TypeName string
+	// No PackageName - we only search in the current package
+}
+
 // @immutable
 type ImmutableAnnotation struct {
 	// Type on which annotation is placed
@@ -64,7 +71,14 @@ type ImmutableAnnotation struct {
 	OnTypePos token.Pos
 }
 
-func (p *PackageAnnotations) toInterfaceQuery() []InterfaceQuery {
+// InterfaceQuery represents what interface we're looking for
+// @immutable
+type InterfaceQuery struct {
+	InterfaceName string
+	PackageName   string // empty string means current package
+}
+
+func (p *PackageAnnotations) ToInterfaceQuery() []InterfaceQuery {
 	input := p.ImplementsAnnotations
 
 	var result []InterfaceQuery
@@ -83,7 +97,7 @@ func (p *PackageAnnotations) toInterfaceQuery() []InterfaceQuery {
 	return result
 }
 
-func (p *PackageAnnotations) toTypeQuery() []TypeQuery {
+func (p *PackageAnnotations) ToTypeQuery() []TypeQuery {
 	input := p.ImplementsAnnotations
 
 	var result []TypeQuery

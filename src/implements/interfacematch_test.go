@@ -1,23 +1,24 @@
-package analyzer
+package implements
 
 import (
+	annotations2 "goagreement/src/annotations"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-// ========== Tests for findMissingPackages ==========
+// ========== Tests for FindMissingPackages ==========
 
 func TestFindMissingPackages(t *testing.T) {
 	tests := []struct {
 		name        string
-		annotations []ImplementsAnnotation
+		annotations []annotations2.ImplementsAnnotation
 		expected    []MissingPackageReport
 		expectEmpty bool // NEW: flag for empty results
 	}{
 		{
 			name: "no missing packages",
-			annotations: []ImplementsAnnotation{
+			annotations: []annotations2.ImplementsAnnotation{
 				{
 					OnType:          "MyReader",
 					PackageName:     "io",
@@ -29,7 +30,7 @@ func TestFindMissingPackages(t *testing.T) {
 		},
 		{
 			name: "single missing package",
-			annotations: []ImplementsAnnotation{
+			annotations: []annotations2.ImplementsAnnotation{
 				{
 					OnType:          "MyWriter",
 					PackageName:     "http",
@@ -47,7 +48,7 @@ func TestFindMissingPackages(t *testing.T) {
 		},
 		{
 			name: "mixed - some found, some not",
-			annotations: []ImplementsAnnotation{
+			annotations: []annotations2.ImplementsAnnotation{
 				{
 					OnType:          "MyReader",
 					PackageName:     "io",
@@ -88,14 +89,14 @@ func TestFindMissingPackages(t *testing.T) {
 		},
 		{
 			name:        "empty annotations",
-			annotations: []ImplementsAnnotation{},
+			annotations: []annotations2.ImplementsAnnotation{},
 			expectEmpty: true, // Changed
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := findMissingPackages(tt.annotations)
+			result := FindMissingPackages(tt.annotations)
 
 			if tt.expectEmpty {
 				assert.Empty(t, result)
@@ -106,19 +107,19 @@ func TestFindMissingPackages(t *testing.T) {
 	}
 }
 
-// ========== Tests for findMissingInterfaces ==========
+// ========== Tests for FindMissingInterfaces ==========
 
 func TestFindMissingInterfaces(t *testing.T) {
 	tests := []struct {
 		name        string
-		annotations []ImplementsAnnotation
+		annotations []annotations2.ImplementsAnnotation
 		interfaces  []*InterfaceModel
 		expected    []MissingInterfaceReport
 		expectEmpty bool
 	}{
 		{
 			name: "all interfaces found",
-			annotations: []ImplementsAnnotation{
+			annotations: []annotations2.ImplementsAnnotation{
 				{
 					OnType:          "MyReader",
 					InterfaceName:   "Reader",
@@ -138,7 +139,7 @@ func TestFindMissingInterfaces(t *testing.T) {
 		},
 		{
 			name: "interface not found",
-			annotations: []ImplementsAnnotation{
+			annotations: []annotations2.ImplementsAnnotation{
 				{
 					OnType:          "MyWriter",
 					InterfaceName:   "NonExistent",
@@ -165,7 +166,7 @@ func TestFindMissingInterfaces(t *testing.T) {
 		},
 		{
 			name: "skip annotations with package not found",
-			annotations: []ImplementsAnnotation{
+			annotations: []annotations2.ImplementsAnnotation{
 				{
 					OnType:          "MyWriter",
 					InterfaceName:   "Writer",
@@ -180,7 +181,7 @@ func TestFindMissingInterfaces(t *testing.T) {
 		},
 		{
 			name: "mixed - some found, some not",
-			annotations: []ImplementsAnnotation{
+			annotations: []annotations2.ImplementsAnnotation{
 				{
 					OnType:          "MyReader",
 					InterfaceName:   "Reader",
@@ -231,7 +232,7 @@ func TestFindMissingInterfaces(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := findMissingInterfaces(tt.annotations, tt.interfaces)
+			result := FindMissingInterfaces(tt.annotations, tt.interfaces)
 
 			if tt.expectEmpty {
 				assert.Empty(t, result)
@@ -242,12 +243,12 @@ func TestFindMissingInterfaces(t *testing.T) {
 	}
 }
 
-// ========== Tests for findMissingMethods ==========
+// ========== Tests for FindMissingMethods ==========
 
 func TestFindMissingMethods(t *testing.T) {
 	tests := []struct {
 		name        string
-		annotations []ImplementsAnnotation
+		annotations []annotations2.ImplementsAnnotation
 		interfaces  []*InterfaceModel
 		types       []*TypeModel
 		expected    []MissingMethodsReport
@@ -255,7 +256,7 @@ func TestFindMissingMethods(t *testing.T) {
 	}{
 		{
 			name: "type implements interface fully",
-			annotations: []ImplementsAnnotation{
+			annotations: []annotations2.ImplementsAnnotation{
 				{
 					OnType:          "MyReader",
 					InterfaceName:   "Reader",
@@ -306,7 +307,7 @@ func TestFindMissingMethods(t *testing.T) {
 		},
 		{
 			name: "type missing method",
-			annotations: []ImplementsAnnotation{
+			annotations: []annotations2.ImplementsAnnotation{
 				{
 					OnType:          "MyReader",
 					InterfaceName:   "Reader",
@@ -376,7 +377,7 @@ func TestFindMissingMethods(t *testing.T) {
 		},
 		{
 			name: "type has wrong signature",
-			annotations: []ImplementsAnnotation{
+			annotations: []annotations2.ImplementsAnnotation{
 				{
 					OnType:          "MyReader",
 					InterfaceName:   "Reader",
@@ -446,7 +447,7 @@ func TestFindMissingMethods(t *testing.T) {
 		},
 		{
 			name: "value receiver required but only pointer receiver exists",
-			annotations: []ImplementsAnnotation{
+			annotations: []annotations2.ImplementsAnnotation{
 				{
 					OnType:          "MyReader",
 					InterfaceName:   "Reader",
@@ -516,7 +517,7 @@ func TestFindMissingMethods(t *testing.T) {
 		},
 		{
 			name: "skip when package not found",
-			annotations: []ImplementsAnnotation{
+			annotations: []annotations2.ImplementsAnnotation{
 				{
 					OnType:          "MyReader",
 					InterfaceName:   "Reader",
@@ -533,7 +534,7 @@ func TestFindMissingMethods(t *testing.T) {
 		},
 		{
 			name: "skip when interface not found",
-			annotations: []ImplementsAnnotation{
+			annotations: []annotations2.ImplementsAnnotation{
 				{
 					OnType:          "MyReader",
 					InterfaceName:   "NonExistent",
@@ -563,7 +564,7 @@ func TestFindMissingMethods(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := findMissingMethods(tt.annotations, tt.interfaces, tt.types)
+			result := FindMissingMethods(tt.annotations, tt.interfaces, tt.types)
 
 			if tt.expectEmpty {
 				assert.Empty(t, result)

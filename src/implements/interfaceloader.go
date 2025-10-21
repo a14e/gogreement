@@ -1,7 +1,8 @@
-package analyzer
+package implements
 
 import (
 	"go/types"
+	"goagreement/src/annotations"
 
 	"golang.org/x/tools/go/analysis"
 )
@@ -32,15 +33,8 @@ type InterfaceType struct {
 	IsVariadic  bool
 }
 
-// InterfaceQuery represents what interface we're looking for
-// @immutable
-type InterfaceQuery struct {
-	InterfaceName string
-	PackageName   string // empty string means current package
-}
-
 // LoadInterfaces loads specified interfaces from the analysis pass
-func LoadInterfaces(pass *analysis.Pass, queries []InterfaceQuery) []*InterfaceModel {
+func LoadInterfaces(pass *analysis.Pass, queries []annotations.InterfaceQuery) []*InterfaceModel {
 	var result []*InterfaceModel
 
 	// Group queries by package for efficient lookup

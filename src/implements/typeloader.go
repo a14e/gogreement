@@ -1,7 +1,8 @@
-package analyzer
+package implements
 
 import (
 	"go/types"
+	"goagreement/src/annotations"
 
 	"golang.org/x/tools/go/analysis"
 )
@@ -33,15 +34,8 @@ type MethodType struct {
 	IsVariadic  bool
 }
 
-// TypeQuery represents what type we're looking for
-// @immutable
-type TypeQuery struct {
-	TypeName string
-	// No PackageName - we only search in the current package
-}
-
 // LoadTypes loads specified named types from the current package
-func LoadTypes(pass *analysis.Pass, queries []TypeQuery) []*TypeModel {
+func LoadTypes(pass *analysis.Pass, queries []annotations.TypeQuery) []*TypeModel {
 	var result []*TypeModel
 
 	// Create a set of type names we're looking for

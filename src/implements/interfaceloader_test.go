@@ -1,102 +1,28 @@
-package analyzer
+package implements
 
 import (
-	"path/filepath"
-	"runtime"
-	"sync"
+	"goagreement/src/annotations"
+	"goagreement/src/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/packages"
 )
-
-var (
-	testPackageCache     = make(map[string]*analysis.Pass)
-	testPackageCacheLock sync.RWMutex
-)
-
-func getCachedPass(pkgName string) *analysis.Pass {
-	testPackageCacheLock.RLock()
-	defer testPackageCacheLock.RUnlock()
-	return testPackageCache[pkgName]
-}
-
-func setCachedPass(pkgName string, pass *analysis.Pass) {
-	testPackageCacheLock.Lock()
-	testPackageCache[pkgName] = pass
-	testPackageCacheLock.Unlock()
-}
-
-// getTestdataPath returns absolute path to testdata directory
-func getTestdataPath() string {
-	_, filename, _, _ := runtime.Caller(0)
-	dir := filepath.Dir(filename)
-	return filepath.Join(dir, "testdata")
-}
-
-// createTestPass creates a minimal analysis.Pass for testing
-func createTestPass(t *testing.T, pkgName string) *analysis.Pass {
-	if cached := getCachedPass(pkgName); cached != nil {
-		t.Logf("Using cached package: %s", pkgName)
-		return cached
-	}
-
-	testdataPath := getTestdataPath()
-
-	cfg := &packages.Config{
-		Mode: packages.NeedName | packages.NeedFiles | packages.NeedTypes |
-			packages.NeedImports | packages.NeedDeps | packages.NeedSyntax | packages.NeedTypesInfo,
-		Dir: testdataPath,
-	}
-
-	pattern := "./" + pkgName
-	pkgs, err := packages.Load(cfg, pattern)
-	require.NoError(t, err, "failed to load package")
-	require.NotEmpty(t, pkgs, "no packages loaded")
-
-	if len(pkgs[0].Errors) > 0 {
-		for _, e := range pkgs[0].Errors {
-			t.Logf("Error: %v", e)
-		}
-	}
-	require.Empty(t, pkgs[0].Errors, "package has errors")
-
-	// Debug: print imports
-	t.Logf("Package: %s", pkgs[0].Types.Path())
-	t.Logf("Imports count: %d", len(pkgs[0].Types.Imports()))
-	for _, imp := range pkgs[0].Types.Imports() {
-		t.Logf("  Import: %s (name: %s)", imp.Path(), imp.Name())
-	}
-
-	// Create analysis.Pass
-	pass := &analysis.Pass{
-		Pkg:       pkgs[0].Types,
-		Files:     pkgs[0].Syntax,
-		TypesInfo: pkgs[0].TypesInfo,
-	}
-
-	// Cache the result
-	setCachedPass(pkgName, pass)
-
-	return pass
-}
 
 func TestLoadInterfaces(t *testing.T) {
-	pass := createTestPass(t, "interfacesforloading")
+	pass := testutil.CreateTestPass(t, "interfacesforloading")
 	expectedPkgPath := pass.Pkg.Path()
 
 	tests := []struct {
 		name              string
-		queries           []InterfaceQuery
+		queries           []annotations.InterfaceQuery
 		expectedCount     int
 		expectedInterface string
 		expectedMethods   []string
 	}{
 		{
 			name: "load single interface from current package",
-			queries: []InterfaceQuery{
+			queries: []annotations.InterfaceQuery{
 				{InterfaceName: "Reader", PackageName: ""},
 			},
 			expectedCount:     1,
@@ -105,7 +31,7 @@ func TestLoadInterfaces(t *testing.T) {
 		},
 		{
 			name: "load single interface with explicit package path",
-			queries: []InterfaceQuery{
+			queries: []annotations.InterfaceQuery{
 				{InterfaceName: "Writer", PackageName: expectedPkgPath},
 			},
 			expectedCount:     1,
@@ -114,7 +40,7 @@ func TestLoadInterfaces(t *testing.T) {
 		},
 		{
 			name: "load multiple interfaces",
-			queries: []InterfaceQuery{
+			queries: []annotations.InterfaceQuery{
 				{InterfaceName: "Reader", PackageName: ""},
 				{InterfaceName: "Writer", PackageName: ""},
 			},
@@ -122,7 +48,7 @@ func TestLoadInterfaces(t *testing.T) {
 		},
 		{
 			name: "load Processor interface",
-			queries: []InterfaceQuery{
+			queries: []annotations.InterfaceQuery{
 				{InterfaceName: "Processor", PackageName: ""},
 			},
 			expectedCount:     1,
@@ -131,7 +57,7 @@ func TestLoadInterfaces(t *testing.T) {
 		},
 		{
 			name: "load Empty interface",
-			queries: []InterfaceQuery{
+			queries: []annotations.InterfaceQuery{
 				{InterfaceName: "Empty", PackageName: ""},
 			},
 			expectedCount:     1,
@@ -140,14 +66,14 @@ func TestLoadInterfaces(t *testing.T) {
 		},
 		{
 			name: "interface not found",
-			queries: []InterfaceQuery{
+			queries: []annotations.InterfaceQuery{
 				{InterfaceName: "NonExistent", PackageName: ""},
 			},
 			expectedCount: 0,
 		},
 		{
 			name: "load all test interfaces",
-			queries: []InterfaceQuery{
+			queries: []annotations.InterfaceQuery{
 				{InterfaceName: "Reader", PackageName: ""},
 				{InterfaceName: "Writer", PackageName: ""},
 				{InterfaceName: "Processor", PackageName: ""},
@@ -185,9 +111,9 @@ func TestLoadInterfaces(t *testing.T) {
 }
 
 func TestLoadInterfacesMethodSignatures(t *testing.T) {
-	pass := createTestPass(t, "interfacesforloading")
+	pass := testutil.CreateTestPass(t, "interfacesforloading")
 
-	queries := []InterfaceQuery{
+	queries := []annotations.InterfaceQuery{
 		{InterfaceName: "Reader", PackageName: ""},
 		{InterfaceName: "Processor", PackageName: ""},
 		{InterfaceName: "Writer", PackageName: ""},
@@ -297,17 +223,17 @@ func TestLoadInterfacesMethodSignatures(t *testing.T) {
 }
 
 func TestLoadInterfacesEmptyQueries(t *testing.T) {
-	pass := createTestPass(t, "interfacesforloading")
+	pass := testutil.CreateTestPass(t, "interfacesforloading")
 
-	result := LoadInterfaces(pass, []InterfaceQuery{})
+	result := LoadInterfaces(pass, []annotations.InterfaceQuery{})
 
 	assert.Empty(t, result, "expected no interfaces when queries are empty")
 }
 
 func TestLoadInterfacesDuplicateQueries(t *testing.T) {
-	pass := createTestPass(t, "interfacesforloading")
+	pass := testutil.CreateTestPass(t, "interfacesforloading")
 
-	queries := []InterfaceQuery{
+	queries := []annotations.InterfaceQuery{
 		{InterfaceName: "Reader", PackageName: ""},
 		{InterfaceName: "Reader", PackageName: ""}, // duplicate
 	}
@@ -320,11 +246,11 @@ func TestLoadInterfacesDuplicateQueries(t *testing.T) {
 }
 
 func TestLoadInterfacesFromStdlib(t *testing.T) {
-	pass := createTestPass(t, "withimports")
+	pass := testutil.CreateTestPass(t, "withimports")
 
 	tests := []struct {
 		name              string
-		queries           []InterfaceQuery
+		queries           []annotations.InterfaceQuery
 		expectedCount     int
 		expectedInterface string
 		expectedPackage   string
@@ -332,7 +258,7 @@ func TestLoadInterfacesFromStdlib(t *testing.T) {
 	}{
 		{
 			name: "load io.Reader from stdlib",
-			queries: []InterfaceQuery{
+			queries: []annotations.InterfaceQuery{
 				{InterfaceName: "Reader", PackageName: "io"},
 			},
 			expectedCount:     1,
@@ -342,7 +268,7 @@ func TestLoadInterfacesFromStdlib(t *testing.T) {
 		},
 		{
 			name: "load io.Writer from stdlib",
-			queries: []InterfaceQuery{
+			queries: []annotations.InterfaceQuery{
 				{InterfaceName: "Writer", PackageName: "io"},
 			},
 			expectedCount:     1,
@@ -352,7 +278,7 @@ func TestLoadInterfacesFromStdlib(t *testing.T) {
 		},
 		{
 			name: "load io.Closer from stdlib",
-			queries: []InterfaceQuery{
+			queries: []annotations.InterfaceQuery{
 				{InterfaceName: "Closer", PackageName: "io"},
 			},
 			expectedCount:     1,
@@ -362,7 +288,7 @@ func TestLoadInterfacesFromStdlib(t *testing.T) {
 		},
 		{
 			name: "load context.Context from stdlib",
-			queries: []InterfaceQuery{
+			queries: []annotations.InterfaceQuery{
 				{InterfaceName: "Context", PackageName: "context"},
 			},
 			expectedCount:     1,
@@ -372,7 +298,7 @@ func TestLoadInterfacesFromStdlib(t *testing.T) {
 		},
 		{
 			name: "load multiple stdlib interfaces",
-			queries: []InterfaceQuery{
+			queries: []annotations.InterfaceQuery{
 				{InterfaceName: "Reader", PackageName: "io"},
 				{InterfaceName: "Writer", PackageName: "io"},
 				{InterfaceName: "Closer", PackageName: "io"},
@@ -381,7 +307,7 @@ func TestLoadInterfacesFromStdlib(t *testing.T) {
 		},
 		{
 			name: "mix local and stdlib interfaces",
-			queries: []InterfaceQuery{
+			queries: []annotations.InterfaceQuery{
 				{InterfaceName: "Reader", PackageName: "io"}, // stdlib
 				{InterfaceName: "Reader", PackageName: ""},   // local (if exists)
 			},
@@ -417,9 +343,9 @@ func TestLoadInterfacesFromStdlib(t *testing.T) {
 }
 
 func TestLoadInterfacesStdlibMethodSignatures(t *testing.T) {
-	pass := createTestPass(t, "withimports")
+	pass := testutil.CreateTestPass(t, "withimports")
 
-	queries := []InterfaceQuery{
+	queries := []annotations.InterfaceQuery{
 		{InterfaceName: "Reader", PackageName: "io"},
 		{InterfaceName: "Writer", PackageName: "io"},
 		{InterfaceName: "Context", PackageName: "context"},
@@ -498,9 +424,9 @@ func TestLoadInterfacesStdlibMethodSignatures(t *testing.T) {
 }
 
 func TestLoadInterfacesNonExistentStdlib(t *testing.T) {
-	pass := createTestPass(t, "withimports")
+	pass := testutil.CreateTestPass(t, "withimports")
 
-	queries := []InterfaceQuery{
+	queries := []annotations.InterfaceQuery{
 		{InterfaceName: "NonExistentInterface", PackageName: "io"},
 	}
 
@@ -510,10 +436,10 @@ func TestLoadInterfacesNonExistentStdlib(t *testing.T) {
 }
 
 func TestLoadInterfacesUnimportedPackage(t *testing.T) {
-	pass := createTestPass(t, "withimports")
+	pass := testutil.CreateTestPass(t, "withimports")
 
 	// Try to load from a package that's not imported
-	queries := []InterfaceQuery{
+	queries := []annotations.InterfaceQuery{
 		{InterfaceName: "ResponseWriter", PackageName: "net/http"},
 	}
 

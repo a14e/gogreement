@@ -1,7 +1,8 @@
-package analyzer
+package annotations
 
 import (
 	"go/ast"
+	"goagreement/src/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -332,7 +333,7 @@ func TestParseImmutableAnnotation(t *testing.T) {
 }
 
 func TestReadAllAnnotations(t *testing.T) {
-	pass := createTestPass(t, "withimports")
+	pass := testutil.CreateTestPass(t, "withimports")
 
 	annotations := ReadAllAnnotations(pass)
 
@@ -454,7 +455,7 @@ func TestReadAllAnnotations(t *testing.T) {
 }
 
 func TestReadAllAnnotationsWithImmutable(t *testing.T) {
-	pass := createTestPass(t, "interfacesforloading")
+	pass := testutil.CreateTestPass(t, "interfacesforloading")
 
 	annotations := ReadAllAnnotations(pass)
 
@@ -523,7 +524,7 @@ func TestToTypeQuery(t *testing.T) {
 		},
 	}
 
-	queries := packageAnnotations.toTypeQuery()
+	queries := packageAnnotations.ToTypeQuery()
 
 	require.Len(t, queries, 3, "should deduplicate")
 
