@@ -3,6 +3,7 @@ package util
 // FuncMap is a two-level map for tracking functions across packages
 // First level: package path ("" for current package)
 // Second level: function name -> associated value (e.g., type name it constructs)
+// @constructor NewFuncMap
 type FuncMap map[string]map[string]string
 
 // Add adds a function mapping to the map for a specific package

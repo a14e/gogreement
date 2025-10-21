@@ -29,7 +29,7 @@ type Empty interface{}
 // @implements &Reader
 // @immutable
 type FileReader struct {
-	data []byte
+	Data []byte
 }
 
 func (f *FileReader) Read(p []byte) (n int, err error) {

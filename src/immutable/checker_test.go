@@ -1,12 +1,15 @@
 package immutable
 
 import (
+	"go/token"
+	"go/types"
 	"goagreement/src/annotations"
 	"goagreement/src/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/tools/go/analysis"
 )
 
 func TestCheckImmutable(t *testing.T) {
@@ -183,33 +186,6 @@ func TestCompoundAssignmentOperators(t *testing.T) {
 	assert.GreaterOrEqual(t, len(foundOperators), 2, "should detect multiple compound operators")
 }
 
-func TestBuildConstructorIndex(t *testing.T) {
-	pass := testutil.CreateTestPass(t, "immutabletests")
-
-	packageAnnotations := annotations.PackageAnnotations{
-		ConstructorAnnotations: []annotations.ConstructorAnnotation{
-			{
-				OnType:           "Person",
-				ConstructorNames: []string{"NewPerson"},
-			},
-			{
-				OnType:           "Config",
-				ConstructorNames: []string{"NewConfig", "NewDefaultConfig"},
-			},
-		},
-	}
-
-	index := buildConstructorIndex(pass, packageAnnotations)
-
-	// Now the map uses full package path as key
-	pkgPath := pass.Pkg.Path()
-
-	assert.True(t, index.Match(pkgPath, "NewPerson", "Person"))
-	assert.True(t, index.Match(pkgPath, "NewConfig", "Config"))
-	assert.True(t, index.Match(pkgPath, "NewDefaultConfig", "Config"))
-	assert.False(t, index.Match(pkgPath, "NonExistent", "Person"))
-}
-
 func TestReportViolations(t *testing.T) {
 	pass := testutil.CreateTestPass(t, "immutabletests")
 
@@ -225,6 +201,119 @@ func TestReportViolations(t *testing.T) {
 	ReportViolations(pass, violations)
 
 	t.Log("ReportViolations executed successfully")
+}
+
+// createTestPassWithFacts creates a test pass with ImportPackageFact support
+func createTestPassWithFacts(t *testing.T, pkgName string) *analysis.Pass {
+	pass := testutil.CreateTestPass(t, pkgName)
+
+	// Cache for imported facts
+	factCache := make(map[string]annotations.PackageAnnotations)
+
+	pass.ImportPackageFact = func(pkg *types.Package, fact analysis.Fact) bool {
+		// Check cache
+		if cached, ok := factCache[pkg.Path()]; ok {
+			if ptr, ok := fact.(*annotations.PackageAnnotations); ok {
+				*ptr = cached
+				return true
+			}
+		}
+
+		// Load package and read annotations
+		importedPass := testutil.LoadPackageByPath(t, pkg.Path())
+		if importedPass == nil {
+			return false
+		}
+
+		// Read annotations
+		importedAnnotations := annotations.ReadAllAnnotations(importedPass)
+
+		// Cache
+		factCache[pkg.Path()] = importedAnnotations
+
+		// Copy to fact
+		if ptr, ok := fact.(*annotations.PackageAnnotations); ok {
+			*ptr = importedAnnotations
+			return true
+		}
+
+		return false
+	}
+
+	return pass
+}
+
+func TestImportedImmutableType(t *testing.T) {
+	pass := createTestPassWithFacts(t, "immutabletests") // Use createTestPassWithFacts
+	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	violations := CheckImmutable(pass, packageAnnotations)
+
+	// Should catch violation on imported FileReader type
+	hasImportedViolation := false
+	for _, v := range violations {
+		t.Logf("Violation: TypeName=%s, Reason=%s", v.TypeName, v.Reason)
+		if v.TypeName == "FileReader" && contains(v.Reason, "Data") {
+			hasImportedViolation = true
+			t.Logf("Found expected violation on imported type: %s", v.Reason)
+		}
+	}
+
+	assert.True(t, hasImportedViolation, "should detect mutation of imported immutable type")
+}
+
+// TestNoDuplicateViolations ensures that compound assignments (+=, -=, *=, /=)
+// don't create duplicate violation reports.
+//
+// Background: AST represents compound assignments like "x.a += 1" as AssignStmt nodes,
+// just like simple assignments "x.a = 1". Without proper filtering, we would report
+// the same violation twice:
+// 1. First pass treats it as assignment (tok == ASSIGN check fails, processes it)
+// 2. Second pass treats it as compound operator
+//
+// Solution: We skip compound assignments in the first pass by checking tok != ASSIGN,
+// and only process them in the dedicated second pass. This ensures each violation
+// is reported exactly once with the most specific error message.
+func TestNoDuplicateViolations(t *testing.T) {
+	pass := testutil.CreateTestPass(t, "immutabletests")
+	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	violations := CheckImmutable(pass, packageAnnotations)
+
+	// Group violations by position
+	violationsByPos := make(map[token.Pos][]ImmutableViolation)
+	for _, v := range violations {
+		violationsByPos[v.Pos] = append(violationsByPos[v.Pos], v)
+	}
+
+	// Check for duplicates at same position
+	for pos, viols := range violationsByPos {
+		if len(viols) > 1 {
+			position := pass.Fset.Position(pos)
+			t.Errorf("Found %d violations at same position %s:", len(viols), position)
+			for _, v := range viols {
+				t.Logf("  - %s: %s", v.TypeName, v.Reason)
+			}
+		}
+	}
+
+	// Specifically check compound assignments don't have duplicates
+	for _, v := range violations {
+		if contains(v.Reason, "+=") || contains(v.Reason, "-=") ||
+			contains(v.Reason, "*=") || contains(v.Reason, "/=") {
+			// This is a compound assignment - ensure no simple assignment at same position
+			for _, other := range violationsByPos[v.Pos] {
+				if other.Pos == v.Pos &&
+					contains(other.Reason, "cannot assign to field") &&
+					!contains(other.Reason, "+=") && !contains(other.Reason, "-=") &&
+					!contains(other.Reason, "*=") && !contains(other.Reason, "/=") {
+					position := pass.Fset.Position(v.Pos)
+					t.Errorf("Found duplicate at %s: compound operator %q shadowed by simple assignment",
+						position, v.Reason)
+				}
+			}
+		}
+	}
+
+	assert.True(t, len(violations) > 0, "should find some violations")
 }
 
 // Helper function

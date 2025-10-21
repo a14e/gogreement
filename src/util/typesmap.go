@@ -3,6 +3,7 @@ package util
 // TypesMap provides efficient lookup for types
 // Key: full package path
 // Value: map of type names
+// @constructor NewTypesMap
 type TypesMap map[string]map[string]bool
 
 func NewTypesMap() TypesMap {

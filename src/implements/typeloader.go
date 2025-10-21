@@ -81,7 +81,7 @@ func findTypesInPackage(
 			continue
 		}
 
-		// Determine underlying type for debugging/reporting
+		// Determine underlying type for debugging/reporting.go
 		underlyingType := getUnderlyingTypeName(namedType.Underlying())
 
 		// Extract methods for this type

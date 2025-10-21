@@ -35,6 +35,41 @@ func getTestdataPath() string {
 	return filepath.Join(dir, "testdata")
 }
 
+// LoadPackageByPath loads a package by its full path for testing
+func LoadPackageByPath(t *testing.T, pkgPath string) *analysis.Pass {
+	// Extract package name from path
+	pkgName := filepath.Base(pkgPath)
+
+	// Check if already cached
+	if cached := getCachedPass(pkgName); cached != nil {
+		return cached
+	}
+
+	testdataPath := getTestdataPath()
+
+	cfg := &packages.Config{
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedTypes |
+			packages.NeedImports | packages.NeedDeps | packages.NeedSyntax | packages.NeedTypesInfo,
+		Dir: testdataPath,
+	}
+
+	pattern := "./" + pkgName
+	pkgs, err := packages.Load(cfg, pattern)
+	if err != nil || len(pkgs) == 0 || len(pkgs[0].Errors) > 0 {
+		return nil
+	}
+
+	pass := &analysis.Pass{
+		Pkg:       pkgs[0].Types,
+		Files:     pkgs[0].Syntax,
+		TypesInfo: pkgs[0].TypesInfo,
+		Fset:      pkgs[0].Fset,
+	}
+
+	setCachedPass(pkgName, pass)
+	return pass
+}
+
 // createTestPass creates a minimal analysis.Pass for testing
 func CreateTestPass(t *testing.T, pkgName string) *analysis.Pass {
 	if cached := getCachedPass(pkgName); cached != nil {

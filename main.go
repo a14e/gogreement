@@ -1,9 +1,11 @@
 package main
 
 import (
-	"golang.org/x/tools/go/analysis/multichecker"
-
 	"goagreement/src/analyzer"
+	"goagreement/src/annotations"
+
+	"honnef.co/go/tools/analysis/lint"
+	"honnef.co/go/tools/lintcmd"
 )
 
 type TestInterface interface {
@@ -13,7 +15,6 @@ type TestInterface interface {
 }
 
 // MyStruct
-// @implements &TestInterface
 // @immutable
 // @usein main.go, main
 // @constructor New
@@ -45,18 +46,37 @@ type ImmutableA struct {
 	a int
 }
 
+// @immutable
 type ImmutableB struct {
 	a ImmutableA
 }
 
-func main() {
-	x := ImmutableB{a: ImmutableA{a: 1}}
-	println(x.a.a)
-	x.a.a += 1
+// @immutable
+type ImmutableС struct {
+	a annotations.TypeQuery
+}
 
-	multichecker.Main(
-		analyzer.AnnotationReader,
-		analyzer.ImplementsChecker,
-		analyzer.ImmutableChecker,
-	)
+func main() {
+
+	// otherwise it doesn't work use facts =(
+
+	analyzers := []*lint.Analyzer{
+		{
+			Doc:      &lint.RawDocumentation{},
+			Analyzer: analyzer.AnnotationReader,
+		},
+		{
+			Doc:      &lint.RawDocumentation{},
+			Analyzer: analyzer.ImplementsChecker,
+		},
+		{
+			Doc:      &lint.RawDocumentation{},
+			Analyzer: analyzer.ImmutableChecker,
+		},
+	}
+
+	cmd := lintcmd.NewCommand("goagreement")
+	cmd.AddAnalyzers(analyzers...)
+
+	cmd.Run()
 }
