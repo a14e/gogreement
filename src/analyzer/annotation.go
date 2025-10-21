@@ -8,6 +8,8 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
+	"github.com/cloudflare/ahocorasick"
+
 	"goagreement/src/util"
 )
 
@@ -222,67 +224,12 @@ func parseImmutableAnnotation(commentText string, typeName string, pos token.Pos
 	}
 }
 
-// Import represents a single import from AST
-type Import struct {
-	Alias    string          // explicit alias (if present) or empty
-	FullPath string          // full import path like "io" or "github.com/user/pkg"
-	Spec     *ast.ImportSpec // original AST node
-}
-
-// ImportMap is a collection of imports with lookup methods
-type ImportMap []Import
-
-// Add adds an import spec to the map
-func (m *ImportMap) Add(spec *ast.ImportSpec) {
-	if spec == nil || spec.Path == nil {
-		return
-	}
-
-	fullPath := strings.Trim(spec.Path.Value, `"`)
-
-	var alias string
-	if spec.Name != nil {
-		// Explicit alias: import foo "path"
-		alias = spec.Name.Name
-	}
-
-	*m = append(*m, Import{
-		Alias:    alias,
-		FullPath: fullPath,
-		Spec:     spec,
-	})
-}
-
-// Find searches for an import by short name
-// Returns nil if not found
-func (m *ImportMap) Find(shortName string) *Import {
-	if shortName == "" {
-		return nil
-	}
-
-	// Step 1: Search by explicit alias first
-	for i := range *m {
-		imp := &(*m)[i]
-		if imp.Alias != "" && imp.Alias == shortName {
-			return imp
-		}
-	}
-
-	// Step 2: Fallback to suffix match (last path component)
-	for i := range *m {
-		imp := &(*m)[i]
-		// Extract last component from path
-		parts := strings.Split(imp.FullPath, "/")
-		lastComponent := parts[len(parts)-1]
-
-		if lastComponent == shortName {
-			return imp
-		}
-	}
-
-	// Not found
-	return nil
-}
+var matcher = ahocorasick.NewStringMatcher([]string{
+	"@implements",
+	"@constructor",
+	"@immutable",
+	"@usein",
+})
 
 func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
 	var implements []ImplementsAnnotation
@@ -331,7 +278,7 @@ func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
 					text := comment.Text
 
 					// Micro-optimization: skip comments without annotations
-					if !strings.Contains(text, "@") {
+					if !matcher.Contains([]byte(text)) {
 						continue
 					}
 

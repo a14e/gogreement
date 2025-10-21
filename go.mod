@@ -3,6 +3,7 @@ module goagreement
 go 1.25
 
 require (
+	github.com/cloudflare/ahocorasick v0.0.0-20240916140611-054963ec9396
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/tools v0.38.0
 )
