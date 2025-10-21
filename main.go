@@ -40,9 +40,23 @@ func New() *MyStruct {
 	return nil
 }
 
+// @immutable
+type ImmutableA struct {
+	a int
+}
+
+type ImmutableB struct {
+	a ImmutableA
+}
+
 func main() {
+	x := ImmutableB{a: ImmutableA{a: 1}}
+	println(x.a.a)
+	x.a.a += 1
+
 	multichecker.Main(
 		analyzer.AnnotationReader,
 		analyzer.ImplementsChecker,
+		analyzer.ImmutableChecker,
 	)
 }

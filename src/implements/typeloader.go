@@ -27,6 +27,7 @@ type TypeMethod struct {
 
 // MethodType represents a type in method signature
 // @immutable
+// @constructor convertTypesToMethodType, extractMethodTypesFromTuple
 type MethodType struct {
 	TypeName    string
 	TypePackage string

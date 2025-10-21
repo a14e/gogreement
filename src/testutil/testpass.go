@@ -74,6 +74,11 @@ func CreateTestPass(t *testing.T, pkgName string) *analysis.Pass {
 		Pkg:       pkgs[0].Types,
 		Files:     pkgs[0].Syntax,
 		TypesInfo: pkgs[0].TypesInfo,
+		Fset:      pkgs[0].Fset,
+		Report: func(diag analysis.Diagnostic) {
+			position := pkgs[0].Fset.Position(diag.Pos)
+			t.Logf("Diagnostic at %s: %s", position, diag.Message)
+		},
 	}
 
 	// Cache the result

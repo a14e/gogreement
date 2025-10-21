@@ -26,6 +26,7 @@ type InterfaceMethod struct {
 
 // InterfaceType
 // @immutable
+// @constructor extractTypesFromTuple, convertTypesToInterfaceType
 type InterfaceType struct {
 	TypeName    string
 	TypePackage string

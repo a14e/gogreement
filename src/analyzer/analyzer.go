@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"goagreement/src/annotations"
+	"goagreement/src/immutable"
 	"goagreement/src/implements"
 	"reflect"
 
@@ -68,6 +69,40 @@ func runImplementsChecker(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
+// ImmutableChecker checks @immutable annotations
+var ImmutableChecker = &analysis.Analyzer{
+	Name: "immutablechecker",
+	Doc:  "Checks that types marked as @immutable follow immutability rules",
+	Run:  runImmutableChecker,
+	Requires: []*analysis.Analyzer{
+		AnnotationReader,
+	},
+}
+
+func runImmutableChecker(pass *analysis.Pass) (interface{}, error) {
+	result := pass.ResultOf[AnnotationReader]
+	if result == nil {
+		return nil, nil
+	}
+
+	localAnnotations, ok := result.(annotations.PackageAnnotations)
+	if !ok {
+		return nil, nil
+	}
+
+	if len(localAnnotations.ImmutableAnnotations) == 0 {
+		return nil, nil
+	}
+
+	// Check immutability violations
+	violations := immutable.CheckImmutable(pass, localAnnotations)
+
+	// Report violations
+	immutable.ReportViolations(pass, violations)
+
+	return nil, nil
+}
+
 // Analyzer is the main entry point combining all checks
 var Analyzer = &analysis.Analyzer{
 	Name: "goagreement",
@@ -76,6 +111,7 @@ var Analyzer = &analysis.Analyzer{
 	Requires: []*analysis.Analyzer{
 		AnnotationReader,
 		ImplementsChecker,
+		ImmutableChecker,
 	},
 }
 
