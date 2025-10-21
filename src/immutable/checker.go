@@ -36,11 +36,14 @@ func CheckImmutable(pass *analysis.Pass, packageAnnotations annotations.PackageA
 				return true
 
 			case *ast.AssignStmt:
-				// Skip compound assignments - they're handled in second pass
-				// This prevents duplicate reports for "x.a += 1"
+				// Only process compound assignments here
+				// Check: x.field += value, x.field *= value, etc.
 				if node.Tok != token.ASSIGN {
+					v := checkCompoundAssignment(pass, node, immutableTypes, constructors, currentFunction)
+					violations = append(violations, v...)
 					return true
 				}
+
 				// Check: x.field = value, x.items[0] = value
 				v := checkAssignment(pass, node, immutableTypes, constructors, currentFunction)
 				violations = append(violations, v...)
@@ -50,26 +53,6 @@ func CheckImmutable(pass *analysis.Pass, packageAnnotations annotations.PackageA
 				// Check: x.field++, x.field--
 				v := checkIncDec(pass, node, immutableTypes, constructors, currentFunction)
 				violations = append(violations, v...)
-				return true
-			}
-			return true
-		})
-
-		// Second pass: check compound assignments with specific operators
-		// Separate pass ensures we report "x.a += 1" not as assignment but as += operation
-		ast.Inspect(file, func(n ast.Node) bool {
-			switch node := n.(type) {
-			case *ast.FuncDecl:
-				currentFunction = node.Name.Name
-				return true
-
-			case *ast.AssignStmt:
-				// Only process compound assignments here
-				// Check: x.field += value, x.field *= value, etc.
-				if node.Tok != token.ASSIGN {
-					v := checkCompoundAssignment(pass, node, immutableTypes, constructors, currentFunction)
-					violations = append(violations, v...)
-				}
 				return true
 			}
 			return true
@@ -157,7 +140,7 @@ func checkFieldAssignment(
 	return &ImmutableViolation{
 		TypeName: typeName,
 		Pos:      selector.Pos(),
-		Reason:   fmt.Sprintf("cannot assign to field %q of immutable type (outside constructor)", selector.Sel.Name),
+		Reason:   fmt.Sprintf("cannot assign to field %q of immutable type", selector.Sel.Name),
 		Node:     stmt,
 	}
 }
@@ -208,7 +191,7 @@ func checkIndexAssignment(
 	return &ImmutableViolation{
 		TypeName: typeName,
 		Pos:      index.Pos(),
-		Reason:   fmt.Sprintf("cannot modify element of field %q of immutable type (outside constructor)", selector.Sel.Name),
+		Reason:   fmt.Sprintf("cannot modify element of field %q of immutable type", selector.Sel.Name),
 		Node:     stmt,
 	}
 }

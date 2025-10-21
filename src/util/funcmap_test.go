@@ -45,6 +45,98 @@ func TestFuncMap_Match(t *testing.T) {
 	}
 }
 
+func TestFuncMap_MultipleConstructors(t *testing.T) {
+	fm := NewFuncMap()
+
+	// Add multiple constructors for same type
+	fm.Add("pkg", "NewUser", "User")
+	fm.Add("pkg", "CreateUser", "User")
+	fm.Add("pkg", "MakeUser", "User")
+
+	// All should match
+	assert.True(t, fm.Match("pkg", "NewUser", "User"))
+	assert.True(t, fm.Match("pkg", "CreateUser", "User"))
+	assert.True(t, fm.Match("pkg", "MakeUser", "User"))
+
+	// Should have 3 constructors
+	constructors := fm.GetConstructors("pkg", "User")
+	assert.Equal(t, 3, len(constructors))
+	assert.Contains(t, constructors, "NewUser")
+	assert.Contains(t, constructors, "CreateUser")
+	assert.Contains(t, constructors, "MakeUser")
+}
+
+func TestFuncMap_GetConstructors(t *testing.T) {
+	fm := NewFuncMap()
+	fm.Add("pkg", "NewUser", "User")
+	fm.Add("pkg", "NewConfig", "Config")
+	fm.Add("pkg", "NewDefaultConfig", "Config")
+
+	tests := []struct {
+		name     string
+		pkgPath  string
+		typeName string
+		expected []string
+	}{
+		{
+			name:     "single constructor",
+			pkgPath:  "pkg",
+			typeName: "User",
+			expected: []string{"NewUser"},
+		},
+		{
+			name:     "multiple constructors",
+			pkgPath:  "pkg",
+			typeName: "Config",
+			expected: []string{"NewConfig", "NewDefaultConfig"},
+		},
+		{
+			name:     "non-existent type",
+			pkgPath:  "pkg",
+			typeName: "NonExistent",
+			expected: nil,
+		},
+		{
+			name:     "non-existent package",
+			pkgPath:  "other",
+			typeName: "User",
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := fm.GetConstructors(tt.pkgPath, tt.typeName)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestFuncMap_HasType(t *testing.T) {
+	fm := NewFuncMap()
+	fm.Add("pkg", "NewUser", "User")
+	fm.Add("pkg", "NewConfig", "Config")
+
+	tests := []struct {
+		name     string
+		pkgPath  string
+		typeName string
+		expected bool
+	}{
+		{"has type User", "pkg", "User", true},
+		{"has type Config", "pkg", "Config", true},
+		{"no type Admin", "pkg", "Admin", false},
+		{"wrong package", "other", "User", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := fm.HasType(tt.pkgPath, tt.typeName)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestFuncMap_Len(t *testing.T) {
 	fm := NewFuncMap()
 
@@ -58,18 +150,24 @@ func TestFuncMap_Len(t *testing.T) {
 
 	fm.Add("pkg", "Func3", "Type3")
 	assert.Equal(t, 3, fm.Len())
+
+	// Add second constructor for Type1
+	fm.Add("", "Func4", "Type1")
+	assert.Equal(t, 4, fm.Len())
 }
 
 func TestFuncMap_DuplicateAdd(t *testing.T) {
 	fm := NewFuncMap()
 
 	fm.Add("pkg", "NewUser", "User")
-	fm.Add("pkg", "NewUser", "User")
-	fm.Add("pkg", "NewUser", "Admin") // Overwrite
+	fm.Add("pkg", "NewUser", "User") // Duplicate
 
-	assert.Equal(t, 1, len(fm["pkg"]))
-	assert.True(t, fm.Match("pkg", "NewUser", "Admin")) // Last write wins
-	assert.False(t, fm.Match("pkg", "NewUser", "User"))
+	// Should have both entries
+	constructors := fm.GetConstructors("pkg", "User")
+	assert.Equal(t, 2, len(constructors))
+
+	// Match should still work
+	assert.True(t, fm.Match("pkg", "NewUser", "User"))
 }
 
 func TestFuncMap_CurrentPackage(t *testing.T) {
@@ -80,9 +178,11 @@ func TestFuncMap_CurrentPackage(t *testing.T) {
 
 	// Should be found with empty string
 	assert.True(t, fm.Match("", "NewMyType", "MyType"))
+	assert.Equal(t, []string{"NewMyType"}, fm.GetConstructors("", "MyType"))
 
 	// Should NOT be found with actual package path
 	assert.False(t, fm.Match("myapp/pkg", "NewMyType", "MyType"))
+	assert.Nil(t, fm.GetConstructors("myapp/pkg", "MyType"))
 }
 
 func TestFuncMap_MultiplePackages(t *testing.T) {
@@ -105,4 +205,24 @@ func TestFuncMap_EmptyMap(t *testing.T) {
 	assert.Equal(t, 0, fm.Len())
 	assert.False(t, fm.Match("", "AnyFunc", "AnyType"))
 	assert.False(t, fm.Match("pkg", "AnyFunc", "AnyType"))
+	assert.False(t, fm.HasType("", "AnyType"))
+	assert.Nil(t, fm.GetConstructors("", "AnyType"))
+}
+
+func TestFuncMap_BackwardCompatibility(t *testing.T) {
+	// This test ensures the API is backward compatible
+	// Old usage: fm.Add(pkgPath, funcName, typeName) -> fm.Match(pkgPath, funcName, typeName)
+
+	fm := NewFuncMap()
+
+	// Old style usage
+	fm.Add("pkg", "NewUser", "User")
+
+	// Old style check - should still work
+	assert.True(t, fm.Match("pkg", "NewUser", "User"))
+	assert.False(t, fm.Match("pkg", "OtherFunc", "User"))
+
+	// New functionality - get all constructors
+	constructors := fm.GetConstructors("pkg", "User")
+	assert.Equal(t, []string{"NewUser"}, constructors)
 }

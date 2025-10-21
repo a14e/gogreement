@@ -76,6 +76,10 @@ func main() {
 			Doc:      &lint.RawDocumentation{},
 			Analyzer: analyzer.ImmutableChecker,
 		},
+		{
+			Doc:      &lint.RawDocumentation{},
+			Analyzer: analyzer.ConstructorChecker,
+		},
 	}
 
 	cmd := lintcmd.NewCommand("goagreement")

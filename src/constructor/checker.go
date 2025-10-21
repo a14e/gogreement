@@ -1,0 +1,161 @@
+package constructor
+
+import (
+	"fmt"
+	"go/ast"
+	"go/types"
+	"goagreement/src/annotations"
+	"goagreement/src/indexing"
+	"goagreement/src/util"
+
+	"golang.org/x/tools/go/analysis"
+)
+
+func CheckConstructor(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) []ConstructorViolation {
+	var violations []ConstructorViolation
+
+	constructors := indexing.BuildConstructorIndex(pass, packageAnnotations)
+	if constructors.Len() == 0 {
+		return violations
+	}
+
+	for _, file := range pass.Files {
+		currentFunction := ""
+
+		ast.Inspect(file, func(n ast.Node) bool {
+			switch node := n.(type) {
+			case *ast.FuncDecl:
+				currentFunction = node.Name.Name
+				return true
+
+			case *ast.CompositeLit:
+				v := checkCompositeLiteral(pass, node, constructors, packageAnnotations, currentFunction)
+				if v != nil {
+					violations = append(violations, *v)
+				}
+				return true
+
+			case *ast.CallExpr:
+				v := checkNewCall(pass, node, constructors, packageAnnotations, currentFunction)
+				if v != nil {
+					violations = append(violations, *v)
+				}
+				return true
+			}
+			return true
+		})
+	}
+
+	return violations
+}
+
+func checkCompositeLiteral(
+	pass *analysis.Pass,
+	lit *ast.CompositeLit,
+	constructors util.FuncMap,
+	packageAnnotations annotations.PackageAnnotations,
+	currentFunction string,
+) *ConstructorViolation {
+	t := pass.TypesInfo.TypeOf(lit)
+	if t == nil {
+		return nil
+	}
+
+	if ptr, ok := t.(*types.Pointer); ok {
+		t = ptr.Elem()
+	}
+
+	named, ok := t.(*types.Named)
+	if !ok {
+		return nil
+	}
+
+	typeName := named.Obj().Name()
+	pkg := named.Obj().Pkg()
+	if pkg == nil {
+		return nil
+	}
+
+	pkgPath := pkg.Path()
+
+	// Check if this type has constructor annotations
+	if !constructors.HasType(pkgPath, typeName) {
+		return nil
+	}
+
+	// Check if we're in one of the allowed constructors
+	if constructors.Match(pkgPath, currentFunction, typeName) {
+		return nil
+	}
+
+	// Get list of allowed constructors for error message
+	constructorList := constructors.GetConstructors(pkgPath, typeName)
+	reason := fmt.Sprintf("type instantiation must be in constructor (allowed: %v)", constructorList)
+
+	return &ConstructorViolation{
+		TypeName: typeName,
+		Pos:      lit.Pos(),
+		Reason:   reason,
+		Node:     lit,
+	}
+}
+
+func checkNewCall(
+	pass *analysis.Pass,
+	call *ast.CallExpr,
+	constructors util.FuncMap,
+	packageAnnotations annotations.PackageAnnotations,
+	currentFunction string,
+) *ConstructorViolation {
+	ident, ok := call.Fun.(*ast.Ident)
+	if !ok || ident.Name != "new" {
+		return nil
+	}
+
+	if len(call.Args) != 1 {
+		return nil
+	}
+
+	t := pass.TypesInfo.TypeOf(call.Args[0])
+	if t == nil {
+		return nil
+	}
+
+	if ptr, ok := t.(*types.Pointer); ok {
+		t = ptr.Elem()
+	}
+
+	named, ok := t.(*types.Named)
+	if !ok {
+		return nil
+	}
+
+	typeName := named.Obj().Name()
+	pkg := named.Obj().Pkg()
+	if pkg == nil {
+		return nil
+	}
+
+	pkgPath := pkg.Path()
+
+	// Check if this type has constructor annotations
+	if !constructors.HasType(pkgPath, typeName) {
+		return nil
+	}
+
+	// Check if we're in one of the allowed constructors
+	if constructors.Match(pkgPath, currentFunction, typeName) {
+		return nil
+	}
+
+	// Get list of allowed constructors for error message
+	constructorList := constructors.GetConstructors(pkgPath, typeName)
+	reason := fmt.Sprintf("type instantiation with new() must be in constructor (allowed: %v)", constructorList)
+
+	return &ConstructorViolation{
+		TypeName: typeName,
+		Pos:      call.Pos(),
+		Reason:   reason,
+		Node:     call,
+	}
+}
