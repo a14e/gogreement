@@ -537,3 +537,92 @@ func TestToTypeQuery(t *testing.T) {
 	assert.True(t, typeNames["MyWriter"])
 	assert.True(t, typeNames["MyContext"])
 }
+
+func TestParseTestOnlyAnnotation(t *testing.T) {
+	tests := []struct {
+		name      string
+		comment   string
+		typeName  string
+		expectNil bool
+	}{
+		{
+			name:      "simple testonly",
+			comment:   "// @testonly",
+			typeName:  "MyStruct",
+			expectNil: false,
+		},
+		{
+			name:      "testonly with spaces",
+			comment:   "//   @testonly   ",
+			typeName:  "MyStruct",
+			expectNil: false,
+		},
+		{
+			name:      "testonly with tabs",
+			comment:   "//\t@testonly\t",
+			typeName:  "TestHelper",
+			expectNil: false,
+		},
+		{
+			name:      "extra text before - should fail",
+			comment:   "// text before @testonly",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "extra text after - should fail",
+			comment:   "// @testonly text after",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "not an annotation",
+			comment:   "// This is a regular comment",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "wrong annotation",
+			comment:   "// @implements Something",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "wrong annotation - constructor",
+			comment:   "// @constructor New",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "wrong annotation - immutable",
+			comment:   "// @immutable",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "partial match - testonlymode",
+			comment:   "// @testonlymode",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "empty comment",
+			comment:   "//",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseTestOnlyAnnotation(tt.comment, tt.typeName, 0)
+
+			if tt.expectNil {
+				assert.Nil(t, result)
+			} else {
+				require.NotNil(t, result)
+				assert.Equal(t, tt.typeName, result.OnType)
+			}
+		})
+	}
+}

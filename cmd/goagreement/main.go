@@ -58,9 +58,6 @@ type ImmutableС struct {
 
 func main() {
 
-	//test := &ImmutableС{a: annotations.TypeQuery{TypeName: "ImmutableA"}}
-	//test.a.TypeName = "1234"
-
 	// otherwise it doesn't work use facts =(
 
 	analyzers := []*lint.Analyzer{

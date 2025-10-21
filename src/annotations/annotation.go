@@ -3,7 +3,6 @@ package annotations
 import (
 	"go/ast"
 	"go/token"
-	"go/types"
 	"regexp"
 	"strings"
 
@@ -22,6 +21,7 @@ type PackageAnnotations struct {
 	ImplementsAnnotations  []ImplementsAnnotation
 	ConstructorAnnotations []ConstructorAnnotation
 	ImmutableAnnotations   []ImmutableAnnotation
+	TestonlyAnnotations    []TestOnlyAnnotation
 }
 
 func (*PackageAnnotations) AFact() {}
@@ -30,6 +30,7 @@ func (*PackageAnnotations) AFact() {}
 // parse result of "@implements MyStruct" annotation
 // @constructor parseImplementsAnnotation
 // @immutable
+// @implements &analysis.Fact
 type ImplementsAnnotation struct {
 	// Type on which annotation is placed
 	OnType    string // "MyStruct"
@@ -57,18 +58,27 @@ type ConstructorAnnotation struct {
 	ConstructorNames []string // ["New", "Create"]
 }
 
+// @immutable
+// @constructor parseImmutableAnnotation
+type ImmutableAnnotation struct {
+	// Type on which annotation is placed
+	OnType    string // "MyStruct"
+	OnTypePos token.Pos
+}
+
+// @immutable
+// @testonly
+type TestOnlyAnnotation struct {
+	// Type on which annotation is placed
+	OnType    string // "MyStruct"
+	OnTypePos token.Pos
+}
+
 // TypeQuery represents what type we're looking for
 // @immutable
 type TypeQuery struct {
 	TypeName string
 	// No PackageName - we only search in the current package
-}
-
-// @immutable
-type ImmutableAnnotation struct {
-	// Type on which annotation is placed
-	OnType    string // "MyStruct"
-	OnTypePos token.Pos
 }
 
 // InterfaceQuery represents what interface we're looking for
@@ -140,6 +150,12 @@ var constructorRegex = regexp.MustCompile(
 
 var immutableRegex = regexp.MustCompile(
 	`^\s*//\s*@immutable\s*$`,
+	//                              ^1
+	// 1: comma-separated constructor names (optional)
+)
+
+var testonlyRegex = regexp.MustCompile(
+	`^\s*//\s*@testonly\s*$`,
 	//                              ^1
 	// 1: comma-separated constructor names (optional)
 )
@@ -239,40 +255,31 @@ func parseImmutableAnnotation(commentText string, typeName string, pos token.Pos
 	}
 }
 
+func parseTestOnlyAnnotation(commentText string, typeName string, pos token.Pos) *TestOnlyAnnotation {
+	match := testonlyRegex.FindStringSubmatch(commentText)
+	if match == nil {
+		return nil
+	}
+
+	return &TestOnlyAnnotation{
+		OnType:    typeName,
+		OnTypePos: pos,
+	}
+}
+
 var matcher = ahocorasick.NewStringMatcher([]string{
 	"@implements",
 	"@constructor",
 	"@immutable",
+	"@testonly",
 	"@usein",
 })
-
-// findPackageByPath finds a package by its import path in the analysis pass
-func findPackageByPath(pass *analysis.Pass, path string) *types.Package {
-	if path == "" {
-		return nil
-	}
-
-	// Check imports of the current package
-	for _, importedPkg := range pass.Pkg.Imports() {
-		if importedPkg.Path() == path {
-			return importedPkg
-		}
-	}
-	return nil
-}
-
-// getImportPath extracts the import path from an ImportSpec
-func getImportPath(spec *ast.ImportSpec) string {
-	if spec == nil || spec.Path == nil {
-		return ""
-	}
-	return strings.Trim(spec.Path.Value, `"`)
-}
 
 func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
 	var implements []ImplementsAnnotation
 	var constructors []ConstructorAnnotation
 	var immutables []ImmutableAnnotation
+	var testonly []TestOnlyAnnotation
 
 	currentPkgPath := pass.Pkg.Path()
 
@@ -343,6 +350,14 @@ func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
 							immutables = append(immutables, *annotation)
 						}
 					}
+
+					// Parse @immutable
+					if strings.Contains(text, "@testonly") {
+						annotation := parseTestOnlyAnnotation(text, typeName, pos)
+						if annotation != nil {
+							testonly = append(testonly, *annotation)
+						}
+					}
 				}
 			}
 		}
@@ -353,5 +368,6 @@ func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
 		ImplementsAnnotations:  implements,
 		ConstructorAnnotations: constructors,
 		ImmutableAnnotations:   immutables,
+		TestonlyAnnotations:    testonly,
 	}
 }

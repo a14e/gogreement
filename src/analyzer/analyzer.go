@@ -71,7 +71,7 @@ func runImplementsChecker(pass *analysis.Pass) (interface{}, error) {
 
 // ImmutableChecker checks @immutable annotations
 var ImmutableChecker = &analysis.Analyzer{
-	Name: "immutablechecker",
+	Name: "immutabilitychecker",
 	Doc:  "Checks that types marked as @immutable follow immutability rules",
 	Run:  runImmutableChecker,
 	Requires: []*analysis.Analyzer{
