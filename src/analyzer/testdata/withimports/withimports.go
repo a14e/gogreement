@@ -8,6 +8,7 @@ import (
 
 // Existing struct types...
 // @implements &io.Reader
+// @immutable
 type MyReader struct{}
 
 func (m *MyReader) Read(p []byte) (n int, err error) {
@@ -16,6 +17,7 @@ func (m *MyReader) Read(p []byte) (n int, err error) {
 
 // @implements &io.Writer
 // @implements &io.Closer
+// @immutable
 type MyWriteCloser struct{}
 
 func (m *MyWriteCloser) Write(p []byte) (n int, err error) {
@@ -27,6 +29,7 @@ func (m *MyWriteCloser) Close() error {
 }
 
 // @implements &context.Context
+// @immutable
 type MyContext struct{}
 
 func (m *MyContext) Deadline() (deadline time.Time, ok bool) {
@@ -48,6 +51,7 @@ func (m *MyContext) Value(key interface{}) interface{} {
 // NEW: Named types (not structs)
 
 // Duration is like time.Duration
+// @immutable
 type Duration int64
 
 func (d Duration) Seconds() float64 {
@@ -71,6 +75,7 @@ func (s *MyString) Append(suffix string) {
 }
 
 // HandlerFunc demonstrates methods on function type
+// @immutable
 type HandlerFunc func(string) error
 
 func (f HandlerFunc) ServeHTTP(path string) error {

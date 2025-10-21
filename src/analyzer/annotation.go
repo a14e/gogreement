@@ -3,6 +3,7 @@ package analyzer
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 	"regexp"
 	"strings"
 
@@ -135,7 +136,7 @@ func parseImplementsAnnotation(
 	commentText string,
 	typeName string,
 	pos token.Pos,
-	imports *importmap.ImportMap,
+	imports *util.ImportMap,
 	currentPkgPath string,
 ) *ImplementsAnnotation {
 	match := implementsRegex.FindStringSubmatch(commentText)
@@ -231,6 +232,29 @@ var matcher = ahocorasick.NewStringMatcher([]string{
 	"@usein",
 })
 
+// findPackageByPath finds a package by its import path in the analysis pass
+func findPackageByPath(pass *analysis.Pass, path string) *types.Package {
+	if path == "" {
+		return nil
+	}
+
+	// Check imports of the current package
+	for _, importedPkg := range pass.Pkg.Imports() {
+		if importedPkg.Path() == path {
+			return importedPkg
+		}
+	}
+	return nil
+}
+
+// getImportPath extracts the import path from an ImportSpec
+func getImportPath(spec *ast.ImportSpec) string {
+	if spec == nil || spec.Path == nil {
+		return ""
+	}
+	return strings.Trim(spec.Path.Value, `"`)
+}
+
 func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
 	var implements []ImplementsAnnotation
 	var constructors []ConstructorAnnotation
@@ -240,9 +264,9 @@ func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
 
 	for _, file := range pass.Files {
 		// Build import map for this file
-		imports := &importmap.ImportMap{}
+		imports := &util.ImportMap{}
 		for _, imp := range file.Imports {
-			imports.Add(imp)
+			imports.Add(imp, pass.Pkg)
 		}
 
 		for _, n := range file.Decls {

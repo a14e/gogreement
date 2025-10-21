@@ -1,22 +1,26 @@
-package importmap
+package util
 
 import (
 	"go/ast"
+	"go/types"
 	"strings"
 )
 
 // Import represents a single import from AST
 // @immutable
 type Import struct {
-	Alias    string // explicit alias (if present) or empty
-	FullPath string // full import path like "io" or "github.com/user/pkg"
+	Alias       string // explicit alias (if present) or empty
+	FullPath    string // full import path like "io" or "github.com/user/pkg"
+	PackageName string // actual package name from the code (e.g., "importmap" for "goagreement/src/util")
 }
 
 // ImportMap is a collection of imports with lookup methods
 type ImportMap []Import
 
 // Add adds an import spec to the map
-func (m *ImportMap) Add(spec *ast.ImportSpec) {
+// If pkg is provided, the actual package name will be stored
+// If pkg is nil, only path information will be stored
+func (m *ImportMap) Add(spec *ast.ImportSpec, pkg *types.Package) {
 	if spec == nil || spec.Path == nil {
 		return
 	}
@@ -29,16 +33,23 @@ func (m *ImportMap) Add(spec *ast.ImportSpec) {
 		alias = spec.Name.Name
 	}
 
+	var packageName string
+	if pkg != nil {
+		packageName = pkg.Name()
+	}
+
 	*m = append(*m, Import{
-		Alias:    alias,
-		FullPath: fullPath,
+		Alias:       alias,
+		FullPath:    fullPath,
+		PackageName: packageName,
 	})
 }
 
 // Find searches for an import by short name with the following priority:
 // 1. Explicit alias (highest priority)
-// 2. Exact match (e.g., "io" matches "io")
-// 3. Path component match (e.g., "bar" matches "foo/bar")
+// 2. Package name (actual name from package declaration)
+// 3. Exact match (e.g., "io" matches "io")
+// 4. Path component match (e.g., "bar" matches "foo/bar")
 // Returns nil if not found
 func (m *ImportMap) Find(shortName string) *Import {
 	if shortName == "" {
@@ -53,7 +64,15 @@ func (m *ImportMap) Find(shortName string) *Import {
 		}
 	}
 
-	// Priority 2: Search for exact match
+	// Priority 2: Search by actual package name
+	for i := range *m {
+		imp := &(*m)[i]
+		if imp.PackageName != "" && imp.PackageName == shortName {
+			return imp
+		}
+	}
+
+	// Priority 3: Search for exact match
 	// "io" should match "io", not "github.com/foo/io"
 	for i := range *m {
 		imp := &(*m)[i]
@@ -62,7 +81,7 @@ func (m *ImportMap) Find(shortName string) *Import {
 		}
 	}
 
-	// Priority 3: Fallback to path component match
+	// Priority 4: Fallback to path component match
 	// "bar" matches "foo/bar"
 	for i := range *m {
 		imp := &(*m)[i]

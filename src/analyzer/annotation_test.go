@@ -12,13 +12,13 @@ import (
 
 func TestParseImplementsAnnotation(t *testing.T) {
 	// Create mock import map
-	imports := &importmap.ImportMap{}
+	imports := &util.ImportMap{}
 	imports.Add(&ast.ImportSpec{
 		Path: &ast.BasicLit{Value: `"io"`},
-	})
+	}, nil)
 	imports.Add(&ast.ImportSpec{
 		Path: &ast.BasicLit{Value: `"context"`},
-	})
+	}, nil)
 
 	currentPkgPath := "mypackage/path"
 
@@ -248,6 +248,89 @@ func TestParseConstructorAnnotation(t *testing.T) {
 	}
 }
 
+func TestParseImmutableAnnotation(t *testing.T) {
+	tests := []struct {
+		name      string
+		comment   string
+		typeName  string
+		expectNil bool
+	}{
+		{
+			name:      "simple immutable",
+			comment:   "// @immutable",
+			typeName:  "MyStruct",
+			expectNil: false,
+		},
+		{
+			name:      "immutable with spaces",
+			comment:   "//   @immutable   ",
+			typeName:  "MyStruct",
+			expectNil: false,
+		},
+		{
+			name:      "immutable with tabs",
+			comment:   "//\t@immutable\t",
+			typeName:  "AnotherStruct",
+			expectNil: false,
+		},
+		{
+			name:      "extra text before - should fail",
+			comment:   "// text before @immutable",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "extra text after - should fail",
+			comment:   "// @immutable text after",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "not an annotation",
+			comment:   "// This is a regular comment",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "wrong annotation",
+			comment:   "// @implements Something",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "wrong annotation - constructor",
+			comment:   "// @constructor New",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "partial match - immutability",
+			comment:   "// @immutability",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+		{
+			name:      "empty comment",
+			comment:   "//",
+			typeName:  "MyStruct",
+			expectNil: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseImmutableAnnotation(tt.comment, tt.typeName, 0)
+
+			if tt.expectNil {
+				assert.Nil(t, result)
+			} else {
+				require.NotNil(t, result)
+				assert.Equal(t, tt.typeName, result.OnType)
+			}
+		})
+	}
+}
+
 func TestReadAllAnnotations(t *testing.T) {
 	pass := createTestPass(t, "withimports")
 
@@ -314,6 +397,118 @@ func TestReadAllAnnotations(t *testing.T) {
 			assert.Equal(t, "context", annot.PackageFullPath)
 			assert.False(t, annot.PackageNotFound)
 		})
+	})
+
+	// Test @immutable annotations
+	t.Run("ImmutableAnnotations", func(t *testing.T) {
+		// Helper to find immutable annotation
+		findImmutable := func(onType string) *ImmutableAnnotation {
+			for _, a := range annotations.ImmutableAnnotations {
+				if a.OnType == onType {
+					return &a
+				}
+			}
+			return nil
+		}
+
+		t.Run("MyReader is immutable", func(t *testing.T) {
+			annot := findImmutable("MyReader")
+			require.NotNil(t, annot, "annotation not found")
+			assert.Equal(t, "MyReader", annot.OnType)
+		})
+
+		t.Run("MyWriteCloser is immutable", func(t *testing.T) {
+			annot := findImmutable("MyWriteCloser")
+			require.NotNil(t, annot, "annotation not found")
+			assert.Equal(t, "MyWriteCloser", annot.OnType)
+		})
+
+		t.Run("MyContext is immutable", func(t *testing.T) {
+			annot := findImmutable("MyContext")
+			require.NotNil(t, annot, "annotation not found")
+			assert.Equal(t, "MyContext", annot.OnType)
+		})
+
+		t.Run("Duration is immutable", func(t *testing.T) {
+			annot := findImmutable("Duration")
+			require.NotNil(t, annot, "annotation not found")
+			assert.Equal(t, "Duration", annot.OnType)
+		})
+
+		t.Run("HandlerFunc is immutable", func(t *testing.T) {
+			annot := findImmutable("HandlerFunc")
+			require.NotNil(t, annot, "annotation not found")
+			assert.Equal(t, "HandlerFunc", annot.OnType)
+		})
+
+		t.Run("MyString should not be immutable", func(t *testing.T) {
+			annot := findImmutable("MyString")
+			assert.Nil(t, annot, "MyString should not have @immutable annotation")
+		})
+
+		t.Run("ByteSlice should not be immutable", func(t *testing.T) {
+			annot := findImmutable("ByteSlice")
+			assert.Nil(t, annot, "ByteSlice should not have @immutable annotation")
+		})
+	})
+}
+
+func TestReadAllAnnotationsWithImmutable(t *testing.T) {
+	pass := createTestPass(t, "interfacesforloading")
+
+	annotations := ReadAllAnnotations(pass)
+
+	// Helper to find immutable annotation
+	findImmutable := func(onType string) *ImmutableAnnotation {
+		for _, a := range annotations.ImmutableAnnotations {
+			if a.OnType == onType {
+				return &a
+			}
+		}
+		return nil
+	}
+
+	t.Run("FileReader is immutable", func(t *testing.T) {
+		annot := findImmutable("FileReader")
+		require.NotNil(t, annot, "FileReader should have @immutable annotation")
+		assert.Equal(t, "FileReader", annot.OnType)
+	})
+
+	t.Run("BufferWriter is immutable", func(t *testing.T) {
+		annot := findImmutable("BufferWriter")
+		require.NotNil(t, annot, "BufferWriter should have @immutable annotation")
+		assert.Equal(t, "BufferWriter", annot.OnType)
+	})
+
+	t.Run("StringProcessor is immutable", func(t *testing.T) {
+		annot := findImmutable("StringProcessor")
+		require.NotNil(t, annot, "StringProcessor should have @immutable annotation")
+		assert.Equal(t, "StringProcessor", annot.OnType)
+	})
+
+	t.Run("EmptyImpl is immutable", func(t *testing.T) {
+		annot := findImmutable("EmptyImpl")
+		require.NotNil(t, annot, "EmptyImpl should have @immutable annotation")
+		assert.Equal(t, "EmptyImpl", annot.OnType)
+	})
+
+	t.Run("Interfaces should be immutable", func(t *testing.T) {
+		interfaces := []string{"Reader", "Writer", "Processor", "Empty"}
+		for _, ifaceName := range interfaces {
+			annot := findImmutable(ifaceName)
+			require.NotNil(t, annot, "%s interface should have @immutable annotation", ifaceName)
+			assert.Equal(t, ifaceName, annot.OnType)
+		}
+	})
+
+	t.Run("Config should not be immutable", func(t *testing.T) {
+		annot := findImmutable("Config")
+		assert.Nil(t, annot, "Config should not have @immutable annotation")
+	})
+
+	t.Run("MutableType should not be immutable", func(t *testing.T) {
+		annot := findImmutable("MutableType")
+		assert.Nil(t, annot, "MutableType should not have @immutable annotation")
 	})
 }
 

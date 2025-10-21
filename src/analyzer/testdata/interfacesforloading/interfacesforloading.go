@@ -1,17 +1,20 @@
 package interfacesforloading
 
 // Reader is a simple interface for reading
+// @immutable
 type Reader interface {
 	Read(p []byte) (n int, err error)
 	Close() error
 }
 
 // Writer is a simple interface for writing
+// @immutable
 type Writer interface {
 	Write(data []byte) (int, error)
 }
 
 // Processor has various parameter types
+// @immutable
 type Processor interface {
 	Process(input string) string
 	ProcessMany(items ...string) []string
@@ -19,10 +22,12 @@ type Processor interface {
 }
 
 // Empty interface with no methods
+// @immutable
 type Empty interface{}
 
 // FileReader implements Reader
 // @implements &Reader
+// @immutable
 type FileReader struct {
 	data []byte
 }
@@ -37,6 +42,7 @@ func (f *FileReader) Close() error {
 
 // BufferWriter implements Writer
 // @implements &Writer
+// @immutable
 type BufferWriter struct {
 	buffer []byte
 }
@@ -48,6 +54,7 @@ func (b *BufferWriter) Write(data []byte) (int, error) {
 
 // StringProcessor implements Processor
 // @implements &Processor
+// @immutable
 type StringProcessor struct{}
 
 func (s *StringProcessor) Process(input string) string {
@@ -65,4 +72,15 @@ func (s *StringProcessor) ProcessPointer(ptr *int) *string {
 
 // EmptyImpl implements Empty interface
 // @implements &Empty
+// @immutable
 type EmptyImpl struct{}
+
+// Config is a configuration without annotations (for negative tests)
+type Config struct {
+	name string
+}
+
+// MutableType has no @immutable annotation
+type MutableType struct {
+	counter int
+}
