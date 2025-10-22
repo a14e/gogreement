@@ -137,3 +137,91 @@ func MutateMutableType(m *MutableType) {
 func TryToMutateImported(w *ImportedTypeWrapper) {
 	w.reader.Data = []byte{1, 2, 3} // ❌ VIOLATION: FileReader is immutable
 }
+
+// Methods that reassign receiver
+
+// Reset tries to reassign the receiver (should be violation)
+func (p *Person) Reset() {
+	*p = Person{} // ❌ VIOLATION: cannot reassign immutable receiver
+}
+
+// UpdateCounter tries to reassign Counter receiver
+func (c *Counter) UpdateCounter(value, step int) {
+	*c = Counter{value: value, step: step} // ❌ VIOLATION
+}
+
+// MutableTypeReset is OK since MutableType is not immutable
+func (m *MutableType) Reset() {
+	*m = MutableType{} // ✅ OK: not immutable
+}
+
+// Test for primitive type aliases
+
+// ImmutableInt is an immutable integer type
+// @immutable
+// @constructor NewImmutableInt
+type ImmutableInt int
+
+func NewImmutableInt(value int) ImmutableInt {
+	var i ImmutableInt
+	i = ImmutableInt(value) // ✅ OK: in constructor
+	return i
+}
+
+// SetValue tries to reassign receiver
+func (i *ImmutableInt) SetValue(value int) {
+	*i = ImmutableInt(value) // ❌ VIOLATION: cannot reassign immutable receiver
+}
+
+// Increment tries to modify receiver
+func (i *ImmutableInt) Increment() {
+	*i++ // ❌ VIOLATION: cannot reassign immutable receiver
+}
+
+// ImmutableString is an immutable string type
+// @immutable
+// @constructor NewImmutableString
+type ImmutableString string
+
+func NewImmutableString(value string) ImmutableString {
+	var s ImmutableString
+	s = ImmutableString(value) // ✅ OK: in constructor
+	return s
+}
+
+// Update tries to reassign receiver
+func (s *ImmutableString) Update(value string) {
+	*s = ImmutableString(value) // ❌ VIOLATION
+}
+
+// Test for map field modifications
+
+// ConfigWithMap has a map field
+// @immutable
+// @constructor NewConfigWithMap
+type ConfigWithMap struct {
+	settings map[string]string
+	values   map[int]int
+}
+
+func NewConfigWithMap() *ConfigWithMap {
+	c := &ConfigWithMap{}
+	c.settings = make(map[string]string) // ✅ OK: in constructor
+	c.settings["key"] = "value"          // ✅ OK: in constructor
+	return c
+}
+
+// ModifyMapString tries to modify map field
+func ModifyMapString(c *ConfigWithMap, key, value string) {
+	c.settings[key] = value // ❌ VIOLATION: modifying map element
+}
+
+// ModifyMapInt tries to modify map field
+func ModifyMapInt(c *ConfigWithMap, key, value int) {
+	c.values[key] = value // ❌ VIOLATION: modifying map element
+}
+
+// DeleteFromMap tries to delete from map
+func DeleteFromMap(c *ConfigWithMap, key string) {
+	delete(c.settings, key) // This is a CallExpr, not checked by current implementation
+}

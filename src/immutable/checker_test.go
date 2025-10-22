@@ -338,6 +338,111 @@ func TestNoDuplicateViolations(t *testing.T) {
 	assert.True(t, len(violations) > 0, "should find some violations")
 }
 
+func TestReceiverReassignment(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
+	pass := testutil.CreateTestPass(t, "immutabletests")
+	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	violations := CheckImmutable(pass, packageAnnotations)
+
+	// Should catch: *p = Person{} in Person.Reset method
+	hasPersonResetViolation := false
+	// Should catch: *c = Counter{...} in Counter.UpdateCounter method
+	hasCounterResetViolation := false
+
+	for _, v := range violations {
+		t.Logf("Violation: TypeName=%s, Reason=%s", v.TypeName, v.Reason)
+
+		if v.TypeName == "Person" && contains(v.Reason, "reassign") {
+			hasPersonResetViolation = true
+			t.Logf("Found expected Person receiver reassignment violation: %s", v.Reason)
+		}
+
+		if v.TypeName == "Counter" && contains(v.Reason, "reassign") {
+			hasCounterResetViolation = true
+			t.Logf("Found expected Counter receiver reassignment violation: %s", v.Reason)
+		}
+
+		// Should NOT report violation for MutableType.Reset
+		if v.TypeName == "MutableType" {
+			t.Errorf("Should not report violation for MutableType: %s", v.Reason)
+		}
+	}
+
+	assert.True(t, hasPersonResetViolation, "should detect Person receiver reassignment")
+	assert.True(t, hasCounterResetViolation, "should detect Counter receiver reassignment")
+}
+
+func TestPrimitiveTypeAliasReassignment(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
+	pass := testutil.CreateTestPass(t, "immutabletests")
+	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	violations := CheckImmutable(pass, packageAnnotations)
+
+	// Should catch: *i = ImmutableInt(value) in ImmutableInt.SetValue method
+	hasImmutableIntSetViolation := false
+	// Should catch: *i++ in ImmutableInt.Increment method
+	hasImmutableIntIncViolation := false
+	// Should catch: *s = ImmutableString(value) in ImmutableString.Update method
+	hasImmutableStringViolation := false
+
+	for _, v := range violations {
+		t.Logf("Violation: TypeName=%s, Reason=%s", v.TypeName, v.Reason)
+
+		if v.TypeName == "ImmutableInt" && contains(v.Reason, "reassign") {
+			if contains(v.Reason, "reassign immutable receiver") {
+				hasImmutableIntSetViolation = true
+				t.Logf("Found expected ImmutableInt receiver reassignment violation: %s", v.Reason)
+			}
+		}
+
+		// Note: *i++ is technically a receiver reassignment, but might be caught differently
+		if v.TypeName == "ImmutableInt" {
+			hasImmutableIntIncViolation = true
+		}
+
+		if v.TypeName == "ImmutableString" && contains(v.Reason, "reassign") {
+			hasImmutableStringViolation = true
+			t.Logf("Found expected ImmutableString receiver reassignment violation: %s", v.Reason)
+		}
+	}
+
+	assert.True(t, hasImmutableIntSetViolation, "should detect ImmutableInt receiver reassignment in SetValue")
+	assert.True(t, hasImmutableIntIncViolation, "should detect ImmutableInt receiver modification in Increment")
+	assert.True(t, hasImmutableStringViolation, "should detect ImmutableString receiver reassignment")
+}
+
+func TestMapFieldModification(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
+	pass := testutil.CreateTestPass(t, "immutabletests")
+	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	violations := CheckImmutable(pass, packageAnnotations)
+
+	// Should catch: c.settings[key] = value in ModifyMapString
+	hasMapStringViolation := false
+	// Should catch: c.values[key] = value in ModifyMapInt
+	hasMapIntViolation := false
+
+	for _, v := range violations {
+		t.Logf("Violation: TypeName=%s, Reason=%s", v.TypeName, v.Reason)
+
+		if v.TypeName == "ConfigWithMap" && contains(v.Reason, "settings") {
+			hasMapStringViolation = true
+			t.Logf("Found expected map[string]string modification violation: %s", v.Reason)
+		}
+
+		if v.TypeName == "ConfigWithMap" && contains(v.Reason, "values") {
+			hasMapIntViolation = true
+			t.Logf("Found expected map[int]int modification violation: %s", v.Reason)
+		}
+	}
+
+	assert.True(t, hasMapStringViolation, "should detect map[string]string element modification")
+	assert.True(t, hasMapIntViolation, "should detect map[int]int element modification")
+}
+
 // Helper function
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) &&

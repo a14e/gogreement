@@ -43,6 +43,9 @@ func CheckImmutable(pass *analysis.Pass, packageAnnotations annotations.PackageA
 			switch node := n.(type) {
 			case *ast.FuncDecl:
 				ctx.currentFunction = &node.Name.Name
+
+				// Track receiver information for methods
+				ctx.currentReceiver = extractReceiverInfo(ctx.pass, node)
 				return true
 
 			case *ast.AssignStmt:
@@ -77,6 +80,44 @@ type checkerContext struct {
 	immutableTypes  util.TypesMap
 	constructors    util.TypeFuncRegistry
 	currentFunction *string
+	currentReceiver *receiverInfo
+}
+
+// receiverInfo contains information about a method's receiver
+// @immutable
+type receiverInfo struct {
+	name     string
+	typeName string
+	pkgPath  string
+}
+
+// extractReceiverInfo extracts receiver information from a method declaration
+func extractReceiverInfo(pass *analysis.Pass, funcDecl *ast.FuncDecl) *receiverInfo {
+	if funcDecl.Recv == nil || len(funcDecl.Recv.List) == 0 {
+		return nil
+	}
+
+	recvField := funcDecl.Recv.List[0]
+	if len(recvField.Names) == 0 {
+		return nil
+	}
+
+	recvName := recvField.Names[0].Name
+	recvType := pass.TypesInfo.TypeOf(recvField.Type)
+	if recvType == nil {
+		return nil
+	}
+
+	typeInfo := util.ExtractTypeInfo(recvType)
+	if typeInfo == nil {
+		return nil
+	}
+
+	return &receiverInfo{
+		name:     recvName,
+		typeName: typeInfo.TypeName,
+		pkgPath:  typeInfo.PkgPath,
+	}
 }
 
 func checkAssignment(
@@ -105,6 +146,9 @@ func checkLHS(
 		return checkFieldAssignment(ctx, stmt, e)
 	case *ast.IndexExpr:
 		return checkIndexAssignment(ctx, stmt, e)
+	case *ast.StarExpr:
+		// Check for receiver reassignment: *receiver = value
+		return checkReceiverReassignment(ctx, stmt, e)
 	}
 
 	return nil
@@ -208,14 +252,35 @@ func checkIncDec(
 ) []ImmutableViolation {
 	var violations []ImmutableViolation
 
-	selector, ok := node.X.(*ast.SelectorExpr)
-	if !ok {
+	// Check for field increment/decrement: x.field++
+	if selector, ok := node.X.(*ast.SelectorExpr); ok {
+		violation := checkFieldIncDec(ctx, node, selector)
+		if violation != nil {
+			violations = append(violations, *violation)
+		}
 		return violations
 	}
 
+	// Check for receiver increment/decrement: *receiver++
+	if star, ok := node.X.(*ast.StarExpr); ok {
+		violation := checkReceiverIncDec(ctx, node, star)
+		if violation != nil {
+			violations = append(violations, *violation)
+		}
+		return violations
+	}
+
+	return violations
+}
+
+func checkFieldIncDec(
+	ctx *checkerContext,
+	node *ast.IncDecStmt,
+	selector *ast.SelectorExpr,
+) *ImmutableViolation {
 	receiverType := ctx.pass.TypesInfo.TypeOf(selector.X)
 	if receiverType == nil {
-		return violations
+		return nil
 	}
 
 	if ptr, ok := receiverType.(*types.Pointer); ok {
@@ -224,23 +289,23 @@ func checkIncDec(
 
 	named, ok := receiverType.(*types.Named)
 	if !ok {
-		return violations
+		return nil
 	}
 
 	typeName := named.Obj().Name()
 	pkg := named.Obj().Pkg()
 	if pkg == nil {
-		return violations
+		return nil
 	}
 
 	pkgPath := pkg.Path()
 
 	if !ctx.immutableTypes.Contains(pkgPath, typeName) {
-		return violations
+		return nil
 	}
 
 	if ctx.constructors.Match(pkgPath, *ctx.currentFunction, typeName) {
-		return violations
+		return nil
 	}
 
 	op := "++"
@@ -248,14 +313,56 @@ func checkIncDec(
 		op = "--"
 	}
 
-	violations = append(violations, ImmutableViolation{
+	return &ImmutableViolation{
 		TypeName: typeName,
 		Pos:      node.Pos(),
 		Reason:   fmt.Sprintf("cannot use %s on field %q of immutable type (outside constructor)", op, selector.Sel.Name),
 		Node:     node,
-	})
+	}
+}
 
-	return violations
+func checkReceiverIncDec(
+	ctx *checkerContext,
+	node *ast.IncDecStmt,
+	star *ast.StarExpr,
+) *ImmutableViolation {
+	// Check if we're in a method with a receiver
+	if ctx.currentReceiver == nil {
+		return nil
+	}
+
+	// Check if the increment/decrement is on the receiver: *receiver++
+	ident, ok := star.X.(*ast.Ident)
+	if !ok {
+		return nil
+	}
+
+	// Check if the identifier is the receiver
+	if ident.Name != ctx.currentReceiver.name {
+		return nil
+	}
+
+	// Check if the receiver type is immutable
+	if !ctx.immutableTypes.Contains(ctx.currentReceiver.pkgPath, ctx.currentReceiver.typeName) {
+		return nil
+	}
+
+	// Allow in constructors
+	if ctx.constructors.Match(ctx.currentReceiver.pkgPath, *ctx.currentFunction, ctx.currentReceiver.typeName) {
+		return nil
+	}
+
+	op := "++"
+	if node.Tok == token.DEC {
+		op = "--"
+	}
+
+	return &ImmutableViolation{
+		TypeName: ctx.currentReceiver.typeName,
+		Pos:      star.Pos(),
+		Reason:   fmt.Sprintf("cannot use %s on immutable receiver (outside constructor)", op),
+		Node:     node,
+	}
 }
 
 func checkCompoundAssignment(
@@ -320,6 +427,47 @@ func checkCompoundLHS(
 		TypeName: typeName,
 		Pos:      selector.Pos(),
 		Reason:   fmt.Sprintf("cannot use %s on field %q of immutable type (outside constructor)", op, selector.Sel.Name),
+		Node:     stmt,
+	}
+}
+
+// checkReceiverReassignment checks if a method reassigns its receiver (*receiver = value)
+// This is only checked for methods in the same package where the type is declared
+func checkReceiverReassignment(
+	ctx *checkerContext,
+	stmt *ast.AssignStmt,
+	star *ast.StarExpr,
+) *ImmutableViolation {
+	// Check if we're in a method with a receiver
+	if ctx.currentReceiver == nil {
+		return nil
+	}
+
+	// Check if the assignment is to the receiver: *r = value
+	ident, ok := star.X.(*ast.Ident)
+	if !ok {
+		return nil
+	}
+
+	// Check if the identifier is the receiver
+	if ident.Name != ctx.currentReceiver.name {
+		return nil
+	}
+
+	// Check if the receiver type is immutable
+	if !ctx.immutableTypes.Contains(ctx.currentReceiver.pkgPath, ctx.currentReceiver.typeName) {
+		return nil
+	}
+
+	// Allow reassignment in constructors
+	if ctx.constructors.Match(ctx.currentReceiver.pkgPath, *ctx.currentFunction, ctx.currentReceiver.typeName) {
+		return nil
+	}
+
+	return &ImmutableViolation{
+		TypeName: ctx.currentReceiver.typeName,
+		Pos:      star.Pos(),
+		Reason:   "cannot reassign immutable receiver (outside constructor)",
 		Node:     stmt,
 	}
 }
