@@ -75,7 +75,7 @@ func CheckImmutable(pass *analysis.Pass, packageAnnotations annotations.PackageA
 type checkerContext struct {
 	pass            *analysis.Pass
 	immutableTypes  util.TypesMap
-	constructors    util.FuncMap
+	constructors    util.TypeFuncRegistry
 	currentFunction *string
 }
 

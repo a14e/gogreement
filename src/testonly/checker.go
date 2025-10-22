@@ -105,8 +105,8 @@ func CheckTestOnly(pass *analysis.Pass, packageAnnotations annotations.PackageAn
 
 type testOnlyContext struct {
 	pass            *analysis.Pass
-	testOnlyFuncs   *util.FuncMap
-	testOnlyMethods *util.FuncMap
+	testOnlyFuncs   *util.TypeFuncRegistry
+	testOnlyMethods *util.TypeFuncRegistry
 	testOnlyTypes   *util.TypesMap
 	currentPkgPath  *string
 	fileName        *string

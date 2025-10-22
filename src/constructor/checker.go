@@ -56,7 +56,7 @@ func CheckConstructor(pass *analysis.Pass, packageAnnotations annotations.Packag
 func checkCompositeLiteral(
 	pass *analysis.Pass,
 	lit *ast.CompositeLit,
-	constructors util.FuncMap,
+	constructors util.TypeFuncRegistry,
 	currentFunction string,
 ) *ConstructorViolation {
 	t := pass.TypesInfo.TypeOf(lit)
@@ -92,7 +92,7 @@ func checkCompositeLiteral(
 	}
 
 	// Get list of allowed constructors for error message
-	constructorList := constructors.GetConstructors(pkgPath, typeName)
+	constructorList := constructors.GetFuncs(pkgPath, typeName)
 	reason := fmt.Sprintf("type instantiation must be in constructor (allowed: %v)", constructorList)
 
 	return &ConstructorViolation{
@@ -106,7 +106,7 @@ func checkCompositeLiteral(
 func checkNewCall(
 	pass *analysis.Pass,
 	call *ast.CallExpr,
-	constructors util.FuncMap,
+	constructors util.TypeFuncRegistry,
 	currentFunction string,
 ) *ConstructorViolation {
 	ident, ok := call.Fun.(*ast.Ident)
@@ -151,7 +151,7 @@ func checkNewCall(
 	}
 
 	// Get list of allowed constructors for error message
-	constructorList := constructors.GetConstructors(pkgPath, typeName)
+	constructorList := constructors.GetFuncs(pkgPath, typeName)
 	reason := fmt.Sprintf("type instantiation with new() must be in constructor (allowed: %v)", constructorList)
 
 	return &ConstructorViolation{

@@ -34,8 +34,8 @@ func BuildImmutableTypesIndex(pass *analysis.Pass, packageAnnotations annotation
 }
 
 // BuildConstructorIndex creates an index of constructor functions for types
-func BuildConstructorIndex(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) util.FuncMap {
-	result := util.NewFuncMap()
+func BuildConstructorIndex(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) util.TypeFuncRegistry {
+	result := util.NewTypeFuncRegistry()
 
 	if pass.Pkg == nil {
 		return result
@@ -94,8 +94,8 @@ func BuildTestOnlyTypesIndex(pass *analysis.Pass, packageAnnotations annotations
 }
 
 // BuildTestOnlyFuncsIndex creates an index of @testonly functions from current and imported packages
-func BuildTestOnlyFuncsIndex(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) util.FuncMap {
-	result := util.NewFuncMap()
+func BuildTestOnlyFuncsIndex(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) util.TypeFuncRegistry {
+	result := util.NewTypeFuncRegistry()
 
 	if pass.Pkg == nil {
 		return result
@@ -125,8 +125,8 @@ func BuildTestOnlyFuncsIndex(pass *analysis.Pass, packageAnnotations annotations
 }
 
 // BuildTestOnlyMethodsIndex creates an index of @testonly methods from current and imported packages
-func BuildTestOnlyMethodsIndex(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) util.FuncMap {
-	result := util.NewFuncMap()
+func BuildTestOnlyMethodsIndex(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) util.TypeFuncRegistry {
+	result := util.NewTypeFuncRegistry()
 
 	if pass.Pkg == nil {
 		return result

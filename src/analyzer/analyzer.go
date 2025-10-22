@@ -169,3 +169,14 @@ func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 
 	return nil, nil
 }
+
+// AllAnalyzers returns all available analyzers
+func AllAnalyzers() []*analysis.Analyzer {
+	return []*analysis.Analyzer{
+		AnnotationReader,
+		ImplementsChecker,
+		ImmutableChecker,
+		ConstructorChecker,
+		TestOnlyChecker,
+	}
+}

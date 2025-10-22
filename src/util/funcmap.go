@@ -2,44 +2,44 @@ package util
 
 // FIXME a bit inconsistent api. need to refactor
 
-// FuncMap is a two-level map for tracking functions across packages
+// TypeFuncRegistry is a two-level map for tracking functions associated with types across packages
 // First level: package path ("" for current package)
-// Second level: type name -> list of constructor function names
-// @constructor NewFuncMap
-type FuncMap map[string]map[string][]string
+// Second level: type name -> list of associated function names (constructors, methods, etc.)
+// @constructor NewTypeFuncRegistry
+type TypeFuncRegistry map[string]map[string][]string
 
-// NewFuncMap creates a new FuncMap
-func NewFuncMap() FuncMap {
-	return make(FuncMap)
+// NewTypeFuncRegistry creates a new TypeFuncRegistry
+func NewTypeFuncRegistry() TypeFuncRegistry {
+	return make(TypeFuncRegistry)
 }
 
 // Add adds a function mapping to the map for a specific package
 // pkgPath: package path (use "" for current package)
-// funcName: name of the constructor function
-// typeName: name of the type it constructs
-func (fm FuncMap) Add(pkgPath string, funcName string, typeName string) {
-	if fm[pkgPath] == nil {
-		fm[pkgPath] = make(map[string][]string)
+// funcName: name of the associated function
+// typeName: name of the type this function relates to
+func (tfr TypeFuncRegistry) Add(pkgPath string, funcName string, typeName string) {
+	if tfr[pkgPath] == nil {
+		tfr[pkgPath] = make(map[string][]string)
 	}
 
-	fm[pkgPath][typeName] = append(fm[pkgPath][typeName], funcName)
+	tfr[pkgPath][typeName] = append(tfr[pkgPath][typeName], funcName)
 }
 
-// Match checks if a function is a constructor for the expected type
-// This is the primary method for checking if we're in a valid constructor
-func (fm FuncMap) Match(pkgPath string, funcName string, expectedType string) bool {
-	typeConstructors, pkgExists := fm[pkgPath]
+// Match checks if a function is associated with the expected type
+// This is the primary method for checking if we're in a valid context (constructor, method, etc.)
+func (tfr TypeFuncRegistry) Match(pkgPath string, funcName string, expectedType string) bool {
+	typeFuncs, pkgExists := tfr[pkgPath]
 	if !pkgExists {
 		return false
 	}
 
-	constructors, typeExists := typeConstructors[expectedType]
+	funcs, typeExists := typeFuncs[expectedType]
 	if !typeExists {
 		return false
 	}
 
-	for _, constructor := range constructors {
-		if constructor == funcName {
+	for _, fn := range funcs {
+		if fn == funcName {
 			return true
 		}
 	}
@@ -47,34 +47,34 @@ func (fm FuncMap) Match(pkgPath string, funcName string, expectedType string) bo
 	return false
 }
 
-// GetConstructors returns list of constructor names for a type
-// Returns nil if type not found or has no constructors
-func (fm FuncMap) GetConstructors(pkgPath string, typeName string) []string {
-	typeConstructors, pkgExists := fm[pkgPath]
+// GetFuncs returns list of associated function names for a type
+// Returns nil if type not found or has no associated functions
+func (tfr TypeFuncRegistry) GetFuncs(pkgPath string, typeName string) []string {
+	typeFuncs, pkgExists := tfr[pkgPath]
 	if !pkgExists {
 		return nil
 	}
 
-	return typeConstructors[typeName]
+	return typeFuncs[typeName]
 }
 
-// HasType checks if a type has constructor annotations
-func (fm FuncMap) HasType(pkgPath string, typeName string) bool {
-	typeConstructors, pkgExists := fm[pkgPath]
+// HasType checks if a type has any associated functions
+func (tfr TypeFuncRegistry) HasType(pkgPath string, typeName string) bool {
+	typeFuncs, pkgExists := tfr[pkgPath]
 	if !pkgExists {
 		return false
 	}
 
-	constructors, typeExists := typeConstructors[typeName]
-	return typeExists && len(constructors) > 0
+	funcs, typeExists := typeFuncs[typeName]
+	return typeExists && len(funcs) > 0
 }
 
 // Len returns the total number of functions across all packages
-func (fm FuncMap) Len() int {
+func (tfr TypeFuncRegistry) Len() int {
 	total := 0
-	for _, typeConstructors := range fm {
-		for _, constructors := range typeConstructors {
-			total += len(constructors)
+	for _, typeFuncs := range tfr {
+		for _, funcs := range typeFuncs {
+			total += len(funcs)
 		}
 	}
 	return total
