@@ -1,7 +1,7 @@
 .PHONY: build install swagger lint pre-build fmt test
 
 build: pre-build
-	go build
+	go build cmd/goagreement/main.go
 
 install: tidy
 	go install go.uber.org/nilaway/cmd/nilaway@latest
