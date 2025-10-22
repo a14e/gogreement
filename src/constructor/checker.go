@@ -33,14 +33,14 @@ func CheckConstructor(pass *analysis.Pass, packageAnnotations annotations.Packag
 				return true
 
 			case *ast.CompositeLit:
-				v := checkCompositeLiteral(pass, node, constructors, packageAnnotations, currentFunction)
+				v := checkCompositeLiteral(pass, node, constructors, currentFunction)
 				if v != nil {
 					violations = append(violations, *v)
 				}
 				return true
 
 			case *ast.CallExpr:
-				v := checkNewCall(pass, node, constructors, packageAnnotations, currentFunction)
+				v := checkNewCall(pass, node, constructors, currentFunction)
 				if v != nil {
 					violations = append(violations, *v)
 				}
@@ -57,7 +57,6 @@ func checkCompositeLiteral(
 	pass *analysis.Pass,
 	lit *ast.CompositeLit,
 	constructors util.FuncMap,
-	packageAnnotations annotations.PackageAnnotations,
 	currentFunction string,
 ) *ConstructorViolation {
 	t := pass.TypesInfo.TypeOf(lit)
@@ -108,7 +107,6 @@ func checkNewCall(
 	pass *analysis.Pass,
 	call *ast.CallExpr,
 	constructors util.FuncMap,
-	packageAnnotations annotations.PackageAnnotations,
 	currentFunction string,
 ) *ConstructorViolation {
 	ident, ok := call.Fun.(*ast.Ident)

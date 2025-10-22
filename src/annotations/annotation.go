@@ -8,8 +8,6 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
-	"github.com/cloudflare/ahocorasick"
-
 	"goagreement/src/config"
 	"goagreement/src/util"
 )
@@ -66,12 +64,28 @@ type ImmutableAnnotation struct {
 	OnTypePos token.Pos
 }
 
+// TestOnlyKind represents the kind of declaration @testonly is placed on
+type TestOnlyKind int
+
+const (
+	TestOnlyOnType   TestOnlyKind = iota // @testonly on type (struct, interface, etc)
+	TestOnlyOnFunc                       // @testonly on function
+	TestOnlyOnMethod                     // @testonly on method
+)
+
 // @immutable
-// @testonly
 type TestOnlyAnnotation struct {
-	// Type on which annotation is placed
-	OnType    string // "MyStruct"
-	OnTypePos token.Pos
+	// Kind of declaration: type, func, or method
+	Kind TestOnlyKind
+
+	// Name of the object: type name, function name, or method name
+	// Examples: "MyStruct", "MyFunction", "MyMethod"
+	ObjectName string
+	Pos        token.Pos
+
+	// Receiver type (only for methods, empty otherwise)
+	// Example: "MyStruct" for method receivers
+	ReceiverType string
 }
 
 // TypeQuery represents what type we're looking for
@@ -255,19 +269,51 @@ func parseImmutableAnnotation(commentText string, typeName string, pos token.Pos
 	}
 }
 
-func parseTestOnlyAnnotation(commentText string, typeName string, pos token.Pos) *TestOnlyAnnotation {
+func parseTestOnlyAnnotation(commentText string, objectName string, pos token.Pos, kind TestOnlyKind, receiverType string) *TestOnlyAnnotation {
 	match := testonlyRegex.FindStringSubmatch(commentText)
 	if match == nil {
 		return nil
 	}
 
 	return &TestOnlyAnnotation{
-		OnType:    typeName,
-		OnTypePos: pos,
+		Kind:         kind,
+		ObjectName:   objectName,
+		Pos:          pos,
+		ReceiverType: receiverType,
 	}
 }
 
-var matcher = ahocorasick.NewStringMatcher([]string{
+// getFuncKindAndReceiver determines if a function declaration is a method or function
+// Returns: (kind, receiverType)
+// - For methods: (TestOnlyOnMethod, "MyStruct")
+// - For functions: (TestOnlyOnFunc, "")
+func getFuncKindAndReceiver(funcDecl *ast.FuncDecl) (TestOnlyKind, string) {
+	if funcDecl.Recv != nil && len(funcDecl.Recv.List) > 0 {
+		// It's a method
+		receiverType := ExtractReceiverType(funcDecl.Recv.List[0].Type)
+		return TestOnlyOnMethod, receiverType
+	}
+	// It's a function
+	return TestOnlyOnFunc, ""
+}
+
+// ExtractReceiverType extracts the receiver type name from a receiver type expression
+// Examples: *MyStruct -> MyStruct, MyStruct -> MyStruct
+func ExtractReceiverType(expr ast.Expr) string {
+	switch t := expr.(type) {
+	case *ast.StarExpr:
+		// Pointer receiver: *MyStruct
+		if ident, ok := t.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	case *ast.Ident:
+		// Value receiver: MyStruct
+		return t.Name
+	}
+	return ""
+}
+
+var matcher = util.NewStringMatcher([]string{
 	"@implements",
 	"@constructor",
 	"@immutable",
@@ -354,12 +400,47 @@ func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
 						}
 					}
 
-					// Parse @immutable
+					// Parse @testonly
 					if strings.Contains(text, "@testonly") {
-						annotation := parseTestOnlyAnnotation(text, typeName, pos)
+						annotation := parseTestOnlyAnnotation(text, typeName, pos, TestOnlyOnType, "")
 						if annotation != nil {
 							testonly = append(testonly, *annotation)
 						}
+					}
+				}
+			}
+		}
+
+		// Process function and method declarations for @testonly
+		for _, n := range file.Decls {
+			funcDecl, ok := n.(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+
+			if funcDecl.Doc == nil {
+				continue
+			}
+
+			funcName := funcDecl.Name.Name
+			pos := funcDecl.Pos()
+
+			// Determine if it's a method or function
+			kind, receiverType := getFuncKindAndReceiver(funcDecl)
+
+			for _, comment := range funcDecl.Doc.List {
+				text := comment.Text
+
+				// Micro-optimization: skip comments without annotations
+				if !matcher.Contains([]byte(text)) {
+					continue
+				}
+
+				// Parse @testonly
+				if strings.Contains(text, "@testonly") {
+					annotation := parseTestOnlyAnnotation(text, funcName, pos, kind, receiverType)
+					if annotation != nil {
+						testonly = append(testonly, *annotation)
 					}
 				}
 			}

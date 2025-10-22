@@ -28,34 +28,40 @@ func CheckImmutable(pass *analysis.Pass, packageAnnotations annotations.PackageA
 	// Filter files based on configuration (skip test files by default)
 	filesToCheck := config.Global.FilterFiles(pass)
 
+	ctx := &checkerContext{
+		pass:            pass,
+		immutableTypes:  immutableTypes,
+		constructors:    constructors,
+		currentFunction: nil,
+	}
+
 	for _, file := range filesToCheck {
-		currentFunction := ""
 
 		// First pass: check simple assignments and inc/dec operations
 		// We skip compound assignments (+=, -=, etc.) here to avoid duplicates
 		ast.Inspect(file, func(n ast.Node) bool {
 			switch node := n.(type) {
 			case *ast.FuncDecl:
-				currentFunction = node.Name.Name
+				ctx.currentFunction = &node.Name.Name
 				return true
 
 			case *ast.AssignStmt:
 				// Only process compound assignments here
 				// Check: x.field += value, x.field *= value, etc.
 				if node.Tok != token.ASSIGN {
-					v := checkCompoundAssignment(pass, node, immutableTypes, constructors, currentFunction)
+					v := checkCompoundAssignment(ctx, node)
 					violations = append(violations, v...)
 					return true
 				}
 
 				// Check: x.field = value, x.items[0] = value
-				v := checkAssignment(pass, node, immutableTypes, constructors, currentFunction)
+				v := checkAssignment(ctx, node)
 				violations = append(violations, v...)
 				return true
 
 			case *ast.IncDecStmt:
 				// Check: x.field++, x.field--
-				v := checkIncDec(pass, node, immutableTypes, constructors, currentFunction)
+				v := checkIncDec(ctx, node)
 				violations = append(violations, v...)
 				return true
 			}
@@ -65,17 +71,22 @@ func CheckImmutable(pass *analysis.Pass, packageAnnotations annotations.PackageA
 
 	return violations
 }
+
+type checkerContext struct {
+	pass            *analysis.Pass
+	immutableTypes  util.TypesMap
+	constructors    util.FuncMap
+	currentFunction *string
+}
+
 func checkAssignment(
-	pass *analysis.Pass,
+	ctx *checkerContext,
 	node *ast.AssignStmt,
-	immutableTypes util.TypesMap,
-	constructors util.FuncMap,
-	currentFunction string,
 ) []ImmutableViolation {
 	var violations []ImmutableViolation
 
 	for _, lhs := range node.Lhs {
-		violation := checkLHS(pass, node, lhs, immutableTypes, constructors, currentFunction)
+		violation := checkLHS(ctx, node, lhs)
 		if violation != nil {
 			violations = append(violations, *violation)
 		}
@@ -85,33 +96,27 @@ func checkAssignment(
 }
 
 func checkLHS(
-	pass *analysis.Pass,
+	ctx *checkerContext,
 	stmt *ast.AssignStmt,
 	expr ast.Expr,
-	immutableTypes util.TypesMap,
-	constructors util.FuncMap,
-	currentFunction string,
 ) *ImmutableViolation {
 	switch e := expr.(type) {
 	case *ast.SelectorExpr:
-		return checkFieldAssignment(pass, stmt, e, immutableTypes, constructors, currentFunction)
+		return checkFieldAssignment(ctx, stmt, e)
 	case *ast.IndexExpr:
-		return checkIndexAssignment(pass, stmt, e, immutableTypes, constructors, currentFunction)
+		return checkIndexAssignment(ctx, stmt, e)
 	}
 
 	return nil
 }
 
 func checkFieldAssignment(
-	pass *analysis.Pass,
+	ctx *checkerContext,
 	stmt *ast.AssignStmt,
 	selector *ast.SelectorExpr,
-	immutableTypes util.TypesMap,
-	constructors util.FuncMap,
-	currentFunction string,
 ) *ImmutableViolation {
 	// Get type of the receiver (t in t.field)
-	receiverType := pass.TypesInfo.TypeOf(selector.X)
+	receiverType := ctx.pass.TypesInfo.TypeOf(selector.X)
 	if receiverType == nil {
 		return nil
 	}
@@ -133,11 +138,11 @@ func checkFieldAssignment(
 
 	pkgPath := pkg.Path()
 
-	if !immutableTypes.Contains(pkgPath, typeName) {
+	if !ctx.immutableTypes.Contains(pkgPath, typeName) {
 		return nil
 	}
 
-	if constructors.Match(pkgPath, currentFunction, typeName) {
+	if ctx.constructors.Match(pkgPath, *ctx.currentFunction, typeName) {
 		return nil
 	}
 
@@ -150,19 +155,16 @@ func checkFieldAssignment(
 }
 
 func checkIndexAssignment(
-	pass *analysis.Pass,
+	ctx *checkerContext,
 	stmt *ast.AssignStmt,
 	index *ast.IndexExpr,
-	immutableTypes util.TypesMap,
-	constructors util.FuncMap,
-	currentFunction string,
 ) *ImmutableViolation {
 	selector, ok := index.X.(*ast.SelectorExpr)
 	if !ok {
 		return nil
 	}
 
-	receiverType := pass.TypesInfo.TypeOf(selector.X)
+	receiverType := ctx.pass.TypesInfo.TypeOf(selector.X)
 	if receiverType == nil {
 		return nil
 	}
@@ -184,11 +186,11 @@ func checkIndexAssignment(
 
 	pkgPath := pkg.Path()
 
-	if !immutableTypes.Contains(pkgPath, typeName) {
+	if !ctx.immutableTypes.Contains(pkgPath, typeName) {
 		return nil
 	}
 
-	if constructors.Match(pkgPath, currentFunction, typeName) {
+	if ctx.constructors.Match(pkgPath, *ctx.currentFunction, typeName) {
 		return nil
 	}
 
@@ -201,11 +203,8 @@ func checkIndexAssignment(
 }
 
 func checkIncDec(
-	pass *analysis.Pass,
+	ctx *checkerContext,
 	node *ast.IncDecStmt,
-	immutableTypes util.TypesMap,
-	constructors util.FuncMap,
-	currentFunction string,
 ) []ImmutableViolation {
 	var violations []ImmutableViolation
 
@@ -214,7 +213,7 @@ func checkIncDec(
 		return violations
 	}
 
-	receiverType := pass.TypesInfo.TypeOf(selector.X)
+	receiverType := ctx.pass.TypesInfo.TypeOf(selector.X)
 	if receiverType == nil {
 		return violations
 	}
@@ -236,11 +235,11 @@ func checkIncDec(
 
 	pkgPath := pkg.Path()
 
-	if !immutableTypes.Contains(pkgPath, typeName) {
+	if !ctx.immutableTypes.Contains(pkgPath, typeName) {
 		return violations
 	}
 
-	if constructors.Match(pkgPath, currentFunction, typeName) {
+	if ctx.constructors.Match(pkgPath, *ctx.currentFunction, typeName) {
 		return violations
 	}
 
@@ -260,16 +259,13 @@ func checkIncDec(
 }
 
 func checkCompoundAssignment(
-	pass *analysis.Pass,
+	ctx *checkerContext,
 	node *ast.AssignStmt,
-	immutableTypes util.TypesMap,
-	constructors util.FuncMap,
-	currentFunction string,
 ) []ImmutableViolation {
 	var violations []ImmutableViolation
 
 	for _, lhs := range node.Lhs {
-		violation := checkCompoundLHS(pass, node, lhs, node.Tok, immutableTypes, constructors, currentFunction)
+		violation := checkCompoundLHS(ctx, node, lhs, node.Tok)
 		if violation != nil {
 			violations = append(violations, *violation)
 		}
@@ -279,20 +275,17 @@ func checkCompoundAssignment(
 }
 
 func checkCompoundLHS(
-	pass *analysis.Pass,
+	ctx *checkerContext,
 	stmt *ast.AssignStmt,
 	expr ast.Expr,
 	tok token.Token,
-	immutableTypes util.TypesMap,
-	constructors util.FuncMap,
-	currentFunction string,
 ) *ImmutableViolation {
 	selector, ok := expr.(*ast.SelectorExpr)
 	if !ok {
 		return nil
 	}
 
-	receiverType := pass.TypesInfo.TypeOf(selector.X)
+	receiverType := ctx.pass.TypesInfo.TypeOf(selector.X)
 	if receiverType == nil {
 		return nil
 	}
@@ -314,11 +307,11 @@ func checkCompoundLHS(
 
 	pkgPath := pkg.Path()
 
-	if !immutableTypes.Contains(pkgPath, typeName) {
+	if !ctx.immutableTypes.Contains(pkgPath, typeName) {
 		return nil
 	}
 
-	if constructors.Match(pkgPath, currentFunction, typeName) {
+	if ctx.constructors.Match(pkgPath, *ctx.currentFunction, typeName) {
 		return nil
 	}
 

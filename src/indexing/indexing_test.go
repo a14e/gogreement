@@ -239,3 +239,80 @@ func createTestPassWithFacts(t *testing.T, pkgName string) *analysis.Pass {
 
 	return pass
 }
+
+func TestBuildTestOnlyTypesIndex(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
+	pass := testutil.CreateTestPass(t, "testonlyexample")
+	packageAnnotations := annotations.ReadAllAnnotations(pass)
+
+	index := BuildTestOnlyTypesIndex(pass, packageAnnotations)
+
+	t.Run("Contains TestHelper type", func(t *testing.T) {
+		contains := index.Contains(pass.Pkg.Path(), "TestHelper")
+		assert.True(t, contains, "TestHelper should be in index")
+	})
+
+	t.Run("Does not contain MyService type", func(t *testing.T) {
+		contains := index.Contains(pass.Pkg.Path(), "MyService")
+		assert.False(t, contains, "MyService should not be in index")
+	})
+
+	t.Run("Index has correct size", func(t *testing.T) {
+		// Only TestHelper type should be indexed
+		assert.Equal(t, 1, index.Len())
+	})
+}
+
+func TestBuildTestOnlyFuncsIndex(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
+	pass := testutil.CreateTestPass(t, "testonlyexample")
+	packageAnnotations := annotations.ReadAllAnnotations(pass)
+
+	index := BuildTestOnlyFuncsIndex(pass, packageAnnotations)
+
+	t.Run("Contains CreateMockData function", func(t *testing.T) {
+		matches := index.Match(pass.Pkg.Path(), "CreateMockData", "CreateMockData")
+		assert.True(t, matches, "CreateMockData should be in index")
+	})
+
+	t.Run("Does not contain ProcessData function", func(t *testing.T) {
+		matches := index.Match(pass.Pkg.Path(), "ProcessData", "ProcessData")
+		assert.False(t, matches, "ProcessData should not be in index")
+	})
+
+	t.Run("Index has correct size", func(t *testing.T) {
+		// Only CreateMockData function should be indexed
+		assert.Equal(t, 1, index.Len())
+	})
+}
+
+func TestBuildTestOnlyMethodsIndex(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
+	pass := testutil.CreateTestPass(t, "testonlyexample")
+	packageAnnotations := annotations.ReadAllAnnotations(pass)
+
+	index := BuildTestOnlyMethodsIndex(pass, packageAnnotations)
+
+	t.Run("Contains Reset method", func(t *testing.T) {
+		matches := index.Match(pass.Pkg.Path(), "Reset", "MyService")
+		assert.True(t, matches, "Reset method should be in index")
+	})
+
+	t.Run("Contains GetTestData method", func(t *testing.T) {
+		matches := index.Match(pass.Pkg.Path(), "GetTestData", "MyService")
+		assert.True(t, matches, "GetTestData method should be in index")
+	})
+
+	t.Run("Does not contain Process method", func(t *testing.T) {
+		matches := index.Match(pass.Pkg.Path(), "Process", "MyService")
+		assert.False(t, matches, "Process method should not be in index")
+	})
+
+	t.Run("Index has correct size", func(t *testing.T) {
+		// Reset and GetTestData methods should be indexed
+		assert.Equal(t, 2, index.Len())
+	})
+}

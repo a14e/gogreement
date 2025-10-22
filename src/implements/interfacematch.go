@@ -223,7 +223,7 @@ func typesMatch(t1 *MethodType, t2 *InterfaceType) bool {
 }
 
 // ========== Phase 3: Reporting Functions ==========
-
+// @testonly
 func ReportProblems(
 	pass *analysis.Pass,
 	missingPackages []MissingPackageReport,

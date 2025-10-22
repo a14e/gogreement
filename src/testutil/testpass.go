@@ -36,6 +36,7 @@ func getTestdataPath() string {
 }
 
 // LoadPackageByPath loads a package by its full path for testing
+// @testonly
 func LoadPackageByPath(t *testing.T, pkgPath string) *analysis.Pass {
 	// Extract package name from path
 	pkgName := filepath.Base(pkgPath)
@@ -70,7 +71,8 @@ func LoadPackageByPath(t *testing.T, pkgPath string) *analysis.Pass {
 	return pass
 }
 
-// createTestPass creates a minimal analysis.Pass for testing
+// CreateTestPass creates a minimal analysis.Pass for testing
+// @testonly
 func CreateTestPass(t *testing.T, pkgName string) *analysis.Pass {
 	if cached := getCachedPass(pkgName); cached != nil {
 		t.Logf("Using cached package: %s", pkgName)

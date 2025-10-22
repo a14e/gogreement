@@ -619,14 +619,84 @@ func TestParseTestOnlyAnnotation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parseTestOnlyAnnotation(tt.comment, tt.typeName, 0)
+			result := parseTestOnlyAnnotation(tt.comment, tt.typeName, 0, TestOnlyOnType, "")
 
 			if tt.expectNil {
 				assert.Nil(t, result)
 			} else {
 				require.NotNil(t, result)
-				assert.Equal(t, tt.typeName, result.OnType)
+				assert.Equal(t, TestOnlyOnType, result.Kind)
+				assert.Equal(t, tt.typeName, result.ObjectName)
+				assert.Equal(t, "", result.ReceiverType)
 			}
 		})
 	}
+}
+
+func TestReadTestOnlyAnnotations(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
+	pass := testutil.CreateTestPass(t, "testonlyexample")
+
+	annotations := ReadAllAnnotations(pass)
+
+	// Helper to find testonly annotation
+	findTestOnly := func(objectName string, kind TestOnlyKind) *TestOnlyAnnotation {
+		for _, a := range annotations.TestonlyAnnotations {
+			if a.ObjectName == objectName && a.Kind == kind {
+				return &a
+			}
+		}
+		return nil
+	}
+
+	t.Run("TestHelper type has @testonly", func(t *testing.T) {
+		annot := findTestOnly("TestHelper", TestOnlyOnType)
+		require.NotNil(t, annot, "@testonly annotation not found on TestHelper type")
+		assert.Equal(t, TestOnlyOnType, annot.Kind)
+		assert.Equal(t, "TestHelper", annot.ObjectName)
+		assert.Equal(t, "", annot.ReceiverType)
+	})
+
+	t.Run("CreateMockData function has @testonly", func(t *testing.T) {
+		annot := findTestOnly("CreateMockData", TestOnlyOnFunc)
+		require.NotNil(t, annot, "@testonly annotation not found on CreateMockData function")
+		assert.Equal(t, TestOnlyOnFunc, annot.Kind)
+		assert.Equal(t, "CreateMockData", annot.ObjectName)
+		assert.Equal(t, "", annot.ReceiverType)
+	})
+
+	t.Run("Reset method has @testonly", func(t *testing.T) {
+		annot := findTestOnly("Reset", TestOnlyOnMethod)
+		require.NotNil(t, annot, "@testonly annotation not found on Reset method")
+		assert.Equal(t, TestOnlyOnMethod, annot.Kind)
+		assert.Equal(t, "Reset", annot.ObjectName)
+		assert.Equal(t, "MyService", annot.ReceiverType)
+	})
+
+	t.Run("GetTestData method has @testonly", func(t *testing.T) {
+		annot := findTestOnly("GetTestData", TestOnlyOnMethod)
+		require.NotNil(t, annot, "@testonly annotation not found on GetTestData method")
+		assert.Equal(t, TestOnlyOnMethod, annot.Kind)
+		assert.Equal(t, "GetTestData", annot.ObjectName)
+		assert.Equal(t, "MyService", annot.ReceiverType)
+	})
+
+	t.Run("Regular items should not have @testonly", func(t *testing.T) {
+		// MyService type should not have annotation
+		typeAnnot := findTestOnly("MyService", TestOnlyOnType)
+		assert.Nil(t, typeAnnot, "MyService type should not have @testonly annotation")
+
+		// ProcessData function should not have annotation
+		funcAnnot := findTestOnly("ProcessData", TestOnlyOnFunc)
+		assert.Nil(t, funcAnnot, "ProcessData function should not have @testonly annotation")
+
+		// Process method should not have annotation
+		methodAnnot := findTestOnly("Process", TestOnlyOnMethod)
+		assert.Nil(t, methodAnnot, "Process method should not have @testonly annotation")
+	})
+
+	t.Run("Total count of @testonly annotations", func(t *testing.T) {
+		assert.Equal(t, 4, len(annotations.TestonlyAnnotations), "should have exactly 4 @testonly annotations")
+	})
 }

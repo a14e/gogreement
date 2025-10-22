@@ -3,12 +3,13 @@ module goagreement
 go 1.25
 
 require (
+	github.com/BobuSumisu/aho-corasick v1.0.3
 	github.com/cloudflare/ahocorasick v0.0.0-20240916140611-054963ec9396
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/tools v0.38.0
 )
 
-require (
+require ( // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/mod v0.29.0 // indirect

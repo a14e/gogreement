@@ -26,5 +26,6 @@ func main() {
 		analyzer.ImplementsChecker,
 		analyzer.ImmutableChecker,
 		analyzer.ConstructorChecker,
+		analyzer.TestOnlyChecker,
 	)
 }
