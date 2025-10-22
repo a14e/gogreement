@@ -1,86 +1,30 @@
 package main
 
 import (
-	"goagreement/src/analyzer"
-	"goagreement/src/annotations"
+	"flag"
 
-	"honnef.co/go/tools/analysis/lint"
-	"honnef.co/go/tools/lintcmd"
+	"goagreement/src/analyzer"
+	"goagreement/src/config"
+
+	"golang.org/x/tools/go/analysis/multichecker"
 )
 
-type TestInterface interface {
-	Func(int) int
-	Func3(int) int
-	Func4(string2 string) (int, string)
-}
-
-// MyStruct
-// @immutable
-// @usein main.go, main
-// @constructor New
-// @shouldcall Cleanup
-// @shouldcalloneof Func, Func2
-type MyStruct struct {
-	// @notnil
-	x interface{}
-}
-
-func (*MyStruct) Func(x int) int {
-	return x
-}
-
-func (*MyStruct) Func2(x int) int {
-	return x
-}
-
-func (*MyStruct) Cleanup(x int) int {
-	return x
-}
-
-func New() *MyStruct {
-	return nil
-}
-
-// @immutable
-type ImmutableA struct {
-	a int
-}
-
-// @immutable
-type ImmutableB struct {
-	a ImmutableA
-}
-
-// @immutable
-type ImmutableС struct {
-	a annotations.TypeQuery
-}
-
 func main() {
+	// Parse custom flags
+	scanTests := flag.Bool("scan-tests", false, "enable scanning of test files (*_test.go)")
+	flag.Parse()
 
-	// otherwise it doesn't work use facts =(
-
-	analyzers := []*lint.Analyzer{
-		{
-			Doc:      &lint.RawDocumentation{},
-			Analyzer: analyzer.AnnotationReader,
-		},
-		{
-			Doc:      &lint.RawDocumentation{},
-			Analyzer: analyzer.ImplementsChecker,
-		},
-		{
-			Doc:      &lint.RawDocumentation{},
-			Analyzer: analyzer.ImmutableChecker,
-		},
-		{
-			Doc:      &lint.RawDocumentation{},
-			Analyzer: analyzer.ConstructorChecker,
-		},
+	// Update global configuration immutably
+	// Start with environment config, then override with flag if specified
+	if *scanTests {
+		config.Global = config.Global.WithScanTests(true)
 	}
 
-	cmd := lintcmd.NewCommand("goagreement")
-	cmd.AddAnalyzers(analyzers...)
-
-	cmd.Run()
+	// Run all analyzers separately - multichecker will handle dependencies
+	multichecker.Main(
+		analyzer.AnnotationReader,
+		analyzer.ImplementsChecker,
+		analyzer.ImmutableChecker,
+		analyzer.ConstructorChecker,
+	)
 }

@@ -10,6 +10,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 
 	"goagreement/src/annotations"
+	"goagreement/src/config"
 	"goagreement/src/util"
 )
 
@@ -24,7 +25,10 @@ func CheckImmutable(pass *analysis.Pass, packageAnnotations annotations.PackageA
 
 	constructors := indexing.BuildConstructorIndex(pass, packageAnnotations)
 
-	for _, file := range pass.Files {
+	// Filter files based on configuration (skip test files by default)
+	filesToCheck := config.Global.FilterFiles(pass)
+
+	for _, file := range filesToCheck {
 		currentFunction := ""
 
 		// First pass: check simple assignments and inc/dec operations

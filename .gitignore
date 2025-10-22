@@ -3,3 +3,4 @@
 /docs
 *.exe
 .env
+.claude

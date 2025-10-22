@@ -12,6 +12,8 @@ import (
 )
 
 func TestCheckConstructor(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
@@ -29,6 +31,8 @@ func TestCheckConstructor(t *testing.T) {
 }
 
 func TestCompositeLiteralViolation(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckConstructor(pass, packageAnnotations)
@@ -45,6 +49,8 @@ func TestCompositeLiteralViolation(t *testing.T) {
 }
 
 func TestNewCallViolation(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckConstructor(pass, packageAnnotations)
@@ -61,6 +67,8 @@ func TestNewCallViolation(t *testing.T) {
 }
 
 func TestConstructorAllowed(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckConstructor(pass, packageAnnotations)
@@ -80,6 +88,8 @@ func TestConstructorAllowed(t *testing.T) {
 }
 
 func TestMultipleConstructors(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
@@ -107,6 +117,8 @@ func TestMultipleConstructors(t *testing.T) {
 }
 
 func TestNoAnnotationAllowed(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckConstructor(pass, packageAnnotations)
@@ -144,6 +156,8 @@ func TestEmptyConstructorAnnotations(t *testing.T) {
 }
 
 func TestValueReceiverConstructor(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckConstructor(pass, packageAnnotations)
@@ -162,6 +176,8 @@ func TestValueReceiverConstructor(t *testing.T) {
 }
 
 func TestNestedInstantiation(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckConstructor(pass, packageAnnotations)

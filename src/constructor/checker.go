@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/types"
 	"goagreement/src/annotations"
+	"goagreement/src/config"
 	"goagreement/src/indexing"
 	"goagreement/src/util"
 
@@ -19,7 +20,10 @@ func CheckConstructor(pass *analysis.Pass, packageAnnotations annotations.Packag
 		return violations
 	}
 
-	for _, file := range pass.Files {
+	// Filter files based on configuration (skip test files by default)
+	filesToCheck := config.Global.FilterFiles(pass)
+
+	for _, file := range filesToCheck {
 		currentFunction := ""
 
 		ast.Inspect(file, func(n ast.Node) bool {

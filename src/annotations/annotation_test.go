@@ -333,6 +333,8 @@ func TestParseImmutableAnnotation(t *testing.T) {
 }
 
 func TestReadAllAnnotations(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "withimports")
 
 	annotations := ReadAllAnnotations(pass)
@@ -455,6 +457,8 @@ func TestReadAllAnnotations(t *testing.T) {
 }
 
 func TestReadAllAnnotationsWithImmutable(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "interfacesforloading")
 
 	annotations := ReadAllAnnotations(pass)

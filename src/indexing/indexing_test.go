@@ -12,6 +12,8 @@ import (
 )
 
 func TestBuildImmutableTypesIndex(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
@@ -80,6 +82,8 @@ func TestBuildImmutableTypesIndexEmpty(t *testing.T) {
 }
 
 func TestBuildImmutableTypesIndexWithImports(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := createTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
@@ -97,6 +101,8 @@ func TestBuildImmutableTypesIndexWithImports(t *testing.T) {
 }
 
 func TestBuildConstructorIndex(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
@@ -184,6 +190,8 @@ func TestBuildConstructorIndexEmpty(t *testing.T) {
 }
 
 func TestBuildConstructorIndexWithImports(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := createTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 

@@ -13,6 +13,8 @@ import (
 )
 
 func TestCheckImmutable(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "immutabletests")
 
 	// Read annotations
@@ -34,6 +36,8 @@ func TestCheckImmutable(t *testing.T) {
 }
 
 func TestFieldAssignmentViolation(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, packageAnnotations)
@@ -51,6 +55,8 @@ func TestFieldAssignmentViolation(t *testing.T) {
 }
 
 func TestIncDecViolation(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, packageAnnotations)
@@ -68,6 +74,8 @@ func TestIncDecViolation(t *testing.T) {
 }
 
 func TestSliceIndexViolation(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, packageAnnotations)
@@ -85,6 +93,8 @@ func TestSliceIndexViolation(t *testing.T) {
 }
 
 func TestConstructorAllowed(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, packageAnnotations)
@@ -99,6 +109,8 @@ func TestConstructorAllowed(t *testing.T) {
 }
 
 func TestMultipleConstructors(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
@@ -127,6 +139,8 @@ func TestMultipleConstructors(t *testing.T) {
 }
 
 func TestMutableTypeAllowed(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, packageAnnotations)
@@ -138,6 +152,8 @@ func TestMutableTypeAllowed(t *testing.T) {
 }
 
 func TestCounterOperations(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, packageAnnotations)
@@ -164,6 +180,8 @@ func TestCounterOperations(t *testing.T) {
 }
 
 func TestCompoundAssignmentOperators(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, packageAnnotations)
@@ -244,6 +262,8 @@ func createTestPassWithFacts(t *testing.T, pkgName string) *analysis.Pass {
 }
 
 func TestImportedImmutableType(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := createTestPassWithFacts(t, "immutabletests") // Use createTestPassWithFacts
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, packageAnnotations)
@@ -274,6 +294,8 @@ func TestImportedImmutableType(t *testing.T) {
 // and only process them in the dedicated second pass. This ensures each violation
 // is reported exactly once with the most specific error message.
 func TestNoDuplicateViolations(t *testing.T) {
+	defer testutil.WithTestConfig(t)()
+
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, packageAnnotations)
