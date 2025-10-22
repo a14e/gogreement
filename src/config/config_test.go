@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -91,18 +90,16 @@ func TestFromEnv(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set environment variable
-			if tt.envValue != "" {
-				os.Setenv("GOAGREEMENT_SCAN_TESTS", tt.envValue)
-			} else {
-				os.Unsetenv("GOAGREEMENT_SCAN_TESTS")
-			}
+			// Ensure exclude paths don't interfere with defaults
+			t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "")
 
-			// Clean up after test
-			defer os.Unsetenv("GOAGREEMENT_SCAN_TESTS")
+			// Set environment variable (empty string simulates "unset" for our logic)
+			t.Setenv("GOAGREEMENT_SCAN_TESTS", tt.envValue)
 
 			cfg := FromEnv()
 			assert.Equal(t, tt.expected, cfg.ScanTests, "env value %q should result in ScanTests=%v", tt.envValue, tt.expected)
+			// Default exclude paths should be preserved unless explicitly set
+			assert.Equal(t, []string{"testdata"}, cfg.ExcludePaths)
 		})
 	}
 }
@@ -155,10 +152,9 @@ func TestConfigImmutability(t *testing.T) {
 		assert.True(t, cfg2.ScanTests)
 		assert.False(t, cfg3.ScanTests)
 
-		// Verify memory addresses are different (different instances)
+		// Verify instances are different (addresses differ)
 		assert.NotSame(t, cfg1, cfg2, "cfg1 and cfg2 should be different instances")
 		assert.NotSame(t, cfg2, cfg3, "cfg2 and cfg3 should be different instances")
-		// Note: cfg1 and cfg3 have same values but should still be different instances
 		assert.NotSame(t, cfg1, cfg3, "cfg1 and cfg3 should be different instances even with same values")
 	})
 }

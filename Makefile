@@ -1,4 +1,4 @@
-.PHONY: build install swagger lint pre-build  fmt
+.PHONY: build install swagger lint pre-build fmt test
 
 build: pre-build
 	go build
@@ -17,4 +17,13 @@ lint:
 fmt:
 	go fmt ./...
 
-pre-build: tidy fmt lint
+test:
+	go test  ./...
+
+pre-build: tidy fmt lint test
+
+
+ci: pre-build build
+
+run: pre-build
+	 go run cmd/goagreement/main.go   ./...

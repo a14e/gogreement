@@ -357,11 +357,12 @@ func formatType(t InterfaceType) string {
 	// Add package prefix
 	if t.TypePackage != "" {
 		// Extract short package name from full path
-		parts := strings.Split(t.TypePackage, "/")
-		shortPkg := parts[len(parts)-1]
+		if parts := strings.Split(t.TypePackage, "/"); len(parts) > 0 {
+			shortPkg := parts[len(parts)-1]
 
-		result.WriteString(shortPkg)
-		result.WriteString(".")
+			result.WriteString(shortPkg)
+			result.WriteString(".")
+		}
 	}
 
 	// Add type name
