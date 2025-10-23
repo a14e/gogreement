@@ -1,6 +1,9 @@
 package indexing
 
 import (
+	"go/types"
+	"iter"
+
 	"golang.org/x/tools/go/analysis"
 
 	"goagreement/src/annotations"
@@ -8,27 +11,12 @@ import (
 )
 
 // BuildImmutableTypesIndex creates an index of immutable types from current and imported packages
-func BuildImmutableTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypesMap {
+func BuildImmutableTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pass) util.TypesMap {
 	result := util.NewTypesMap()
 
-	if pass.Pkg == nil {
-		return result
-	}
-
-	for _, annot := range packageAnnotations.ImmutableAnnotations {
-		result.Add(pass.Pkg.Path(), annot.OnType)
-	}
-
-	if pass.ImportPackageFact != nil {
-		var zero T
-		for _, imp := range pass.Pkg.Imports() {
-			fact := zero.Empty()
-			if pass.ImportPackageFact(imp, fact) {
-				importedAnnotations := fact.GetAnnotations()
-				for _, annot := range importedAnnotations.ImmutableAnnotations {
-					result.Add(imp.Path(), annot.OnType)
-				}
-			}
+	for pkg, ann := range iterOverPackages2[T](pass) {
+		for _, annot := range ann.ImmutableAnnotations {
+			result.Add(pkg.Path(), annot.OnType)
 		}
 	}
 
@@ -39,27 +27,10 @@ func BuildImmutableTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pa
 func BuildConstructorIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
 	result := util.NewTypeFuncRegistry()
 
-	if pass.Pkg == nil {
-		return result
-	}
-
-	for _, annot := range packageAnnotations.ConstructorAnnotations {
-		for _, constructorName := range annot.ConstructorNames {
-			result.Add(pass.Pkg.Path(), constructorName, annot.OnType)
-		}
-	}
-
-	if pass.ImportPackageFact != nil {
-		var zero T
-		for _, imp := range pass.Pkg.Imports() {
-			fact := zero.Empty()
-			if pass.ImportPackageFact(imp, fact) {
-				importedAnnotations := fact.GetAnnotations()
-				for _, annot := range importedAnnotations.ConstructorAnnotations {
-					for _, constructorName := range annot.ConstructorNames {
-						result.Add(imp.Path(), constructorName, annot.OnType)
-					}
-				}
+	for pkg, ann := range iterOverPackages[T](pass, packageAnnotations) {
+		for _, annot := range ann.ConstructorAnnotations {
+			for _, constructorName := range annot.ConstructorNames {
+				result.Add(pkg.Path(), constructorName, annot.OnType)
 			}
 		}
 	}
@@ -71,27 +42,10 @@ func BuildConstructorIndex[T annotations.AnnotationWrapper](pass *analysis.Pass,
 func BuildTestOnlyTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypesMap {
 	result := util.NewTypesMap()
 
-	if pass.Pkg == nil {
-		return result
-	}
-
-	for _, annot := range packageAnnotations.TestonlyAnnotations {
-		if annot.Kind == annotations.TestOnlyOnType {
-			result.Add(pass.Pkg.Path(), annot.ObjectName)
-		}
-	}
-
-	if pass.ImportPackageFact != nil {
-		var zero T
-		for _, imp := range pass.Pkg.Imports() {
-			fact := zero.Empty()
-			if pass.ImportPackageFact(imp, fact) {
-				importedAnnotations := fact.GetAnnotations()
-				for _, annot := range importedAnnotations.TestonlyAnnotations {
-					if annot.Kind == annotations.TestOnlyOnType {
-						result.Add(imp.Path(), annot.ObjectName)
-					}
-				}
+	for pkg, ann := range iterOverPackages[T](pass, packageAnnotations) {
+		for _, annot := range ann.TestonlyAnnotations {
+			if annot.Kind == annotations.TestOnlyOnType {
+				result.Add(pkg.Path(), annot.ObjectName)
 			}
 		}
 	}
@@ -103,28 +57,11 @@ func BuildTestOnlyTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pas
 func BuildTestOnlyFuncsIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
 	result := util.NewTypeFuncRegistry()
 
-	if pass.Pkg == nil {
-		return result
-	}
-
-	for _, annot := range packageAnnotations.TestonlyAnnotations {
-		if annot.Kind == annotations.TestOnlyOnFunc {
-			// Store function as funcName -> funcName mapping
-			result.Add(pass.Pkg.Path(), annot.ObjectName, annot.ObjectName)
-		}
-	}
-
-	if pass.ImportPackageFact != nil {
-		var zero T
-		for _, imp := range pass.Pkg.Imports() {
-			fact := zero.Empty()
-			if pass.ImportPackageFact(imp, fact) {
-				importedAnnotations := fact.GetAnnotations()
-				for _, annot := range importedAnnotations.TestonlyAnnotations {
-					if annot.Kind == annotations.TestOnlyOnFunc {
-						result.Add(imp.Path(), annot.ObjectName, annot.ObjectName)
-					}
-				}
+	for pkg, ann := range iterOverPackages[T](pass, packageAnnotations) {
+		for _, annot := range ann.TestonlyAnnotations {
+			if annot.Kind == annotations.TestOnlyOnFunc {
+				// Store function as funcName -> funcName mapping
+				result.Add(pkg.Path(), annot.ObjectName, annot.ObjectName)
 			}
 		}
 	}
@@ -136,31 +73,72 @@ func BuildTestOnlyFuncsIndex[T annotations.AnnotationWrapper](pass *analysis.Pas
 func BuildTestOnlyMethodsIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
 	result := util.NewTypeFuncRegistry()
 
-	if pass.Pkg == nil {
-		return result
-	}
-
-	for _, annot := range packageAnnotations.TestonlyAnnotations {
-		if annot.Kind == annotations.TestOnlyOnMethod {
-			// Store method as methodName -> receiverType mapping
-			result.Add(pass.Pkg.Path(), annot.ObjectName, annot.ReceiverType)
-		}
-	}
-
-	if pass.ImportPackageFact != nil {
-		var zero T
-		for _, imp := range pass.Pkg.Imports() {
-			fact := zero.Empty()
-			if pass.ImportPackageFact(imp, fact) {
-				importedAnnotations := fact.GetAnnotations()
-				for _, annot := range importedAnnotations.TestonlyAnnotations {
-					if annot.Kind == annotations.TestOnlyOnMethod {
-						result.Add(imp.Path(), annot.ObjectName, annot.ReceiverType)
-					}
-				}
+	for pkg, ann := range iterOverPackages[T](pass, packageAnnotations) {
+		for _, annot := range ann.TestonlyAnnotations {
+			if annot.Kind == annotations.TestOnlyOnMethod {
+				// Store method as methodName -> receiverType mapping
+				result.Add(pkg.Path(), annot.ObjectName, annot.ReceiverType)
 			}
 		}
 	}
 
 	return result
+}
+
+// iterOverPackages just iter over packageAnnotations + facts over imported packages
+func iterOverPackages[T annotations.AnnotationWrapper](
+	pass *analysis.Pass,
+	packageAnnotations *annotations.PackageAnnotations,
+) iter.Seq2[*types.Package, *annotations.PackageAnnotations] {
+
+	return func(yield func(*types.Package, *annotations.PackageAnnotations) bool) {
+		if pass.Pkg == nil {
+			return
+		}
+
+		if !yield(pass.Pkg, packageAnnotations) {
+			return
+		}
+
+		if pass.ImportPackageFact != nil {
+			var zero T
+			for _, imp := range pass.Pkg.Imports() {
+				fact := zero.Empty()
+				if pass.ImportPackageFact(imp, fact) {
+					yield(imp, fact.GetAnnotations())
+				}
+			}
+		}
+
+	}
+}
+
+func iterOverPackages2[T annotations.AnnotationWrapper](
+	pass *analysis.Pass,
+) iter.Seq2[*types.Package, *annotations.PackageAnnotations] {
+
+	return func(yield func(*types.Package, *annotations.PackageAnnotations) bool) {
+		if pass.Pkg == nil {
+			return
+		}
+
+		var zero T
+		fact := zero.Empty()
+		if pass.ImportPackageFact(pass.Pkg, fact) {
+			if !yield(pass.Pkg, fact.GetAnnotations()) {
+				return
+			}
+		}
+
+		if pass.ImportPackageFact != nil {
+			for _, imp := range pass.Pkg.Imports() {
+				if pass.ImportPackageFact(imp, fact) {
+					if !yield(imp, fact.GetAnnotations()) {
+						return
+					}
+				}
+			}
+		}
+
+	}
 }

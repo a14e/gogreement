@@ -14,10 +14,9 @@ import (
 func TestBuildImmutableTypesIndex(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := testutil.CreateTestPass(t, "immutabletests")
-	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	pass := createTestPassWithFacts(t, "immutabletests")
 
-	index := BuildImmutableTypesIndex[*annotations.ImmutableCheckerFact](pass, &packageAnnotations)
+	index := BuildImmutableTypesIndex[*annotations.ImmutableCheckerFact](pass)
 
 	pkgPath := pass.Pkg.Path()
 
@@ -71,12 +70,16 @@ func TestBuildImmutableTypesIndex(t *testing.T) {
 func TestBuildImmutableTypesIndexEmpty(t *testing.T) {
 	pass := testutil.CreateTestPass(t, "withimports")
 
-	// Create empty annotations
-	emptyAnnotations := annotations.PackageAnnotations{
-		ImmutableAnnotations: []annotations.ImmutableAnnotation{},
+	// Setup ImportPackageFact to return empty annotations
+	pass.ImportPackageFact = func(pkg *types.Package, fact analysis.Fact) bool {
+		if targetAnnotations, ok := fact.(*annotations.ImmutableCheckerFact); ok {
+			*targetAnnotations = annotations.ImmutableCheckerFact{}
+			return true
+		}
+		return false
 	}
 
-	index := BuildImmutableTypesIndex[*annotations.ImmutableCheckerFact](pass, &emptyAnnotations)
+	index := BuildImmutableTypesIndex[*annotations.ImmutableCheckerFact](pass)
 
 	assert.Equal(t, 0, index.Len(), "should be empty when no immutable annotations")
 }
@@ -85,9 +88,8 @@ func TestBuildImmutableTypesIndexWithImports(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
 	pass := createTestPassWithFacts(t, "immutabletests")
-	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
-	index := BuildImmutableTypesIndex[*annotations.ImmutableCheckerFact](pass, &packageAnnotations)
+	index := BuildImmutableTypesIndex[*annotations.ImmutableCheckerFact](pass)
 
 	// Check local types
 	localPkgPath := pass.Pkg.Path()
