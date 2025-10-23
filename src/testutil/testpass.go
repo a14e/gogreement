@@ -16,12 +16,14 @@ var (
 	testPackageCacheLock sync.RWMutex
 )
 
+// @testonly
 func getCachedPass(pkgName string) *analysis.Pass {
 	testPackageCacheLock.RLock()
 	defer testPackageCacheLock.RUnlock()
 	return testPackageCache[pkgName]
 }
 
+// @testonly
 func setCachedPass(pkgName string, pass *analysis.Pass) {
 	testPackageCacheLock.Lock()
 	testPackageCache[pkgName] = pass
@@ -29,6 +31,7 @@ func setCachedPass(pkgName string, pass *analysis.Pass) {
 }
 
 // getTestdataPath returns absolute path to testdata directory
+// @testonly
 func getTestdataPath() string {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)

@@ -9,12 +9,13 @@ import (
 
 	"goagreement/src/annotations"
 	"goagreement/src/testutil"
+	"goagreement/src/testutil/testfacts"
 )
 
 func TestBuildImmutableTypesIndex(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 
 	index := BuildImmutableTypesIndex[*annotations.ImmutableCheckerFact](pass)
 
@@ -68,7 +69,7 @@ func TestBuildImmutableTypesIndex(t *testing.T) {
 }
 
 func TestBuildImmutableTypesIndexEmpty(t *testing.T) {
-	pass := testutil.CreateTestPass(t, "withimports")
+	pass := testfacts.CreateTestPassWithFacts(t, "withimports")
 
 	// Setup ImportPackageFact to return empty annotations
 	pass.ImportPackageFact = func(pkg *types.Package, fact analysis.Fact) bool {
@@ -87,7 +88,7 @@ func TestBuildImmutableTypesIndexEmpty(t *testing.T) {
 func TestBuildImmutableTypesIndexWithImports(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 
 	index := BuildImmutableTypesIndex[*annotations.ImmutableCheckerFact](pass)
 
@@ -105,7 +106,7 @@ func TestBuildImmutableTypesIndexWithImports(t *testing.T) {
 func TestBuildConstructorIndex(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := testutil.CreateTestPass(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
 	index := BuildConstructorIndex[*annotations.ConstructorCheckerFact](pass, &packageAnnotations)
@@ -180,7 +181,7 @@ func TestBuildConstructorIndex(t *testing.T) {
 }
 
 func TestBuildConstructorIndexEmpty(t *testing.T) {
-	pass := testutil.CreateTestPass(t, "withimports")
+	pass := testfacts.CreateTestPassWithFacts(t, "withimports")
 
 	emptyAnnotations := annotations.PackageAnnotations{
 		ConstructorAnnotations: []annotations.ConstructorAnnotation{},
@@ -194,7 +195,7 @@ func TestBuildConstructorIndexEmpty(t *testing.T) {
 func TestBuildConstructorIndexWithImports(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
 	index := BuildConstructorIndex[*annotations.ConstructorCheckerFact](pass, &packageAnnotations)
@@ -209,56 +210,10 @@ func TestBuildConstructorIndexWithImports(t *testing.T) {
 	assert.Greater(t, index.Len(), 0, "should have constructors indexed")
 }
 
-// Helper function for tests that need ImportPackageFact support
-func createTestPassWithFacts(t *testing.T, pkgName string) *analysis.Pass {
-	pass := testutil.CreateTestPass(t, pkgName)
-
-	factCache := make(map[string]annotations.PackageAnnotations)
-
-	pass.ImportPackageFact = func(pkg *types.Package, fact analysis.Fact) bool {
-		// Handle both old and new fact types
-		var targetAnnotations *annotations.PackageAnnotations
-
-		switch ptr := fact.(type) {
-		case *annotations.ImmutableCheckerFact:
-			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
-		case *annotations.ConstructorCheckerFact:
-			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
-		case *annotations.TestOnlyCheckerFact:
-			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
-		case *annotations.AnnotationReaderFact:
-			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
-		case *annotations.ImplementsCheckerFact:
-			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
-		case *annotations.PackageAnnotations:
-			targetAnnotations = ptr
-		default:
-			return false
-		}
-
-		if cached, ok := factCache[pkg.Path()]; ok {
-			*targetAnnotations = cached
-			return true
-		}
-
-		importedPass := testutil.LoadPackageByPath(t, pkg.Path())
-		if importedPass == nil {
-			return false
-		}
-
-		importedAnnotations := annotations.ReadAllAnnotations(importedPass)
-		factCache[pkg.Path()] = importedAnnotations
-		*targetAnnotations = importedAnnotations
-		return true
-	}
-
-	return pass
-}
-
 func TestBuildTestOnlyTypesIndex(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := testutil.CreateTestPass(t, "testonlyexample")
+	pass := testfacts.CreateTestPassWithFacts(t, "testonlyexample")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
 	index := BuildTestOnlyTypesIndex[*annotations.TestOnlyCheckerFact](pass, &packageAnnotations)
@@ -282,7 +237,7 @@ func TestBuildTestOnlyTypesIndex(t *testing.T) {
 func TestBuildTestOnlyFuncsIndex(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := testutil.CreateTestPass(t, "testonlyexample")
+	pass := testfacts.CreateTestPassWithFacts(t, "testonlyexample")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
 	index := BuildTestOnlyFuncsIndex[*annotations.TestOnlyCheckerFact](pass, &packageAnnotations)
@@ -306,7 +261,7 @@ func TestBuildTestOnlyFuncsIndex(t *testing.T) {
 func TestBuildTestOnlyMethodsIndex(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := testutil.CreateTestPass(t, "testonlyexample")
+	pass := testfacts.CreateTestPassWithFacts(t, "testonlyexample")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
 	index := BuildTestOnlyMethodsIndex[*annotations.TestOnlyCheckerFact](pass, &packageAnnotations)

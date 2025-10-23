@@ -2,20 +2,19 @@ package immutable
 
 import (
 	"go/token"
-	"go/types"
 	"goagreement/src/annotations"
 	"goagreement/src/testutil"
+	"goagreement/src/testutil/testfacts"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/tools/go/analysis"
 )
 
 func TestCheckImmutable(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 
 	// Read annotations
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
@@ -38,7 +37,7 @@ func TestCheckImmutable(t *testing.T) {
 func TestFieldAssignmentViolation(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, &packageAnnotations)
 
@@ -57,7 +56,7 @@ func TestFieldAssignmentViolation(t *testing.T) {
 func TestIncDecViolation(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, &packageAnnotations)
 
@@ -76,7 +75,7 @@ func TestIncDecViolation(t *testing.T) {
 func TestSliceIndexViolation(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, &packageAnnotations)
 
@@ -95,7 +94,7 @@ func TestSliceIndexViolation(t *testing.T) {
 func TestConstructorAllowed(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, &packageAnnotations)
 
@@ -111,7 +110,7 @@ func TestConstructorAllowed(t *testing.T) {
 func TestMultipleConstructors(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
 	// Verify Config has multiple constructors
@@ -141,7 +140,7 @@ func TestMultipleConstructors(t *testing.T) {
 func TestMutableTypeAllowed(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, &packageAnnotations)
 
@@ -154,7 +153,7 @@ func TestMutableTypeAllowed(t *testing.T) {
 func TestCounterOperations(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, &packageAnnotations)
 
@@ -182,7 +181,7 @@ func TestCounterOperations(t *testing.T) {
 func TestCompoundAssignmentOperators(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, &packageAnnotations)
 
@@ -205,7 +204,7 @@ func TestCompoundAssignmentOperators(t *testing.T) {
 }
 
 func TestReportViolations(t *testing.T) {
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 
 	violations := []ImmutableViolation{
 		{
@@ -221,64 +220,10 @@ func TestReportViolations(t *testing.T) {
 	t.Log("ReportViolations executed successfully")
 }
 
-// createTestPassWithFacts creates a test pass with ImportPackageFact support
-func createTestPassWithFacts(t *testing.T, pkgName string) *analysis.Pass {
-	pass := testutil.CreateTestPass(t, pkgName)
-
-	// Cache for imported facts
-	factCache := make(map[string]annotations.PackageAnnotations)
-
-	pass.ImportPackageFact = func(pkg *types.Package, fact analysis.Fact) bool {
-		// Handle both old and new fact types
-		var targetAnnotations *annotations.PackageAnnotations
-
-		switch ptr := fact.(type) {
-		case *annotations.ImmutableCheckerFact:
-			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
-		case *annotations.ConstructorCheckerFact:
-			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
-		case *annotations.TestOnlyCheckerFact:
-			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
-		case *annotations.AnnotationReaderFact:
-			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
-		case *annotations.ImplementsCheckerFact:
-			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
-		case *annotations.PackageAnnotations:
-			targetAnnotations = ptr
-		default:
-			return false
-		}
-
-		// Check cache
-		if cached, ok := factCache[pkg.Path()]; ok {
-			*targetAnnotations = cached
-			return true
-		}
-
-		// Load package and read annotations
-		importedPass := testutil.LoadPackageByPath(t, pkg.Path())
-		if importedPass == nil {
-			return false
-		}
-
-		// Read annotations
-		importedAnnotations := annotations.ReadAllAnnotations(importedPass)
-
-		// Cache
-		factCache[pkg.Path()] = importedAnnotations
-
-		// Copy to fact
-		*targetAnnotations = importedAnnotations
-		return true
-	}
-
-	return pass
-}
-
 func TestImportedImmutableType(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests") // Use createTestPassWithFacts
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests") // Use testfacts.CreateTestPassWithFacts
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, &packageAnnotations)
 
@@ -310,7 +255,7 @@ func TestImportedImmutableType(t *testing.T) {
 func TestNoDuplicateViolations(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, &packageAnnotations)
 
@@ -355,7 +300,7 @@ func TestNoDuplicateViolations(t *testing.T) {
 func TestReceiverReassignment(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, &packageAnnotations)
 
@@ -390,7 +335,7 @@ func TestReceiverReassignment(t *testing.T) {
 func TestPrimitiveTypeAliasReassignment(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, &packageAnnotations)
 
@@ -430,7 +375,7 @@ func TestPrimitiveTypeAliasReassignment(t *testing.T) {
 func TestMapFieldModification(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := createTestPassWithFacts(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	violations := CheckImmutable(pass, &packageAnnotations)
 

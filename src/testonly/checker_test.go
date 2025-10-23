@@ -3,6 +3,7 @@ package testonly
 import (
 	"goagreement/src/annotations"
 	"goagreement/src/testutil"
+	"goagreement/src/testutil/testfacts"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +13,7 @@ import (
 func TestCheckTestOnly(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := testutil.CreateTestPass(t, "testonlyviolations")
+	pass := testfacts.CreateTestPassWithFacts(t, "testonlyviolations")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
 	violations := CheckTestOnly(pass, &packageAnnotations)
@@ -116,7 +117,7 @@ func TestIsTestFile(t *testing.T) {
 func TestGetTypeName(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := testutil.CreateTestPass(t, "testonlyexample")
+	pass := testfacts.CreateTestPassWithFacts(t, "testonlyexample")
 
 	t.Run("Extract type name from types", func(t *testing.T) {
 		// We'll test this indirectly through the checker
@@ -129,7 +130,7 @@ func TestGetTypeName(t *testing.T) {
 func TestCheckTestOnlyWithNoAnnotations(t *testing.T) {
 	defer testutil.WithTestConfig(t)()
 
-	pass := testutil.CreateTestPass(t, "immutabletests")
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
 	// Filter out testonly annotations for this test
