@@ -5,3 +5,5 @@
 .env
 .claude
 CLAUDE.md
+/src/testutil/testdata/pkg
+/src/analyzer/testdata/pkg/
