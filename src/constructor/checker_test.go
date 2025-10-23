@@ -19,7 +19,7 @@ func TestCheckConstructor(t *testing.T) {
 
 	t.Logf("Found %d constructor annotations", len(packageAnnotations.ConstructorAnnotations))
 
-	violations := CheckConstructor(pass, packageAnnotations)
+	violations := CheckConstructor(pass, &packageAnnotations)
 
 	t.Logf("Found %d violations", len(violations))
 	for _, v := range violations {
@@ -35,7 +35,7 @@ func TestCompositeLiteralViolation(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckConstructor(pass, packageAnnotations)
+	violations := CheckConstructor(pass, &packageAnnotations)
 
 	hasUserViolation := false
 	for _, v := range violations {
@@ -53,7 +53,7 @@ func TestNewCallViolation(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckConstructor(pass, packageAnnotations)
+	violations := CheckConstructor(pass, &packageAnnotations)
 
 	hasNewViolation := false
 	for _, v := range violations {
@@ -71,7 +71,7 @@ func TestConstructorAllowed(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckConstructor(pass, packageAnnotations)
+	violations := CheckConstructor(pass, &packageAnnotations)
 
 	for _, v := range violations {
 		position := pass.Fset.Position(v.Pos)
@@ -105,7 +105,7 @@ func TestMultipleConstructors(t *testing.T) {
 	assert.Contains(t, configAnnotation.ConstructorNames, "NewConfig")
 	assert.Contains(t, configAnnotation.ConstructorNames, "NewDefaultConfig")
 
-	violations := CheckConstructor(pass, packageAnnotations)
+	violations := CheckConstructor(pass, &packageAnnotations)
 
 	for _, v := range violations {
 		if v.TypeName == "Config" {
@@ -121,7 +121,7 @@ func TestNoAnnotationAllowed(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckConstructor(pass, packageAnnotations)
+	violations := CheckConstructor(pass, &packageAnnotations)
 
 	for _, v := range violations {
 		assert.NotEqual(t, "Service", v.TypeName, "should not report violations for types without @constructor")
@@ -150,7 +150,7 @@ func TestEmptyConstructorAnnotations(t *testing.T) {
 		ConstructorAnnotations: []annotations.ConstructorAnnotation{},
 	}
 
-	violations := CheckConstructor(pass, emptyAnnotations)
+	violations := CheckConstructor(pass, &emptyAnnotations)
 
 	assert.Empty(t, violations, "should have no violations when no @constructor annotations")
 }
@@ -160,7 +160,7 @@ func TestValueReceiverConstructor(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckConstructor(pass, packageAnnotations)
+	violations := CheckConstructor(pass, &packageAnnotations)
 
 	hasPointViolation := false
 	for _, v := range violations {
@@ -180,7 +180,7 @@ func TestNestedInstantiation(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "constructortests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckConstructor(pass, packageAnnotations)
+	violations := CheckConstructor(pass, &packageAnnotations)
 
 	hasHelperViolation := false
 	for _, v := range violations {

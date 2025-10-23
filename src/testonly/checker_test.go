@@ -15,7 +15,7 @@ func TestCheckTestOnly(t *testing.T) {
 	pass := testutil.CreateTestPass(t, "testonlyviolations")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
-	violations := CheckTestOnly(pass, packageAnnotations)
+	violations := CheckTestOnly(pass, &packageAnnotations)
 
 	t.Run("Should detect violations", func(t *testing.T) {
 		assert.NotEmpty(t, violations, "expected to find violations")
@@ -135,7 +135,7 @@ func TestCheckTestOnlyWithNoAnnotations(t *testing.T) {
 	// Filter out testonly annotations for this test
 	packageAnnotations.TestonlyAnnotations = nil
 
-	violations := CheckTestOnly(pass, packageAnnotations)
+	violations := CheckTestOnly(pass, &packageAnnotations)
 
 	assert.Empty(t, violations, "should have no violations when no @testonly annotations")
 }

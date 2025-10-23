@@ -24,7 +24,7 @@ func TestCheckImmutable(t *testing.T) {
 	t.Logf("Found %d constructor annotations", len(packageAnnotations.ConstructorAnnotations))
 
 	// Run immutability check
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	t.Logf("Found %d violations", len(violations))
 	for _, v := range violations {
@@ -40,7 +40,7 @@ func TestFieldAssignmentViolation(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	// Should catch: p.Name = name in UpdateName function
 	hasNameViolation := false
@@ -59,7 +59,7 @@ func TestIncDecViolation(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	// Should catch: p.Age++ in IncrementAge
 	hasIncViolation := false
@@ -78,7 +78,7 @@ func TestSliceIndexViolation(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	// Should catch: p.Items[index] = value in ModifyItem
 	hasSliceViolation := false
@@ -97,7 +97,7 @@ func TestConstructorAllowed(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	// Should NOT catch violations in NewPerson constructor
 	for _, v := range violations {
@@ -128,7 +128,7 @@ func TestMultipleConstructors(t *testing.T) {
 	assert.Contains(t, configAnnotation.ConstructorNames, "NewDefaultConfig")
 
 	// Both constructors should be allowed to mutate
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	for _, v := range violations {
 		if v.TypeName == "Config" {
@@ -143,7 +143,7 @@ func TestMutableTypeAllowed(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	// MutableType should have NO violations (not marked as immutable)
 	for _, v := range violations {
@@ -156,7 +156,7 @@ func TestCounterOperations(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	counterViolations := 0
 	compoundOps := 0
@@ -184,7 +184,7 @@ func TestCompoundAssignmentOperators(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	// Check for various compound operators
 	operators := []string{"+=", "-=", "*=", "/="}
@@ -266,7 +266,7 @@ func TestImportedImmutableType(t *testing.T) {
 
 	pass := createTestPassWithFacts(t, "immutabletests") // Use createTestPassWithFacts
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	// Should catch violation on imported FileReader type
 	hasImportedViolation := false
@@ -298,7 +298,7 @@ func TestNoDuplicateViolations(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	// Group violations by position
 	violationsByPos := make(map[token.Pos][]ImmutableViolation)
@@ -343,7 +343,7 @@ func TestReceiverReassignment(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	// Should catch: *p = Person{} in Person.Reset method
 	hasPersonResetViolation := false
@@ -378,7 +378,7 @@ func TestPrimitiveTypeAliasReassignment(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	// Should catch: *i = ImmutableInt(value) in ImmutableInt.SetValue method
 	hasImmutableIntSetViolation := false
@@ -418,7 +418,7 @@ func TestMapFieldModification(t *testing.T) {
 
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	violations := CheckImmutable(pass, packageAnnotations)
+	violations := CheckImmutable(pass, &packageAnnotations)
 
 	// Should catch: c.settings[key] = value in ModifyMapString
 	hasMapStringViolation := false

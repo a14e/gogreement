@@ -1,20 +1,18 @@
 package util
 
-import ac "github.com/BobuSumisu/aho-corasick"
-
-// we use this for MIT licence
+import "github.com/cloudflare/ahocorasick"
 
 // @immutable
 // @constructor NewStringMatcher
 type StringMatcher struct {
-	trie *ac.Trie
+	matcher *ahocorasick.Matcher
 }
 
 func NewStringMatcher(dict []string) *StringMatcher {
-	tb := ac.NewTrieBuilder().AddStrings(dict)
-	return &StringMatcher{trie: tb.Build()}
+	m := ahocorasick.NewStringMatcher(dict)
+	return &StringMatcher{matcher: m}
 }
 
 func (m *StringMatcher) Contains(b []byte) bool {
-	return m.trie.MatchFirst(b) != nil
+	return m.matcher.Contains(b)
 }

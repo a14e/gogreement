@@ -14,7 +14,7 @@ import (
 	"goagreement/src/util"
 )
 
-func CheckImmutable(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) []ImmutableViolation {
+func CheckImmutable(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) []ImmutableViolation {
 	var violations []ImmutableViolation
 
 	// Build indices for efficient lookup during AST traversal

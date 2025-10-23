@@ -16,7 +16,7 @@ import (
 )
 
 // CheckTestOnly checks that @testonly annotated items are only used in test files
-func CheckTestOnly(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) []TestOnlyViolation {
+func CheckTestOnly(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) []TestOnlyViolation {
 	var violations []TestOnlyViolation
 
 	// Build indices for @testonly items (including imported packages)

@@ -8,7 +8,7 @@ import (
 )
 
 // BuildImmutableTypesIndex creates an index of immutable types from current and imported packages
-func BuildImmutableTypesIndex(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) util.TypesMap {
+func BuildImmutableTypesIndex(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypesMap {
 	result := util.NewTypesMap()
 
 	if pass.Pkg == nil {
@@ -34,7 +34,7 @@ func BuildImmutableTypesIndex(pass *analysis.Pass, packageAnnotations annotation
 }
 
 // BuildConstructorIndex creates an index of constructor functions for types
-func BuildConstructorIndex(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) util.TypeFuncRegistry {
+func BuildConstructorIndex(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
 	result := util.NewTypeFuncRegistry()
 
 	if pass.Pkg == nil {
@@ -64,7 +64,7 @@ func BuildConstructorIndex(pass *analysis.Pass, packageAnnotations annotations.P
 }
 
 // BuildTestOnlyTypesIndex creates an index of @testonly types from current and imported packages
-func BuildTestOnlyTypesIndex(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) util.TypesMap {
+func BuildTestOnlyTypesIndex(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypesMap {
 	result := util.NewTypesMap()
 
 	if pass.Pkg == nil {
@@ -94,7 +94,7 @@ func BuildTestOnlyTypesIndex(pass *analysis.Pass, packageAnnotations annotations
 }
 
 // BuildTestOnlyFuncsIndex creates an index of @testonly functions from current and imported packages
-func BuildTestOnlyFuncsIndex(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) util.TypeFuncRegistry {
+func BuildTestOnlyFuncsIndex(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
 	result := util.NewTypeFuncRegistry()
 
 	if pass.Pkg == nil {
@@ -125,7 +125,7 @@ func BuildTestOnlyFuncsIndex(pass *analysis.Pass, packageAnnotations annotations
 }
 
 // BuildTestOnlyMethodsIndex creates an index of @testonly methods from current and imported packages
-func BuildTestOnlyMethodsIndex(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) util.TypeFuncRegistry {
+func BuildTestOnlyMethodsIndex(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
 	result := util.NewTypeFuncRegistry()
 
 	if pass.Pkg == nil {

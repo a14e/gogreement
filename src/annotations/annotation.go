@@ -14,13 +14,17 @@ import (
 
 // PackageAnnotations
 // @implements &analysis.Fact
-// @constructor ReadAllAnnotations
+// @constructor ReadAllAnnotations, EmptyPackageAnnotations
 // @immutable
 type PackageAnnotations struct {
 	ImplementsAnnotations  []ImplementsAnnotation
 	ConstructorAnnotations []ConstructorAnnotation
 	ImmutableAnnotations   []ImmutableAnnotation
 	TestonlyAnnotations    []TestOnlyAnnotation
+}
+
+func EmptyPackageAnnotations() *PackageAnnotations {
+	return &PackageAnnotations{}
 }
 
 func (*PackageAnnotations) AFact() {}

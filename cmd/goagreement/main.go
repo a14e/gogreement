@@ -7,5 +7,6 @@ import (
 )
 
 func main() {
+
 	multichecker.Main(analyzer.AllAnalyzers()...)
 }

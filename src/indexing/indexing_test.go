@@ -17,7 +17,7 @@ func TestBuildImmutableTypesIndex(t *testing.T) {
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
-	index := BuildImmutableTypesIndex(pass, packageAnnotations)
+	index := BuildImmutableTypesIndex(pass, &packageAnnotations)
 
 	pkgPath := pass.Pkg.Path()
 
@@ -76,7 +76,7 @@ func TestBuildImmutableTypesIndexEmpty(t *testing.T) {
 		ImmutableAnnotations: []annotations.ImmutableAnnotation{},
 	}
 
-	index := BuildImmutableTypesIndex(pass, emptyAnnotations)
+	index := BuildImmutableTypesIndex(pass, &emptyAnnotations)
 
 	assert.Equal(t, 0, index.Len(), "should be empty when no immutable annotations")
 }
@@ -87,7 +87,7 @@ func TestBuildImmutableTypesIndexWithImports(t *testing.T) {
 	pass := createTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
-	index := BuildImmutableTypesIndex(pass, packageAnnotations)
+	index := BuildImmutableTypesIndex(pass, &packageAnnotations)
 
 	// Check local types
 	localPkgPath := pass.Pkg.Path()
@@ -106,7 +106,7 @@ func TestBuildConstructorIndex(t *testing.T) {
 	pass := testutil.CreateTestPass(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
-	index := BuildConstructorIndex(pass, packageAnnotations)
+	index := BuildConstructorIndex(pass, &packageAnnotations)
 
 	pkgPath := pass.Pkg.Path()
 
@@ -184,7 +184,7 @@ func TestBuildConstructorIndexEmpty(t *testing.T) {
 		ConstructorAnnotations: []annotations.ConstructorAnnotation{},
 	}
 
-	index := BuildConstructorIndex(pass, emptyAnnotations)
+	index := BuildConstructorIndex(pass, &emptyAnnotations)
 
 	assert.Equal(t, 0, index.Len(), "should be empty when no constructor annotations")
 }
@@ -195,7 +195,7 @@ func TestBuildConstructorIndexWithImports(t *testing.T) {
 	pass := createTestPassWithFacts(t, "immutabletests")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
-	index := BuildConstructorIndex(pass, packageAnnotations)
+	index := BuildConstructorIndex(pass, &packageAnnotations)
 
 	// Check local constructors
 	localPkgPath := pass.Pkg.Path()
@@ -246,7 +246,7 @@ func TestBuildTestOnlyTypesIndex(t *testing.T) {
 	pass := testutil.CreateTestPass(t, "testonlyexample")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
-	index := BuildTestOnlyTypesIndex(pass, packageAnnotations)
+	index := BuildTestOnlyTypesIndex(pass, &packageAnnotations)
 
 	t.Run("Contains TestHelper type", func(t *testing.T) {
 		contains := index.Contains(pass.Pkg.Path(), "TestHelper")
@@ -270,7 +270,7 @@ func TestBuildTestOnlyFuncsIndex(t *testing.T) {
 	pass := testutil.CreateTestPass(t, "testonlyexample")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
-	index := BuildTestOnlyFuncsIndex(pass, packageAnnotations)
+	index := BuildTestOnlyFuncsIndex(pass, &packageAnnotations)
 
 	t.Run("Contains CreateMockData function", func(t *testing.T) {
 		matches := index.Match(pass.Pkg.Path(), "CreateMockData", "CreateMockData")
@@ -294,7 +294,7 @@ func TestBuildTestOnlyMethodsIndex(t *testing.T) {
 	pass := testutil.CreateTestPass(t, "testonlyexample")
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
-	index := BuildTestOnlyMethodsIndex(pass, packageAnnotations)
+	index := BuildTestOnlyMethodsIndex(pass, &packageAnnotations)
 
 	t.Run("Contains Reset method", func(t *testing.T) {
 		matches := index.Match(pass.Pkg.Path(), "Reset", "MyService")

@@ -12,7 +12,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-func CheckConstructor(pass *analysis.Pass, packageAnnotations annotations.PackageAnnotations) []ConstructorViolation {
+func CheckConstructor(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) []ConstructorViolation {
 	var violations []ConstructorViolation
 
 	constructors := indexing.BuildConstructorIndex(pass, packageAnnotations)

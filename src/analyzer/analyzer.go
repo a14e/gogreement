@@ -6,26 +6,25 @@ import (
 	"goagreement/src/immutable"
 	"goagreement/src/implements"
 	"goagreement/src/testonly"
-	"reflect"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 )
 
 // AnnotationReader reads annotations from code and exports them as facts
 var AnnotationReader = &analysis.Analyzer{
-	Name:       "annotationreader",
-	Doc:        "Reads @implements, @immutable, @constructor annotations from code",
-	Run:        runAnnotationReader,
-	ResultType: reflect.TypeOf(annotations.PackageAnnotations{}),
+	Name: "annotationreader",
+	Doc:  "Reads @implements, @immutable, @constructor annotations from code",
+	Run:  runAnnotationReader,
 	FactTypes: []analysis.Fact{
-		new(annotations.PackageAnnotations),
+		annotations.EmptyPackageAnnotations(),
 	},
 }
 
 func runAnnotationReader(pass *analysis.Pass) (interface{}, error) {
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	pass.ExportPackageFact(&packageAnnotations)
-	return packageAnnotations, nil
+	return nil, nil
 }
 
 // ImplementsChecker checks @implements annotations
@@ -39,15 +38,13 @@ var ImplementsChecker = &analysis.Analyzer{
 }
 
 func runImplementsChecker(pass *analysis.Pass) (interface{}, error) {
-	result := pass.ResultOf[AnnotationReader]
-	if result == nil {
+
+	if !isProjectPackage(pass) {
 		return nil, nil
 	}
 
-	localAnnotations, ok := result.(annotations.PackageAnnotations)
-	if !ok {
-		return nil, nil
-	}
+	var localAnnotations annotations.PackageAnnotations
+	pass.ImportPackageFact(pass.Pkg, &localAnnotations)
 
 	if len(localAnnotations.ImplementsAnnotations) == 0 {
 		return nil, nil
@@ -82,21 +79,18 @@ var ImmutableChecker = &analysis.Analyzer{
 }
 
 func runImmutableChecker(pass *analysis.Pass) (interface{}, error) {
-	result := pass.ResultOf[AnnotationReader]
-	if result == nil {
+	if !isProjectPackage(pass) {
 		return nil, nil
 	}
 
-	localAnnotations, ok := result.(annotations.PackageAnnotations)
-	if !ok {
-		return nil, nil
-	}
+	var localAnnotations annotations.PackageAnnotations
+	pass.ImportPackageFact(pass.Pkg, &localAnnotations)
 
 	// Note: We still run the checker even if there are no local @immutable annotations,
 	// because we need to check for violations of @immutable types from imported packages
 
 	// Check immutability violations
-	violations := immutable.CheckImmutable(pass, localAnnotations)
+	violations := immutable.CheckImmutable(pass, &localAnnotations)
 
 	// Report violations
 	immutable.ReportViolations(pass, violations)
@@ -115,21 +109,19 @@ var ConstructorChecker = &analysis.Analyzer{
 }
 
 func runConstructorChecker(pass *analysis.Pass) (interface{}, error) {
-	result := pass.ResultOf[AnnotationReader]
-	if result == nil {
+
+	if !isProjectPackage(pass) {
 		return nil, nil
 	}
 
-	localAnnotations, ok := result.(annotations.PackageAnnotations)
-	if !ok {
-		return nil, nil
-	}
+	var localAnnotations annotations.PackageAnnotations
+	pass.ImportPackageFact(pass.Pkg, &localAnnotations)
 
 	// Note: We still run the checker even if there are no local @constructor annotations,
 	// because we need to check for violations of @constructor types from imported packages
 
 	// Check constructor violations
-	violations := constructor.CheckConstructor(pass, localAnnotations)
+	violations := constructor.CheckConstructor(pass, &localAnnotations)
 
 	// Report violations
 	constructor.ReportViolations(pass, violations)
@@ -148,21 +140,18 @@ var TestOnlyChecker = &analysis.Analyzer{
 }
 
 func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
-	result := pass.ResultOf[AnnotationReader]
-	if result == nil {
+	if !isProjectPackage(pass) {
 		return nil, nil
 	}
 
-	localAnnotations, ok := result.(annotations.PackageAnnotations)
-	if !ok {
-		return nil, nil
-	}
+	var localAnnotations annotations.PackageAnnotations
+	pass.ImportPackageFact(pass.Pkg, &localAnnotations)
 
 	// Note: We still run the checker even if there are no local @testonly annotations,
 	// because we need to check for violations of @testonly items from imported packages
 
 	// Check testonly violations
-	violations := testonly.CheckTestOnly(pass, localAnnotations)
+	violations := testonly.CheckTestOnly(pass, &localAnnotations)
 
 	// Report violations
 	testonly.ReportViolations(pass, violations)
@@ -179,4 +168,31 @@ func AllAnalyzers() []*analysis.Analyzer {
 		ConstructorChecker,
 		TestOnlyChecker,
 	}
+}
+
+func isProjectPackage(pass *analysis.Pass) bool {
+
+	// 1. Проверка через модуль
+	if pass.Module != nil {
+		pkgPath := pass.Pkg.Path()
+		if !strings.HasPrefix(pkgPath, pass.Module.Path) {
+			return false
+		}
+	}
+
+	// 2. Исключаем vendor
+	if strings.Contains(pass.Pkg.Path(), "/vendor/") {
+		return false
+	}
+
+	// 3. Проверяем, что файлы действительно в проекте
+	if len(pass.Files) > 0 {
+		pos := pass.Fset.Position(pass.Files[0].Pos())
+		// Файлы из GOPATH/pkg/mod обычно содержат этот путь
+		if strings.Contains(pos.Filename, "/pkg/mod/") {
+			return false
+		}
+	}
+
+	return true
 }
