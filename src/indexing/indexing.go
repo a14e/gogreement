@@ -11,10 +11,10 @@ import (
 )
 
 // BuildImmutableTypesIndex creates an index of immutable types from current and imported packages
-func BuildImmutableTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pass) util.TypesMap {
+func BuildImmutableTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypesMap {
 	result := util.NewTypesMap()
 
-	for pkg, ann := range iterOverPackages2[T](pass) {
+	for pkg, ann := range iterOverPackages[T](pass, packageAnnotations) {
 		for _, annot := range ann.ImmutableAnnotations {
 			result.Add(pkg.Path(), annot.OnType)
 		}
@@ -106,36 +106,6 @@ func iterOverPackages[T annotations.AnnotationWrapper](
 				fact := zero.Empty()
 				if pass.ImportPackageFact(imp, fact) {
 					yield(imp, fact.GetAnnotations())
-				}
-			}
-		}
-
-	}
-}
-
-func iterOverPackages2[T annotations.AnnotationWrapper](
-	pass *analysis.Pass,
-) iter.Seq2[*types.Package, *annotations.PackageAnnotations] {
-
-	return func(yield func(*types.Package, *annotations.PackageAnnotations) bool) {
-		if pass.Pkg == nil {
-			return
-		}
-
-		var zero T
-		fact := zero.Empty()
-		if pass.ImportPackageFact(pass.Pkg, fact) {
-			if !yield(pass.Pkg, fact.GetAnnotations()) {
-				return
-			}
-		}
-
-		if pass.ImportPackageFact != nil {
-			for _, imp := range pass.Pkg.Imports() {
-				if pass.ImportPackageFact(imp, fact) {
-					if !yield(imp, fact.GetAnnotations()) {
-						return
-					}
 				}
 			}
 		}
