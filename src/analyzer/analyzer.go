@@ -6,6 +6,7 @@ import (
 	"goagreement/src/immutable"
 	"goagreement/src/implements"
 	"goagreement/src/testonly"
+	"reflect"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -19,12 +20,13 @@ var AnnotationReader = &analysis.Analyzer{
 	FactTypes: []analysis.Fact{
 		annotations.EmptyPackageAnnotations(),
 	},
+	ResultType: reflect.TypeOf(annotations.PackageAnnotations{}),
 }
 
 func runAnnotationReader(pass *analysis.Pass) (interface{}, error) {
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 	pass.ExportPackageFact(&packageAnnotations)
-	return nil, nil
+	return packageAnnotations, nil
 }
 
 // ImplementsChecker checks @implements annotations
@@ -37,14 +39,23 @@ var ImplementsChecker = &analysis.Analyzer{
 	},
 }
 
+// не использует факты между пакетами, поэтому result очень хорошо работает
 func runImplementsChecker(pass *analysis.Pass) (interface{}, error) {
+
+	result := pass.ResultOf[AnnotationReader]
+	if result == nil {
+		return nil, nil
+	}
+	localAnnotations, ok := result.(annotations.PackageAnnotations)
+	if !ok {
+		return nil, nil
+	}
+
+	pass.ExportPackageFact(&localAnnotations)
 
 	if !isProjectPackage(pass) {
 		return nil, nil
 	}
-
-	var localAnnotations annotations.PackageAnnotations
-	pass.ImportPackageFact(pass.Pkg, &localAnnotations)
 
 	if len(localAnnotations.ImplementsAnnotations) == 0 {
 		return nil, nil
@@ -79,12 +90,22 @@ var ImmutableChecker = &analysis.Analyzer{
 }
 
 func runImmutableChecker(pass *analysis.Pass) (interface{}, error) {
+	result := pass.ResultOf[AnnotationReader]
+	if result == nil {
+		return nil, nil
+	}
+	localAnnotations, ok := result.(annotations.PackageAnnotations)
+	if !ok {
+		return nil, nil
+	}
+
+	pass.ExportPackageFact(&localAnnotations)
+
 	if !isProjectPackage(pass) {
 		return nil, nil
 	}
 
-	var localAnnotations annotations.PackageAnnotations
-	pass.ImportPackageFact(pass.Pkg, &localAnnotations)
+	pass.ExportPackageFact(&localAnnotations)
 
 	// Note: We still run the checker even if there are no local @immutable annotations,
 	// because we need to check for violations of @immutable types from imported packages
@@ -109,13 +130,20 @@ var ConstructorChecker = &analysis.Analyzer{
 }
 
 func runConstructorChecker(pass *analysis.Pass) (interface{}, error) {
+	result := pass.ResultOf[AnnotationReader]
+	if result == nil {
+		return nil, nil
+	}
+	localAnnotations, ok := result.(annotations.PackageAnnotations)
+	if !ok {
+		return nil, nil
+	}
+
+	pass.ExportPackageFact(&localAnnotations)
 
 	if !isProjectPackage(pass) {
 		return nil, nil
 	}
-
-	var localAnnotations annotations.PackageAnnotations
-	pass.ImportPackageFact(pass.Pkg, &localAnnotations)
 
 	// Note: We still run the checker even if there are no local @constructor annotations,
 	// because we need to check for violations of @constructor types from imported packages
@@ -140,12 +168,20 @@ var TestOnlyChecker = &analysis.Analyzer{
 }
 
 func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
-	if !isProjectPackage(pass) {
+	result := pass.ResultOf[AnnotationReader]
+	if result == nil {
+		return nil, nil
+	}
+	localAnnotations, ok := result.(annotations.PackageAnnotations)
+	if !ok {
 		return nil, nil
 	}
 
-	var localAnnotations annotations.PackageAnnotations
-	pass.ImportPackageFact(pass.Pkg, &localAnnotations)
+	pass.ExportPackageFact(&localAnnotations)
+
+	if !isProjectPackage(pass) {
+		return nil, nil
+	}
 
 	// Note: We still run the checker even if there are no local @testonly annotations,
 	// because we need to check for violations of @testonly items from imported packages

@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/cloudflare/ahocorasick"
 	"golang.org/x/tools/go/analysis"
 
 	"goagreement/src/config"
@@ -317,7 +318,7 @@ func ExtractReceiverType(expr ast.Expr) string {
 	return ""
 }
 
-var matcher = util.NewStringMatcher([]string{
+var matcher = ahocorasick.NewStringMatcher([]string{
 	"@implements",
 	"@constructor",
 	"@immutable",
