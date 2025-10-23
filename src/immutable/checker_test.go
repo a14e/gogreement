@@ -229,12 +229,30 @@ func createTestPassWithFacts(t *testing.T, pkgName string) *analysis.Pass {
 	factCache := make(map[string]annotations.PackageAnnotations)
 
 	pass.ImportPackageFact = func(pkg *types.Package, fact analysis.Fact) bool {
+		// Handle both old and new fact types
+		var targetAnnotations *annotations.PackageAnnotations
+
+		switch ptr := fact.(type) {
+		case *annotations.ImmutableCheckerFact:
+			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
+		case *annotations.ConstructorCheckerFact:
+			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
+		case *annotations.TestOnlyCheckerFact:
+			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
+		case *annotations.AnnotationReaderFact:
+			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
+		case *annotations.ImplementsCheckerFact:
+			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
+		case *annotations.PackageAnnotations:
+			targetAnnotations = ptr
+		default:
+			return false
+		}
+
 		// Check cache
 		if cached, ok := factCache[pkg.Path()]; ok {
-			if ptr, ok := fact.(*annotations.PackageAnnotations); ok {
-				*ptr = cached
-				return true
-			}
+			*targetAnnotations = cached
+			return true
 		}
 
 		// Load package and read annotations
@@ -250,12 +268,8 @@ func createTestPassWithFacts(t *testing.T, pkgName string) *analysis.Pass {
 		factCache[pkg.Path()] = importedAnnotations
 
 		// Copy to fact
-		if ptr, ok := fact.(*annotations.PackageAnnotations); ok {
-			*ptr = importedAnnotations
-			return true
-		}
-
-		return false
+		*targetAnnotations = importedAnnotations
+		return true
 	}
 
 	return pass

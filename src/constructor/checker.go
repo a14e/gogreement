@@ -15,7 +15,7 @@ import (
 func CheckConstructor(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) []ConstructorViolation {
 	var violations []ConstructorViolation
 
-	constructors := indexing.BuildConstructorIndex(pass, packageAnnotations)
+	constructors := indexing.BuildConstructorIndex[*annotations.ConstructorCheckerFact](pass, packageAnnotations)
 	if constructors.Len() == 0 {
 		return violations
 	}

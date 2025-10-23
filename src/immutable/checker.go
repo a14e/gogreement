@@ -18,12 +18,12 @@ func CheckImmutable(pass *analysis.Pass, packageAnnotations *annotations.Package
 	var violations []ImmutableViolation
 
 	// Build indices for efficient lookup during AST traversal
-	immutableTypes := indexing.BuildImmutableTypesIndex(pass, packageAnnotations)
+	immutableTypes := indexing.BuildImmutableTypesIndex[*annotations.ImmutableCheckerFact](pass, packageAnnotations)
 	if immutableTypes.Len() == 0 {
 		return violations // No immutable types to check
 	}
 
-	constructors := indexing.BuildConstructorIndex(pass, packageAnnotations)
+	constructors := indexing.BuildConstructorIndex[*annotations.ConstructorCheckerFact](pass, packageAnnotations)
 
 	// Filter files based on configuration (skip test files by default)
 	filesToCheck := config.Global.FilterFiles(pass)

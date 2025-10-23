@@ -15,7 +15,6 @@ import (
 
 // PackageAnnotations
 // @implements &analysis.Fact
-// @constructor ReadAllAnnotations, EmptyPackageAnnotations
 // @immutable
 type PackageAnnotations struct {
 	ImplementsAnnotations  []ImplementsAnnotation
@@ -24,11 +23,94 @@ type PackageAnnotations struct {
 	TestonlyAnnotations    []TestOnlyAnnotation
 }
 
-func EmptyPackageAnnotations() *PackageAnnotations {
-	return &PackageAnnotations{}
+func (*PackageAnnotations) AFact() {}
+
+// AnnotationWrapper is an interface for all fact types that wrap PackageAnnotations
+// This allows generic access to annotations while maintaining unique fact types per analyzer
+type AnnotationWrapper interface {
+	analysis.Fact
+	GetAnnotations() *PackageAnnotations
+	Empty() AnnotationWrapper
 }
 
-func (*PackageAnnotations) AFact() {}
+// Unique fact types for each analyzer to enable cross-package fact sharing
+// Each analyzer needs its own fact type because go/analysis doesn't allow
+// multiple analyzers to export facts with the same type
+
+// AnnotationReaderFact is used by AnnotationReader analyzer
+// @implements &analysis.Fact
+// @implements &AnnotationWrapper
+type AnnotationReaderFact PackageAnnotations
+
+func (*AnnotationReaderFact) AFact() {}
+
+func (f *AnnotationReaderFact) GetAnnotations() *PackageAnnotations {
+	return (*PackageAnnotations)(f)
+}
+
+func (*AnnotationReaderFact) Empty() AnnotationWrapper {
+	return &AnnotationReaderFact{}
+}
+
+// ImplementsCheckerFact is used by ImplementsChecker analyzer
+// @implements &analysis.Fact
+// @implements &AnnotationWrapper
+type ImplementsCheckerFact PackageAnnotations
+
+func (*ImplementsCheckerFact) AFact() {}
+
+func (f *ImplementsCheckerFact) GetAnnotations() *PackageAnnotations {
+	return (*PackageAnnotations)(f)
+}
+
+func (*ImplementsCheckerFact) Empty() AnnotationWrapper {
+	return &ImplementsCheckerFact{}
+}
+
+// ImmutableCheckerFact is used by ImmutableChecker analyzer
+// @implements &analysis.Fact
+// @implements &AnnotationWrapper
+type ImmutableCheckerFact PackageAnnotations
+
+func (*ImmutableCheckerFact) AFact() {}
+
+func (f *ImmutableCheckerFact) GetAnnotations() *PackageAnnotations {
+	return (*PackageAnnotations)(f)
+}
+
+func (*ImmutableCheckerFact) Empty() AnnotationWrapper {
+	return &ImmutableCheckerFact{}
+}
+
+// ConstructorCheckerFact is used by ConstructorChecker analyzer
+// @implements &analysis.Fact
+// @implements &AnnotationWrapper
+type ConstructorCheckerFact PackageAnnotations
+
+func (*ConstructorCheckerFact) AFact() {}
+
+func (f *ConstructorCheckerFact) GetAnnotations() *PackageAnnotations {
+	return (*PackageAnnotations)(f)
+}
+
+func (*ConstructorCheckerFact) Empty() AnnotationWrapper {
+	return &ConstructorCheckerFact{}
+}
+
+// TestOnlyCheckerFact is used by TestOnlyChecker analyzer
+// @implements &analysis.Fact
+// @implements &AnnotationWrapper
+type TestOnlyCheckerFact PackageAnnotations
+
+func (*TestOnlyCheckerFact) AFact() {}
+
+func (f *TestOnlyCheckerFact) GetAnnotations() *PackageAnnotations {
+	return (*PackageAnnotations)(f)
+}
+
+func (*TestOnlyCheckerFact) Empty() AnnotationWrapper {
+	return &TestOnlyCheckerFact{}
+}
 
 // ImplementsAnnotation
 // parse result of "@implements MyStruct" annotation

@@ -8,7 +8,7 @@ import (
 )
 
 // BuildImmutableTypesIndex creates an index of immutable types from current and imported packages
-func BuildImmutableTypesIndex(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypesMap {
+func BuildImmutableTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypesMap {
 	result := util.NewTypesMap()
 
 	if pass.Pkg == nil {
@@ -20,9 +20,11 @@ func BuildImmutableTypesIndex(pass *analysis.Pass, packageAnnotations *annotatio
 	}
 
 	if pass.ImportPackageFact != nil {
+		var zero T
 		for _, imp := range pass.Pkg.Imports() {
-			var importedAnnotations annotations.PackageAnnotations
-			if pass.ImportPackageFact(imp, &importedAnnotations) {
+			fact := zero.Empty()
+			if pass.ImportPackageFact(imp, fact) {
+				importedAnnotations := fact.GetAnnotations()
 				for _, annot := range importedAnnotations.ImmutableAnnotations {
 					result.Add(imp.Path(), annot.OnType)
 				}
@@ -34,7 +36,7 @@ func BuildImmutableTypesIndex(pass *analysis.Pass, packageAnnotations *annotatio
 }
 
 // BuildConstructorIndex creates an index of constructor functions for types
-func BuildConstructorIndex(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
+func BuildConstructorIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
 	result := util.NewTypeFuncRegistry()
 
 	if pass.Pkg == nil {
@@ -48,9 +50,11 @@ func BuildConstructorIndex(pass *analysis.Pass, packageAnnotations *annotations.
 	}
 
 	if pass.ImportPackageFact != nil {
+		var zero T
 		for _, imp := range pass.Pkg.Imports() {
-			var importedAnnotations annotations.PackageAnnotations
-			if pass.ImportPackageFact(imp, &importedAnnotations) {
+			fact := zero.Empty()
+			if pass.ImportPackageFact(imp, fact) {
+				importedAnnotations := fact.GetAnnotations()
 				for _, annot := range importedAnnotations.ConstructorAnnotations {
 					for _, constructorName := range annot.ConstructorNames {
 						result.Add(imp.Path(), constructorName, annot.OnType)
@@ -64,7 +68,7 @@ func BuildConstructorIndex(pass *analysis.Pass, packageAnnotations *annotations.
 }
 
 // BuildTestOnlyTypesIndex creates an index of @testonly types from current and imported packages
-func BuildTestOnlyTypesIndex(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypesMap {
+func BuildTestOnlyTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypesMap {
 	result := util.NewTypesMap()
 
 	if pass.Pkg == nil {
@@ -78,9 +82,11 @@ func BuildTestOnlyTypesIndex(pass *analysis.Pass, packageAnnotations *annotation
 	}
 
 	if pass.ImportPackageFact != nil {
+		var zero T
 		for _, imp := range pass.Pkg.Imports() {
-			var importedAnnotations annotations.PackageAnnotations
-			if pass.ImportPackageFact(imp, &importedAnnotations) {
+			fact := zero.Empty()
+			if pass.ImportPackageFact(imp, fact) {
+				importedAnnotations := fact.GetAnnotations()
 				for _, annot := range importedAnnotations.TestonlyAnnotations {
 					if annot.Kind == annotations.TestOnlyOnType {
 						result.Add(imp.Path(), annot.ObjectName)
@@ -94,7 +100,7 @@ func BuildTestOnlyTypesIndex(pass *analysis.Pass, packageAnnotations *annotation
 }
 
 // BuildTestOnlyFuncsIndex creates an index of @testonly functions from current and imported packages
-func BuildTestOnlyFuncsIndex(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
+func BuildTestOnlyFuncsIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
 	result := util.NewTypeFuncRegistry()
 
 	if pass.Pkg == nil {
@@ -109,9 +115,11 @@ func BuildTestOnlyFuncsIndex(pass *analysis.Pass, packageAnnotations *annotation
 	}
 
 	if pass.ImportPackageFact != nil {
+		var zero T
 		for _, imp := range pass.Pkg.Imports() {
-			var importedAnnotations annotations.PackageAnnotations
-			if pass.ImportPackageFact(imp, &importedAnnotations) {
+			fact := zero.Empty()
+			if pass.ImportPackageFact(imp, fact) {
+				importedAnnotations := fact.GetAnnotations()
 				for _, annot := range importedAnnotations.TestonlyAnnotations {
 					if annot.Kind == annotations.TestOnlyOnFunc {
 						result.Add(imp.Path(), annot.ObjectName, annot.ObjectName)
@@ -125,7 +133,7 @@ func BuildTestOnlyFuncsIndex(pass *analysis.Pass, packageAnnotations *annotation
 }
 
 // BuildTestOnlyMethodsIndex creates an index of @testonly methods from current and imported packages
-func BuildTestOnlyMethodsIndex(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
+func BuildTestOnlyMethodsIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
 	result := util.NewTypeFuncRegistry()
 
 	if pass.Pkg == nil {
@@ -140,9 +148,11 @@ func BuildTestOnlyMethodsIndex(pass *analysis.Pass, packageAnnotations *annotati
 	}
 
 	if pass.ImportPackageFact != nil {
+		var zero T
 		for _, imp := range pass.Pkg.Imports() {
-			var importedAnnotations annotations.PackageAnnotations
-			if pass.ImportPackageFact(imp, &importedAnnotations) {
+			fact := zero.Empty()
+			if pass.ImportPackageFact(imp, fact) {
+				importedAnnotations := fact.GetAnnotations()
 				for _, annot := range importedAnnotations.TestonlyAnnotations {
 					if annot.Kind == annotations.TestOnlyOnMethod {
 						result.Add(imp.Path(), annot.ObjectName, annot.ReceiverType)

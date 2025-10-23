@@ -1,15 +1,15 @@
 package analyzer
 
 import (
+	"reflect"
+
+	"golang.org/x/tools/go/analysis"
+
 	"goagreement/src/annotations"
 	"goagreement/src/constructor"
 	"goagreement/src/immutable"
 	"goagreement/src/implements"
 	"goagreement/src/testonly"
-	"reflect"
-	"strings"
-
-	"golang.org/x/tools/go/analysis"
 )
 
 // AnnotationReader reads annotations from code and exports them as facts
@@ -18,14 +18,18 @@ var AnnotationReader = &analysis.Analyzer{
 	Doc:  "Reads @implements, @immutable, @constructor annotations from code",
 	Run:  runAnnotationReader,
 	FactTypes: []analysis.Fact{
-		annotations.EmptyPackageAnnotations(),
+		(*annotations.AnnotationReaderFact)(nil),
 	},
 	ResultType: reflect.TypeOf(annotations.PackageAnnotations{}),
 }
 
 func runAnnotationReader(pass *analysis.Pass) (interface{}, error) {
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
-	pass.ExportPackageFact(&packageAnnotations)
+
+	// Export facts before isProjectPackage check so dependencies can use them
+	fact := (*annotations.AnnotationReaderFact)(&packageAnnotations)
+	pass.ExportPackageFact(fact)
+
 	return packageAnnotations, nil
 }
 
@@ -37,9 +41,12 @@ var ImplementsChecker = &analysis.Analyzer{
 	Requires: []*analysis.Analyzer{
 		AnnotationReader,
 	},
+	FactTypes: []analysis.Fact{
+		(*annotations.ImplementsCheckerFact)(nil),
+	},
 }
 
-// не использует факты между пакетами, поэтому result очень хорошо работает
+// Does not use facts between packages, so result works very well
 func runImplementsChecker(pass *analysis.Pass) (interface{}, error) {
 
 	result := pass.ResultOf[AnnotationReader]
@@ -51,11 +58,9 @@ func runImplementsChecker(pass *analysis.Pass) (interface{}, error) {
 		return nil, nil
 	}
 
-	pass.ExportPackageFact(&localAnnotations)
-
-	if !isProjectPackage(pass) {
-		return nil, nil
-	}
+	// Export facts before isProjectPackage check so dependencies can use them
+	fact := (*annotations.ImplementsCheckerFact)(&localAnnotations)
+	pass.ExportPackageFact(fact)
 
 	if len(localAnnotations.ImplementsAnnotations) == 0 {
 		return nil, nil
@@ -87,6 +92,9 @@ var ImmutableChecker = &analysis.Analyzer{
 	Requires: []*analysis.Analyzer{
 		AnnotationReader,
 	},
+	FactTypes: []analysis.Fact{
+		(*annotations.ImmutableCheckerFact)(nil),
+	},
 }
 
 func runImmutableChecker(pass *analysis.Pass) (interface{}, error) {
@@ -99,13 +107,9 @@ func runImmutableChecker(pass *analysis.Pass) (interface{}, error) {
 		return nil, nil
 	}
 
-	pass.ExportPackageFact(&localAnnotations)
-
-	if !isProjectPackage(pass) {
-		return nil, nil
-	}
-
-	pass.ExportPackageFact(&localAnnotations)
+	// Export facts before isProjectPackage check so dependencies can use them
+	fact := (*annotations.ImmutableCheckerFact)(&localAnnotations)
+	pass.ExportPackageFact(fact)
 
 	// Note: We still run the checker even if there are no local @immutable annotations,
 	// because we need to check for violations of @immutable types from imported packages
@@ -127,6 +131,9 @@ var ConstructorChecker = &analysis.Analyzer{
 	Requires: []*analysis.Analyzer{
 		AnnotationReader,
 	},
+	FactTypes: []analysis.Fact{
+		(*annotations.ConstructorCheckerFact)(nil),
+	},
 }
 
 func runConstructorChecker(pass *analysis.Pass) (interface{}, error) {
@@ -139,11 +146,9 @@ func runConstructorChecker(pass *analysis.Pass) (interface{}, error) {
 		return nil, nil
 	}
 
-	pass.ExportPackageFact(&localAnnotations)
-
-	if !isProjectPackage(pass) {
-		return nil, nil
-	}
+	// Export facts before isProjectPackage check so dependencies can use them
+	fact := (*annotations.ConstructorCheckerFact)(&localAnnotations)
+	pass.ExportPackageFact(fact)
 
 	// Note: We still run the checker even if there are no local @constructor annotations,
 	// because we need to check for violations of @constructor types from imported packages
@@ -165,6 +170,9 @@ var TestOnlyChecker = &analysis.Analyzer{
 	Requires: []*analysis.Analyzer{
 		AnnotationReader,
 	},
+	FactTypes: []analysis.Fact{
+		(*annotations.TestOnlyCheckerFact)(nil),
+	},
 }
 
 func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
@@ -177,11 +185,9 @@ func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 		return nil, nil
 	}
 
-	pass.ExportPackageFact(&localAnnotations)
-
-	if !isProjectPackage(pass) {
-		return nil, nil
-	}
+	// Export facts before isProjectPackage check so dependencies can use them
+	fact := (*annotations.TestOnlyCheckerFact)(&localAnnotations)
+	pass.ExportPackageFact(fact)
 
 	// Note: We still run the checker even if there are no local @testonly annotations,
 	// because we need to check for violations of @testonly items from imported packages
@@ -204,31 +210,4 @@ func AllAnalyzers() []*analysis.Analyzer {
 		ConstructorChecker,
 		TestOnlyChecker,
 	}
-}
-
-func isProjectPackage(pass *analysis.Pass) bool {
-
-	// 1. Проверка через модуль
-	if pass.Module != nil {
-		pkgPath := pass.Pkg.Path()
-		if !strings.HasPrefix(pkgPath, pass.Module.Path) {
-			return false
-		}
-	}
-
-	// 2. Исключаем vendor
-	if strings.Contains(pass.Pkg.Path(), "/vendor/") {
-		return false
-	}
-
-	// 3. Проверяем, что файлы действительно в проекте
-	if len(pass.Files) > 0 {
-		pos := pass.Fset.Position(pass.Files[0].Pos())
-		// Файлы из GOPATH/pkg/mod обычно содержат этот путь
-		if strings.Contains(pos.Filename, "/pkg/mod/") {
-			return false
-		}
-	}
-
-	return true
 }
