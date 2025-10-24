@@ -51,3 +51,9 @@ type TestHelper struct {
 func CreateTestData() string {
 	return "test"
 }
+
+// GetDebugInfo is a test-only method on User
+// @testonly
+func (u *User) GetDebugInfo() string {
+	return "debug"
+}

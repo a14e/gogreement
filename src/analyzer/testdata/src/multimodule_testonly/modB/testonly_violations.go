@@ -10,3 +10,8 @@ func UseTestOnlyType() {
 	var helper modA.TestHelper // want "marked @testonly"
 	_ = helper
 }
+
+func UseTestOnlyMethod() {
+	u := modA.NewUser(1, "test")
+	_ = u.GetDebugInfo() // want "marked @testonly"
+}
