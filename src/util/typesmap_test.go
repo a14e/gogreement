@@ -62,6 +62,18 @@ func TestTypesMap_Len(t *testing.T) {
 	assert.Equal(t, 3, tm.Len())
 }
 
+func TestTypesMap_Empty(t *testing.T) {
+	tm := NewTypesMap()
+
+	assert.True(t, tm.Empty())
+
+	tm.Add("", "Type1")
+	assert.False(t, tm.Empty())
+
+	tm.Add("pkg", "Type2")
+	assert.False(t, tm.Empty())
+}
+
 func TestTypesMap_DuplicateAdd(t *testing.T) {
 	tm := NewTypesMap()
 

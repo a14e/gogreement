@@ -32,3 +32,8 @@ func (m TypesMap) Len() int {
 	}
 	return count
 }
+
+// Empty returns true if the map contains no types
+func (m TypesMap) Empty() bool {
+	return len(m) == 0
+}

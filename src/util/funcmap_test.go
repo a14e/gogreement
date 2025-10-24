@@ -156,6 +156,18 @@ func TestFuncMap_Len(t *testing.T) {
 	assert.Equal(t, 4, fm.Len())
 }
 
+func TestFuncMap_Empty(t *testing.T) {
+	fm := NewTypeFuncRegistry()
+
+	assert.True(t, fm.Empty())
+
+	fm.Add("", "Func1", "Type1")
+	assert.False(t, fm.Empty())
+
+	fm.Add("pkg", "Func2", "Type2")
+	assert.False(t, fm.Empty())
+}
+
 func TestFuncMap_DuplicateAdd(t *testing.T) {
 	fm := NewTypeFuncRegistry()
 

@@ -34,6 +34,22 @@ func runAnnotationReader(pass *analysis.Pass) (interface{}, error) {
 	return packageAnnotations, nil
 }
 
+// IgnoreReader reads @ignore annotations from code
+var IgnoreReader = &analysis.Analyzer{
+	Name:       "ignorereader",
+	Doc:        "Reads @ignore CODE1, CODE2 annotations from code",
+	Run:        runIgnoreReader,
+	ResultType: reflect.TypeOf(ignore.IgnoreResult{}),
+}
+
+func runIgnoreReader(pass *analysis.Pass) (interface{}, error) {
+	ignoreSet := ignore.ReadIgnoreAnnotations(pass)
+
+	return ignore.IgnoreResult{
+		IgnoreSet: ignoreSet,
+	}, nil
+}
+
 // ImplementsChecker checks @implements annotations
 var ImplementsChecker = &analysis.Analyzer{
 	Name: "implementschecker",
@@ -41,6 +57,7 @@ var ImplementsChecker = &analysis.Analyzer{
 	Run:  runImplementsChecker,
 	Requires: []*analysis.Analyzer{
 		AnnotationReader,
+		IgnoreReader,
 	},
 	FactTypes: []analysis.Fact{
 		(*annotations.ImplementsCheckerFact)(nil),
@@ -92,6 +109,7 @@ var ImmutableChecker = &analysis.Analyzer{
 	Run:  runImmutableChecker,
 	Requires: []*analysis.Analyzer{
 		AnnotationReader,
+		IgnoreReader,
 	},
 	FactTypes: []analysis.Fact{
 		(*annotations.ImmutableCheckerFact)(nil),
@@ -131,6 +149,7 @@ var ConstructorChecker = &analysis.Analyzer{
 	Run:  runConstructorChecker,
 	Requires: []*analysis.Analyzer{
 		AnnotationReader,
+		IgnoreReader,
 	},
 	FactTypes: []analysis.Fact{
 		(*annotations.ConstructorCheckerFact)(nil),
@@ -170,6 +189,7 @@ var TestOnlyChecker = &analysis.Analyzer{
 	Run:  runTestOnlyChecker,
 	Requires: []*analysis.Analyzer{
 		AnnotationReader,
+		IgnoreReader,
 	},
 	FactTypes: []analysis.Fact{
 		(*annotations.TestOnlyCheckerFact)(nil),
@@ -200,22 +220,6 @@ func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 	testonly.ReportViolations(pass, violations)
 
 	return nil, nil
-}
-
-// IgnoreReader reads @ignore annotations from code
-var IgnoreReader = &analysis.Analyzer{
-	Name:       "ignorereader",
-	Doc:        "Reads @ignore CODE1, CODE2 annotations from code",
-	Run:        runIgnoreReader,
-	ResultType: reflect.TypeOf(ignore.IgnoreResult{}),
-}
-
-func runIgnoreReader(pass *analysis.Pass) (interface{}, error) {
-	ignoreSet := ignore.ReadIgnoreAnnotations(pass)
-
-	return ignore.IgnoreResult{
-		IgnoreSet: ignoreSet,
-	}, nil
 }
 
 // AllAnalyzers returns all available analyzers

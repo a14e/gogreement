@@ -118,3 +118,8 @@ func (s *IgnoreSet) Contains(code string, pos token.Pos) bool {
 func (s *IgnoreSet) Len() int {
 	return len(s.Markers)
 }
+
+// Empty returns true if the set contains no markers
+func (s *IgnoreSet) Empty() bool {
+	return len(s.Markers) == 0
+}

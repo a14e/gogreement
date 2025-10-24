@@ -1,7 +1,5 @@
 package util
 
-// FIXME a bit inconsistent api. need to refactor
-
 // TypeFuncRegistry is a two-level map for tracking functions associated with types across packages
 // First level: package path ("" for current package)
 // Second level: type name -> list of associated function names (constructors, methods, etc.)
@@ -78,4 +76,9 @@ func (tfr TypeFuncRegistry) Len() int {
 		}
 	}
 	return total
+}
+
+// Empty returns true if the registry contains no functions
+func (tfr TypeFuncRegistry) Empty() bool {
+	return len(tfr) == 0
 }

@@ -30,6 +30,7 @@ func TestIgnoreSet_ZeroValue(t *testing.T) {
 	// Test that zero value IgnoreSet can be used
 	set := &IgnoreSet{}
 	assert.Equal(t, 0, set.Len())
+	assert.True(t, set.Empty())
 
 	// Add should initialize it
 	ann := &mockAnnotation{
@@ -39,6 +40,7 @@ func TestIgnoreSet_ZeroValue(t *testing.T) {
 	}
 	set.Add(ann)
 	assert.Equal(t, 1, set.Len())
+	assert.False(t, set.Empty())
 }
 
 func TestIgnoreSet_Add(t *testing.T) {
@@ -276,4 +278,26 @@ func TestIgnoreSet_ALLWithSpecificCodes(t *testing.T) {
 	assert.True(t, set.Contains("CODE1", token.Pos(150)))
 	assert.True(t, set.Contains("CODE2", token.Pos(150)))
 	assert.True(t, set.Contains("ANYCODE", token.Pos(150)))
+}
+
+func TestIgnoreSet_Empty(t *testing.T) {
+	set := &IgnoreSet{}
+
+	assert.True(t, set.Empty())
+
+	ann := &mockAnnotation{
+		codes:    []string{"CODE1"},
+		startPos: token.Pos(10),
+		endPos:   token.Pos(20),
+	}
+	set.Add(ann)
+	assert.False(t, set.Empty())
+
+	ann2 := &mockAnnotation{
+		codes:    []string{"CODE2"},
+		startPos: token.Pos(30),
+		endPos:   token.Pos(40),
+	}
+	set.Add(ann2)
+	assert.False(t, set.Empty())
 }

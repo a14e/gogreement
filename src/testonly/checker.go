@@ -25,7 +25,7 @@ func CheckTestOnly(pass *analysis.Pass, packageAnnotations *annotations.PackageA
 	testOnlyMethods := indexing.BuildTestOnlyMethodsIndex[*annotations.TestOnlyCheckerFact](pass, packageAnnotations)
 
 	// If no @testonly items at all (local + imported), nothing to check
-	if testOnlyTypes.Len() == 0 && testOnlyFuncs.Len() == 0 && testOnlyMethods.Len() == 0 {
+	if testOnlyTypes.Empty() && testOnlyFuncs.Empty() && testOnlyMethods.Empty() {
 		return violations
 	}
 

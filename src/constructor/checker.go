@@ -16,7 +16,7 @@ func CheckConstructor(pass *analysis.Pass, packageAnnotations *annotations.Packa
 	var violations []ConstructorViolation
 
 	constructors := indexing.BuildConstructorIndex[*annotations.ConstructorCheckerFact](pass, packageAnnotations)
-	if constructors.Len() == 0 {
+	if constructors.Empty() {
 		return violations
 	}
 

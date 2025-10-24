@@ -15,6 +15,7 @@ import (
 
 // IgnoreAnnotation represents parsed @ignore CODE1, CODE2 annotation
 // @immutable
+// @implements &util.IgnoreAnnotation
 type IgnoreAnnotation struct {
 	// List of error codes to ignore (e.g., ["CODE1", "CODE2"])
 	Codes []string
@@ -108,11 +109,11 @@ func ReadIgnoreAnnotations(pass *analysis.Pass) *util.IgnoreSet {
 	filesToScan := config.Global.FilterFiles(pass)
 
 	for _, file := range filesToScan {
-		// Lazy initialization: build comment-to-statement map only if we find at least one @ignore
+		// Lazy initialization: build a comment-to-statement map only if we find at least one @ignore
 		var commentToNextStmt map[token.Pos]token.Pos
 
-		// Determine first declaration position for file-level annotations
-		var firstDeclPos token.Pos = token.NoPos
+		// Determine the first declaration position for file-level annotations
+		var firstDeclPos = token.NoPos
 		if len(file.Decls) > 0 {
 			firstDeclPos = file.Decls[0].Pos()
 		}
