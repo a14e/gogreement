@@ -412,3 +412,256 @@ func Function2() {
 	assert.False(t, ignoreSet.Contains("NOTFILELEVEL", func2Pos),
 		"NOTFILELEVEL should NOT be ignored at Function2")
 }
+
+func TestReadIgnoreAnnotations_InlineComments(t *testing.T) {
+	testCode := `package testpkg
+
+func TestFunction() {
+	x := 1 // @ignore CODE1
+	y := 2 // @ignore CODE2, CODE3
+	z := 3
+	_ = x
+	_ = y
+	_ = z
+}
+`
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "test.go", testCode, parser.ParseComments)
+	require.NoError(t, err)
+
+	pass := &analysis.Pass{
+		Fset:  fset,
+		Files: []*ast.File{file},
+		Pkg:   types.NewPackage("testpkg", "testpkg"),
+	}
+
+	ignoreSet := ReadIgnoreAnnotations(pass)
+
+	// We expect 2 inline ignore annotations
+	require.Equal(t, 2, ignoreSet.Len(), "expected 2 inline ignore annotations")
+
+	// Get the function body statements
+	funcDecl := file.Decls[0].(*ast.FuncDecl)
+	stmts := funcDecl.Body.List
+
+	// First statement: x := 1 // @ignore CODE1
+	xAssign := stmts[0].(*ast.AssignStmt)
+	assert.True(t, ignoreSet.Contains("CODE1", xAssign.Pos()),
+		"CODE1 should cover x := 1")
+
+	// Second statement: y := 2 // @ignore CODE2, CODE3
+	yAssign := stmts[1].(*ast.AssignStmt)
+	assert.True(t, ignoreSet.Contains("CODE2", yAssign.Pos()),
+		"CODE2 should cover y := 2")
+	assert.True(t, ignoreSet.Contains("CODE3", yAssign.Pos()),
+		"CODE3 should cover y := 2")
+
+	// Third statement: z := 3 (no @ignore)
+	zAssign := stmts[2].(*ast.AssignStmt)
+	assert.False(t, ignoreSet.Contains("CODE1", zAssign.Pos()),
+		"CODE1 should NOT cover z := 3")
+	assert.False(t, ignoreSet.Contains("CODE2", zAssign.Pos()),
+		"CODE2 should NOT cover z := 3")
+}
+
+func TestReadIgnoreAnnotations_InlineVsBlock(t *testing.T) {
+	testCode := `package testpkg
+
+func TestFunction() {
+	// @ignore BLOCK
+	x := 1
+
+	y := 2 // @ignore INLINE
+
+	z := 3
+
+	_ = x
+	_ = y
+	_ = z
+}
+`
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "test.go", testCode, parser.ParseComments)
+	require.NoError(t, err)
+
+	pass := &analysis.Pass{
+		Fset:  fset,
+		Files: []*ast.File{file},
+		Pkg:   types.NewPackage("testpkg", "testpkg"),
+	}
+
+	ignoreSet := ReadIgnoreAnnotations(pass)
+
+	// We expect 2 annotations: 1 block, 1 inline
+	require.Equal(t, 2, ignoreSet.Len(), "expected 2 ignore annotations")
+
+	// Get the function body statements
+	funcDecl := file.Decls[0].(*ast.FuncDecl)
+	stmts := funcDecl.Body.List
+
+	// First statement: x := 1 (covered by BLOCK comment above)
+	xAssign := stmts[0].(*ast.AssignStmt)
+	assert.True(t, ignoreSet.Contains("BLOCK", xAssign.Pos()),
+		"BLOCK should cover x := 1")
+
+	// Second statement: y := 2 (covered by INLINE comment on same line)
+	yAssign := stmts[1].(*ast.AssignStmt)
+	assert.True(t, ignoreSet.Contains("INLINE", yAssign.Pos()),
+		"INLINE should cover y := 2")
+
+	// Third statement: z := 3 (not covered)
+	zAssign := stmts[2].(*ast.AssignStmt)
+	assert.False(t, ignoreSet.Contains("BLOCK", zAssign.Pos()),
+		"BLOCK should NOT cover z := 3")
+	assert.False(t, ignoreSet.Contains("INLINE", zAssign.Pos()),
+		"INLINE should NOT cover z := 3")
+}
+
+func TestReadIgnoreAnnotations_InlineOnAssignment(t *testing.T) {
+	testCode := `package testpkg
+
+func TestFunction(u *User) {
+	u.Name = "modified" // @ignore IMM01
+	u.Age = 30          // @ignore IMM01
+}
+
+type User struct {
+	Name string
+	Age  int
+}
+`
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "test.go", testCode, parser.ParseComments)
+	require.NoError(t, err)
+
+	pass := &analysis.Pass{
+		Fset:  fset,
+		Files: []*ast.File{file},
+		Pkg:   types.NewPackage("testpkg", "testpkg"),
+	}
+
+	ignoreSet := ReadIgnoreAnnotations(pass)
+
+	// We expect 2 inline annotations
+	require.Equal(t, 2, ignoreSet.Len(), "expected 2 inline ignore annotations")
+
+	// Get the function body statements
+	funcDecl := file.Decls[0].(*ast.FuncDecl)
+	stmts := funcDecl.Body.List
+
+	// First statement: u.Name = "modified"
+	nameAssign := stmts[0].(*ast.AssignStmt)
+	assert.True(t, ignoreSet.Contains("IMM01", nameAssign.Pos()),
+		"IMM01 should cover u.Name assignment")
+
+	// Second statement: u.Age = 30
+	ageAssign := stmts[1].(*ast.AssignStmt)
+	assert.True(t, ignoreSet.Contains("IMM01", ageAssign.Pos()),
+		"IMM01 should cover u.Age assignment")
+}
+
+func TestReadIgnoreAnnotations_InlineDoesNotAffectNextLine(t *testing.T) {
+	testCode := `package testpkg
+
+func TestFunction(u *User) {
+	var h1 User // @ignore CODE1
+	_ = h1
+
+	var h2 User // This should NOT be covered by CODE1
+	_ = h2
+}
+
+type User struct {
+	Name string
+}
+`
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "test.go", testCode, parser.ParseComments)
+	require.NoError(t, err)
+
+	pass := &analysis.Pass{
+		Fset:  fset,
+		Files: []*ast.File{file},
+		Pkg:   types.NewPackage("testpkg", "testpkg"),
+	}
+
+	ignoreSet := ReadIgnoreAnnotations(pass)
+
+	// We expect 1 inline annotation
+	require.Equal(t, 1, ignoreSet.Len(), "expected 1 inline ignore annotation")
+
+	// Get the function body statements
+	funcDecl := file.Decls[0].(*ast.FuncDecl)
+	stmts := funcDecl.Body.List
+
+	// First statement: var h1 User // @ignore CODE1
+	h1Decl := stmts[0].(*ast.DeclStmt)
+	assert.True(t, ignoreSet.Contains("CODE1", h1Decl.Pos()),
+		"CODE1 should cover h1 declaration")
+
+	// Third statement: var h2 User (should NOT be covered)
+	h2Decl := stmts[2].(*ast.DeclStmt)
+	assert.False(t, ignoreSet.Contains("CODE1", h2Decl.Pos()),
+		"CODE1 should NOT cover h2 declaration")
+}
+
+func TestReadIgnoreAnnotations_InlineForValueSpec(t *testing.T) {
+	testCode := `package testpkg
+
+import "somepkg"
+
+func TestFunction() {
+	var h1 somepkg.TestHelper // @ignore CODE1
+	_ = h1
+
+	var h2 somepkg.TestHelper // This should NOT be covered
+	_ = h2
+}
+
+type TestHelper struct {
+	Name string
+}
+`
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "test.go", testCode, parser.ParseComments)
+	require.NoError(t, err)
+
+	pass := &analysis.Pass{
+		Fset:  fset,
+		Files: []*ast.File{file},
+		Pkg:   types.NewPackage("testpkg", "testpkg"),
+	}
+
+	ignoreSet := ReadIgnoreAnnotations(pass)
+
+	// We expect 1 inline annotation
+	require.Equal(t, 1, ignoreSet.Len(), "expected 1 inline ignore annotation")
+
+	// Get the function body statements - find the FuncDecl
+	var funcDecl *ast.FuncDecl
+	for _, decl := range file.Decls {
+		if fd, ok := decl.(*ast.FuncDecl); ok {
+			funcDecl = fd
+			break
+		}
+	}
+	require.NotNil(t, funcDecl, "should find function declaration")
+	stmts := funcDecl.Body.List
+
+	// First statement: var h1 somepkg.TestHelper // @ignore CODE1
+	h1Decl := stmts[0].(*ast.DeclStmt)
+	h1Spec := h1Decl.Decl.(*ast.GenDecl).Specs[0].(*ast.ValueSpec)
+	assert.True(t, ignoreSet.Contains("CODE1", h1Spec.Pos()),
+		"CODE1 should cover h1 declaration at Pos()")
+
+	// Third statement: var h2 somepkg.TestHelper (should NOT be covered)
+	h2Decl := stmts[2].(*ast.DeclStmt)
+	h2Spec := h2Decl.Decl.(*ast.GenDecl).Specs[0].(*ast.ValueSpec)
+	assert.False(t, ignoreSet.Contains("CODE1", h2Spec.Pos()),
+		"CODE1 should NOT cover h2 declaration")
+}

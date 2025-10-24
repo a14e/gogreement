@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/types"
 	"goagreement/src/annotations"
+	"goagreement/src/codes"
 	"goagreement/src/config"
 	"goagreement/src/indexing"
 	"goagreement/src/util"
@@ -97,6 +98,7 @@ func checkCompositeLiteral(
 
 	return &ConstructorViolation{
 		TypeName: typeName,
+		Code:     codes.ConstructorCompositeLiteral,
 		Pos:      lit.Pos(),
 		Reason:   reason,
 		Node:     lit,
@@ -156,6 +158,7 @@ func checkNewCall(
 
 	return &ConstructorViolation{
 		TypeName: typeName,
+		Code:     codes.ConstructorNewCall,
 		Pos:      call.Pos(),
 		Reason:   reason,
 		Node:     call,

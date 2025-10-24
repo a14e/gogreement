@@ -140,7 +140,7 @@ func TestReportViolations(t *testing.T) {
 		},
 	}
 
-	ReportViolations(pass, violations)
+	ReportViolations(pass, violations, nil)
 	t.Log("ReportViolations executed successfully")
 }
 

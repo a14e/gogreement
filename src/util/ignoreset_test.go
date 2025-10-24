@@ -301,3 +301,141 @@ func TestIgnoreSet_Empty(t *testing.T) {
 	set.Add(ann2)
 	assert.False(t, set.Empty())
 }
+
+func TestIgnoreSet_CategoryHierarchy(t *testing.T) {
+	set := &IgnoreSet{}
+
+	// Add annotation that ignores entire IMM category
+	annCategory := &mockAnnotation{
+		codes:    []string{"IMM"},
+		startPos: token.Pos(100),
+		endPos:   token.Pos(200),
+	}
+	set.Add(annCategory)
+
+	// Add annotation that ignores specific code CTOR01
+	annSpecific := &mockAnnotation{
+		codes:    []string{"CTOR01"},
+		startPos: token.Pos(300),
+		endPos:   token.Pos(400),
+	}
+	set.Add(annSpecific)
+
+	// IMM category should match all IMM codes in its range
+	assert.True(t, set.Contains("IMM01", token.Pos(150)), "IMM category should match IMM01")
+	assert.True(t, set.Contains("IMM02", token.Pos(150)), "IMM category should match IMM02")
+	assert.True(t, set.Contains("IMM03", token.Pos(150)), "IMM category should match IMM03")
+	assert.True(t, set.Contains("IMM04", token.Pos(150)), "IMM category should match IMM04")
+
+	// IMM category should not match other categories
+	assert.False(t, set.Contains("CTOR01", token.Pos(150)), "IMM category should not match CTOR01")
+	assert.False(t, set.Contains("TONL01", token.Pos(150)), "IMM category should not match TONL01")
+
+	// Specific code should match only itself in its range
+	assert.True(t, set.Contains("CTOR01", token.Pos(350)), "CTOR01 should match in its range")
+	assert.False(t, set.Contains("CTOR02", token.Pos(350)), "CTOR02 should not match in CTOR01 range")
+
+	// Outside ranges should not match
+	assert.False(t, set.Contains("IMM01", token.Pos(50)), "IMM01 should not match before range")
+	assert.False(t, set.Contains("IMM01", token.Pos(250)), "IMM01 should not match between ranges")
+}
+
+func TestIgnoreSet_ALLOverridesEverything(t *testing.T) {
+	set := &IgnoreSet{}
+
+	// Add ALL annotation
+	annAll := &mockAnnotation{
+		codes:    []string{"ALL"},
+		startPos: token.Pos(100),
+		endPos:   token.Pos(200),
+	}
+	set.Add(annAll)
+
+	// ALL should match all codes from all categories
+	assert.True(t, set.Contains("IMM01", token.Pos(150)))
+	assert.True(t, set.Contains("IMM02", token.Pos(150)))
+	assert.True(t, set.Contains("CTOR01", token.Pos(150)))
+	assert.True(t, set.Contains("CTOR02", token.Pos(150)))
+	assert.True(t, set.Contains("TONL01", token.Pos(150)))
+	assert.True(t, set.Contains("TONL02", token.Pos(150)))
+	assert.True(t, set.Contains("TONL03", token.Pos(150)))
+
+	// Even unknown codes
+	assert.True(t, set.Contains("UNKNOWN99", token.Pos(150)))
+}
+
+func TestIgnoreSet_MultipleCategoriesAndSpecificCodes(t *testing.T) {
+	set := &IgnoreSet{}
+
+	// Ignore IMM category at 100-200
+	ann1 := &mockAnnotation{
+		codes:    []string{"IMM"},
+		startPos: token.Pos(100),
+		endPos:   token.Pos(200),
+	}
+	set.Add(ann1)
+
+	// Ignore CTOR category at 300-400
+	ann2 := &mockAnnotation{
+		codes:    []string{"CTOR"},
+		startPos: token.Pos(300),
+		endPos:   token.Pos(400),
+	}
+	set.Add(ann2)
+
+	// Ignore specific TONL01 at 500-600
+	ann3 := &mockAnnotation{
+		codes:    []string{"TONL01"},
+		startPos: token.Pos(500),
+		endPos:   token.Pos(600),
+	}
+	set.Add(ann3)
+
+	// Test IMM range
+	assert.True(t, set.Contains("IMM01", token.Pos(150)))
+	assert.True(t, set.Contains("IMM02", token.Pos(150)))
+	assert.False(t, set.Contains("CTOR01", token.Pos(150)))
+
+	// Test CTOR range
+	assert.False(t, set.Contains("IMM01", token.Pos(350)))
+	assert.True(t, set.Contains("CTOR01", token.Pos(350)))
+	assert.True(t, set.Contains("CTOR02", token.Pos(350)))
+
+	// Test TONL01 specific range
+	assert.False(t, set.Contains("IMM01", token.Pos(550)))
+	assert.False(t, set.Contains("CTOR01", token.Pos(550)))
+	assert.True(t, set.Contains("TONL01", token.Pos(550)))
+	assert.False(t, set.Contains("TONL02", token.Pos(550)), "Only TONL01 should be ignored, not TONL02")
+}
+
+func TestIgnoreSet_OverlappingRanges(t *testing.T) {
+	set := &IgnoreSet{}
+
+	// Add IMM category at 100-300
+	ann1 := &mockAnnotation{
+		codes:    []string{"IMM"},
+		startPos: token.Pos(100),
+		endPos:   token.Pos(300),
+	}
+	set.Add(ann1)
+
+	// Add specific IMM01 at 200-400 (overlaps with IMM category)
+	ann2 := &mockAnnotation{
+		codes:    []string{"IMM01"},
+		startPos: token.Pos(200),
+		endPos:   token.Pos(400),
+	}
+	set.Add(ann2)
+
+	// In 100-200: IMM category covers IMM01
+	assert.True(t, set.Contains("IMM01", token.Pos(150)))
+	assert.True(t, set.Contains("IMM02", token.Pos(150)))
+
+	// In 200-300: both IMM category and IMM01 specific cover IMM01
+	assert.True(t, set.Contains("IMM01", token.Pos(250)))
+	assert.True(t, set.Contains("IMM02", token.Pos(250)))
+
+	// In 300-400: only IMM01 specific is active
+	assert.True(t, set.Contains("IMM01", token.Pos(350)))
+	assert.False(t, set.Contains("IMM02", token.Pos(350)), "IMM02 should not be covered after 300")
+}

@@ -57,3 +57,9 @@ func CreateTestData() string {
 func (u *User) GetDebugInfo() string {
 	return "debug"
 }
+
+// DebugConfig is a test-only configuration type
+// @testonly
+type DebugConfig struct {
+	Level int
+}

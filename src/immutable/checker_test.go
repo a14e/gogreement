@@ -215,7 +215,7 @@ func TestReportViolations(t *testing.T) {
 	}
 
 	// Should not panic
-	ReportViolations(pass, violations)
+	ReportViolations(pass, violations, nil)
 
 	t.Log("ReportViolations executed successfully")
 }

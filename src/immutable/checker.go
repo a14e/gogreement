@@ -10,6 +10,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 
 	"goagreement/src/annotations"
+	"goagreement/src/codes"
 	"goagreement/src/config"
 	"goagreement/src/util"
 )
@@ -192,6 +193,7 @@ func checkFieldAssignment(
 
 	return &ImmutableViolation{
 		TypeName: typeName,
+		Code:     codes.ImmutableFieldAssignment,
 		Pos:      selector.Pos(),
 		Reason:   fmt.Sprintf("cannot assign to field %q of immutable type", selector.Sel.Name),
 		Node:     stmt,
@@ -240,6 +242,7 @@ func checkIndexAssignment(
 
 	return &ImmutableViolation{
 		TypeName: typeName,
+		Code:     codes.ImmutableIndexAssignment,
 		Pos:      index.Pos(),
 		Reason:   fmt.Sprintf("cannot modify element of field %q of immutable type", selector.Sel.Name),
 		Node:     stmt,
@@ -315,6 +318,7 @@ func checkFieldIncDec(
 
 	return &ImmutableViolation{
 		TypeName: typeName,
+		Code:     codes.ImmutableFieldIncDec,
 		Pos:      node.Pos(),
 		Reason:   fmt.Sprintf("cannot use %s on field %q of immutable type (outside constructor)", op, selector.Sel.Name),
 		Node:     node,
@@ -359,6 +363,7 @@ func checkReceiverIncDec(
 
 	return &ImmutableViolation{
 		TypeName: ctx.currentReceiver.typeName,
+		Code:     codes.ImmutableFieldIncDec,
 		Pos:      star.Pos(),
 		Reason:   fmt.Sprintf("cannot use %s on immutable receiver (outside constructor)", op),
 		Node:     node,
@@ -425,6 +430,7 @@ func checkCompoundLHS(
 	op := tok.String()
 	return &ImmutableViolation{
 		TypeName: typeName,
+		Code:     codes.ImmutableFieldCompoundAssign,
 		Pos:      selector.Pos(),
 		Reason:   fmt.Sprintf("cannot use %s on field %q of immutable type (outside constructor)", op, selector.Sel.Name),
 		Node:     stmt,
@@ -466,6 +472,7 @@ func checkReceiverReassignment(
 
 	return &ImmutableViolation{
 		TypeName: ctx.currentReceiver.typeName,
+		Code:     codes.ImmutableFieldAssignment,
 		Pos:      star.Pos(),
 		Reason:   "cannot reassign immutable receiver (outside constructor)",
 		Node:     stmt,

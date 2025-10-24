@@ -11,6 +11,7 @@ import (
 	"goagreement/src/immutable"
 	"goagreement/src/implements"
 	"goagreement/src/testonly"
+	"goagreement/src/util"
 )
 
 // AnnotationReader reads annotations from code and exports them as facts
@@ -51,6 +52,9 @@ func runIgnoreReader(pass *analysis.Pass) (interface{}, error) {
 }
 
 // ImplementsChecker checks @implements annotations
+//
+// NOTE: @ignore directives do not work with ImplementsChecker.
+// Interface implementation violations cannot be suppressed.
 var ImplementsChecker = &analysis.Analyzer{
 	Name: "implementschecker",
 	Doc:  "Checks that types implement interfaces as declared by @implements",
@@ -64,7 +68,8 @@ var ImplementsChecker = &analysis.Analyzer{
 	},
 }
 
-// Does not use facts between packages, so result works very well
+// runImplementsChecker validates @implements annotations
+// NOTE: @ignore directives are not supported for this checker
 func runImplementsChecker(pass *analysis.Pass) (interface{}, error) {
 
 	result := pass.ResultOf[AnnotationReader]
@@ -133,11 +138,19 @@ func runImmutableChecker(pass *analysis.Pass) (interface{}, error) {
 	// Note: We still run the checker even if there are no local @immutable annotations,
 	// because we need to check for violations of @immutable types from imported packages
 
+	// Get ignore set from IgnoreReader
+	var ignoreSet *util.IgnoreSet
+	if ignoreResult := pass.ResultOf[IgnoreReader]; ignoreResult != nil {
+		if ir, ok := ignoreResult.(ignore.IgnoreResult); ok {
+			ignoreSet = ir.IgnoreSet
+		}
+	}
+
 	// Check immutability violations
 	violations := immutable.CheckImmutable(pass, &localAnnotations)
 
-	// Report violations
-	immutable.ReportViolations(pass, violations)
+	// Report violations (filtered by ignore set)
+	immutable.ReportViolations(pass, violations, ignoreSet)
 
 	return nil, nil
 }
@@ -173,11 +186,19 @@ func runConstructorChecker(pass *analysis.Pass) (interface{}, error) {
 	// Note: We still run the checker even if there are no local @constructor annotations,
 	// because we need to check for violations of @constructor types from imported packages
 
+	// Get ignore set from IgnoreReader
+	var ignoreSet *util.IgnoreSet
+	if ignoreResult := pass.ResultOf[IgnoreReader]; ignoreResult != nil {
+		if ir, ok := ignoreResult.(ignore.IgnoreResult); ok {
+			ignoreSet = ir.IgnoreSet
+		}
+	}
+
 	// Check constructor violations
 	violations := constructor.CheckConstructor(pass, &localAnnotations)
 
-	// Report violations
-	constructor.ReportViolations(pass, violations)
+	// Report violations (filtered by ignore set)
+	constructor.ReportViolations(pass, violations, ignoreSet)
 
 	return nil, nil
 }
@@ -213,10 +234,23 @@ func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 	// Note: We still run the checker even if there are no local @testonly annotations,
 	// because we need to check for violations of @testonly items from imported packages
 
-	// Check testonly violations
-	violations := testonly.CheckTestOnly(pass, &localAnnotations)
+	// Get ignore set from IgnoreReader
+	var ignoreSet *util.IgnoreSet
+	if ignoreResult := pass.ResultOf[IgnoreReader]; ignoreResult != nil {
+		if ir, ok := ignoreResult.(ignore.IgnoreResult); ok {
+			ignoreSet = ir.IgnoreSet
+		}
+	}
 
-	// Report violations
+	// Check testonly violations
+	// NOTE: ignoreSet is passed to CheckTestOnly for early filtering
+	// This is important because reportedTypes deduplication happens during
+	// violation detection. If we filter later in ReportViolations, ignored
+	// violations would still mark types as "reported", preventing subsequent
+	// non-ignored violations of the same type from being detected.
+	violations := testonly.CheckTestOnly(pass, &localAnnotations, ignoreSet)
+
+	// Report violations (already filtered by ignoreSet in CheckTestOnly)
 	testonly.ReportViolations(pass, violations)
 
 	return nil, nil

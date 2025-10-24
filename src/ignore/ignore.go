@@ -17,6 +17,7 @@ import (
 // IgnoreAnnotation represents parsed @ignore CODE1, CODE2 annotation
 // @immutable
 // @implements &util.IgnoreAnnotation
+// @constructor parseIgnoreAnnotation
 type IgnoreAnnotation struct {
 	// List of error codes to ignore (e.g., ["CODE1", "CODE2"])
 	Codes []string
@@ -97,6 +98,9 @@ func parseIgnoreAnnotation(commentText string, startPos token.Pos, endPos token.
 	}
 }
 
+// ignoreMatcher performs fast substring matching for @ignore comments.
+// Note: Aho-Corasick is overkill for a single pattern, but used here
+// for consistency with other annotation matchers in the codebase.
 var ignoreMatcher = ahocorasick.NewStringMatcher([]string{
 	"@ignore",
 })
@@ -129,12 +133,20 @@ func ReadIgnoreAnnotations(pass *analysis.Pass) *util.IgnoreSet {
 					if startPos < file.Package {
 						endPos = file.End()
 					} else {
-						// Find the next node after comment
-						endPos = findNextNodeAfterComment(file, startPos)
+						// Check if this is an inline comment (on the same line as code)
+						inlineStart, inlineEnd, isInline := findInlineNode(file, comment, pass.Fset)
+						if isInline {
+							// Inline comment: scope covers the entire line
+							startPos = inlineStart
+							endPos = inlineEnd
+						} else {
+							// Block comment: find the next node after comment
+							endPos = findNextNodeAfterComment(file, startPos)
 
-						// If no next node found, scope is just the comment itself
-						if endPos == token.NoPos {
-							endPos = comment.End()
+							// If no next node found, scope is just the comment itself
+							if endPos == token.NoPos {
+								endPos = comment.End()
+							}
 						}
 					}
 
@@ -150,9 +162,73 @@ func ReadIgnoreAnnotations(pass *analysis.Pass) *util.IgnoreSet {
 	return ignoreSet
 }
 
-// findNextNodeAfterComment finds the position of the next statement or declaration
-// that follows the given comment position. Uses binary search on top-level declarations
-// followed by linear search within the found declaration for efficiency.
+// findInlineNode checks if comment is inline (on the same line as code).
+// Returns (startPos, endPos, true) if inline, or (0, 0, false) if not inline.
+// For inline comments, startPos is the beginning of the line, endPos is comment end.
+// Example: var x int // @ignore CODE1
+func findInlineNode(file *ast.File, comment *ast.Comment, fset *token.FileSet) (start token.Pos, end token.Pos, found bool) {
+	commentPos := comment.Pos()
+	commentLine := fset.Position(commentPos).Line
+
+	// Binary search to find the declaration containing the comment
+	idx := sort.Search(len(file.Decls), func(i int) bool {
+		return file.Decls[i].End() > commentPos
+	})
+
+	// If no declaration found, not inline
+	if idx >= len(file.Decls) {
+		return 0, 0, false
+	}
+
+	decl := file.Decls[idx]
+
+	// If comment is before this declaration, not inline
+	if commentPos < decl.Pos() {
+		return 0, 0, false
+	}
+
+	// Comment is inside declaration - check if there's code on same line before comment
+	var hasCodeOnLine bool
+
+	ast.Inspect(decl, func(n ast.Node) bool {
+		if n == nil {
+			return false
+		}
+
+		// Skip if node is after comment
+		if n.Pos() >= commentPos {
+			return false
+		}
+
+		nodeEndLine := fset.Position(n.End()).Line
+
+		// Check if this node ends on the same line as the comment
+		if nodeEndLine == commentLine {
+			hasCodeOnLine = true
+			return false // Found code, can stop
+		}
+
+		return true
+	})
+
+	// If no code on this line, it's not inline
+	if !hasCodeOnLine {
+		return 0, 0, false
+	}
+
+	// Return positions covering entire line (from line start to comment end)
+	fileContent := fset.File(commentPos)
+	if fileContent == nil {
+		return 0, 0, false
+	}
+
+	lineStart := fileContent.LineStart(commentLine)
+	return lineStart, comment.End(), true
+}
+
+// findNextNodeAfterComment finds the end position of the scope affected by @ignore comment.
+// If comment is before a declaration (func, type, etc), returns the end of that declaration.
+// If comment is inside a declaration, finds the next statement after comment.
 // Returns token.NoPos if no node found after comment.
 func findNextNodeAfterComment(file *ast.File, commentPos token.Pos) token.Pos {
 	// Binary search to find the declaration that contains or follows the comment
@@ -167,9 +243,10 @@ func findNextNodeAfterComment(file *ast.File, commentPos token.Pos) token.Pos {
 
 	decl := file.Decls[idx]
 
-	// If comment is before this declaration, the next node is the declaration itself
+	// If comment is before this declaration, @ignore applies to the entire declaration
+	// Return the end of the declaration, not the beginning
 	if commentPos < decl.Pos() {
-		return decl.Pos()
+		return decl.End()
 	}
 
 	// Comment is inside this declaration - find the next node after comment

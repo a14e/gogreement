@@ -2,6 +2,8 @@ package util
 
 import (
 	"go/token"
+
+	"goagreement/src/codes"
 )
 
 // IgnoreAnnotation interface for adding annotations to the set
@@ -39,7 +41,11 @@ type IgnoreSet struct {
 }
 
 // ensureInitialized initializes the set if it hasn't been initialized yet
+// Safe to call on nil receiver - does nothing if receiver is nil.
 func (s *IgnoreSet) ensureInitialized() {
+	if s == nil {
+		return
+	}
 	if !s.Initialized {
 		s.Markers = make([]IgnoreMarker, 0)
 		s.CodeIndex = make(map[string][]int)
@@ -50,8 +56,12 @@ func (s *IgnoreSet) ensureInitialized() {
 }
 
 // Add adds an annotation to the set and updates indices
+// Safe to call on nil receiver - does nothing if receiver is nil.
 func (s *IgnoreSet) Add(annotation IgnoreAnnotation) {
 	s.ensureInitialized()
+	if s == nil {
+		return
+	}
 
 	// Convert interface to internal marker type
 	marker := IgnoreMarker{
@@ -78,31 +88,32 @@ func (s *IgnoreSet) Add(annotation IgnoreAnnotation) {
 	}
 }
 
-// Contains checks if the given code is ignored at the specified position
-// Returns true if there's an @ignore annotation with this code that covers the position
-// Special code "ALL" matches any position covered by an ALL annotation
+// Contains checks if the given code is ignored at the specified position.
+// Returns true if there's an @ignore annotation that covers the position.
+//
+// The method checks codes in hierarchical order using codes.GetCodesForCheck():
+// - First checks "ALL" (universal ignore)
+// - Then checks category prefix (e.g., "IMM" for "IMM01")
+// - Finally checks the specific code (e.g., "IMM01")
+//
+// Example: for code "IMM01", it checks: "ALL", "IMM", "IMM01"
+// Safe to call on nil receiver - returns false.
 func (s *IgnoreSet) Contains(code string, pos token.Pos) bool {
+	// Nil safety: return false if receiver is nil or uninitialized
+	if s == nil || !s.Initialized {
+		return false
+	}
+
 	// Quick range check: if pos is outside all markers, return false
 	if s.MinPos == token.NoPos || pos < s.MinPos || pos > s.MaxPos {
 		return false
 	}
 
-	// Check if specific code is ignored at this position
-	indices, exists := s.CodeIndex[code]
-	if exists {
-		for _, idx := range indices {
-			marker := s.Markers[idx]
-			if pos >= marker.StartPos && pos <= marker.EndPos {
-				return true
-			}
-		}
-	}
-
-	// Check if ALL code is present at this position (unless we're already checking for ALL)
-	if code != "ALL" {
-		allIndices, allExists := s.CodeIndex["ALL"]
-		if allExists {
-			for _, idx := range allIndices {
+	// Check all codes in the hierarchy: ALL, category, specific code
+	for checkCode := range codes.GetCodesForCheck(code) {
+		indices, exists := s.CodeIndex[checkCode]
+		if exists {
+			for _, idx := range indices {
 				marker := s.Markers[idx]
 				if pos >= marker.StartPos && pos <= marker.EndPos {
 					return true
@@ -115,11 +126,19 @@ func (s *IgnoreSet) Contains(code string, pos token.Pos) bool {
 }
 
 // Len returns the number of markers in the set
+// Safe to call on nil receiver - returns 0.
 func (s *IgnoreSet) Len() int {
+	if s == nil {
+		return 0
+	}
 	return len(s.Markers)
 }
 
 // Empty returns true if the set contains no markers
+// Safe to call on nil receiver - returns true.
 func (s *IgnoreSet) Empty() bool {
+	if s == nil {
+		return true
+	}
 	return len(s.Markers) == 0
 }

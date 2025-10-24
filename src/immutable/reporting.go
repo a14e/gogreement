@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
+
+	"goagreement/src/util"
 )
 
 // ImmutableViolation represents a mutation of an immutable type
@@ -16,13 +18,19 @@ import (
 type ImmutableViolation struct {
 	TypeName string
 	Reason   string
+	Code     string // Error code from codes package
 	Pos      token.Pos
 	Node     ast.Node
 }
 
-func ReportViolations(pass *analysis.Pass, violations []ImmutableViolation) {
+func ReportViolations(pass *analysis.Pass, violations []ImmutableViolation, ignoreSet *util.IgnoreSet) {
 	for _, v := range violations {
-		msg := fmt.Sprintf("immutability violation in type %q: %s", v.TypeName, v.Reason)
+		// Check if this violation should be ignored
+		if ignoreSet != nil && ignoreSet.Contains(v.Code, v.Pos) {
+			continue
+		}
+
+		msg := fmt.Sprintf("[%s] immutability violation in type %q: %s", v.Code, v.TypeName, v.Reason)
 
 		if v.Node != nil {
 			var buf bytes.Buffer

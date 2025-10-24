@@ -10,13 +10,14 @@ import (
 	"golang.org/x/tools/go/analysis"
 
 	"goagreement/src/annotations"
+	"goagreement/src/codes"
 	"goagreement/src/config"
 	"goagreement/src/indexing"
 	"goagreement/src/util"
 )
 
 // CheckTestOnly checks that @testonly annotated items are only used in test files
-func CheckTestOnly(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) []TestOnlyViolation {
+func CheckTestOnly(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations, ignoreSet *util.IgnoreSet) []TestOnlyViolation {
 	var violations []TestOnlyViolation
 
 	// Build indices for @testonly items (including imported packages)
@@ -52,6 +53,9 @@ func CheckTestOnly(pass *analysis.Pass, packageAnnotations *annotations.PackageA
 		}
 
 		// Track reported type violations per file to avoid spam
+		// NOTE: We check ignoreSet BEFORE adding to reportedTypes to ensure that
+		// ignored violations don't prevent subsequent non-ignored violations of the
+		// same type from being detected. See case statements below for implementation.
 		reportedTypes := make(map[string]bool)
 
 		ast.Inspect(file, func(n ast.Node) bool {
@@ -66,33 +70,45 @@ func CheckTestOnly(pass *analysis.Pass, packageAnnotations *annotations.PackageA
 			case *ast.CallExpr:
 				// Check function and method calls
 				if v := findFunctionCallViolation(&context, node); v != nil {
-					violations = append(violations, *v)
+					// Check if this violation should be ignored
+					if !ignoreSet.Contains(v.Code, v.Pos) {
+						violations = append(violations, *v)
+					}
 				}
 
 			case *ast.CompositeLit:
 				// Check type instantiation: TestHelper{...}
 				if v := findTypeLiteralViolation(&context, node); v != nil {
-					if !reportedTypes[v.TestOnlyObj] {
-						violations = append(violations, *v)
-						reportedTypes[v.TestOnlyObj] = true
+					// Check if this violation should be ignored before marking type as reported
+					if !ignoreSet.Contains(v.Code, v.Pos) {
+						if !reportedTypes[v.TestOnlyObj] {
+							violations = append(violations, *v)
+							reportedTypes[v.TestOnlyObj] = true
+						}
 					}
 				}
 
 			case *ast.ValueSpec:
 				// Check variable declarations: var x TestHelper
 				if v := findTypeUsageViolation(&context, node.Type, node.Pos()); v != nil {
-					if !reportedTypes[v.TestOnlyObj] {
-						violations = append(violations, *v)
-						reportedTypes[v.TestOnlyObj] = true
+					// Check if this violation should be ignored before marking type as reported
+					if !ignoreSet.Contains(v.Code, v.Pos) {
+						if !reportedTypes[v.TestOnlyObj] {
+							violations = append(violations, *v)
+							reportedTypes[v.TestOnlyObj] = true
+						}
 					}
 				}
 
 			case *ast.Field:
 				// Check struct fields and function parameters
 				if v := findTypeUsageViolation(&context, node.Type, node.Pos()); v != nil {
-					if !reportedTypes[v.TestOnlyObj] {
-						violations = append(violations, *v)
-						reportedTypes[v.TestOnlyObj] = true
+					// Check if this violation should be ignored before marking type as reported
+					if !ignoreSet.Contains(v.Code, v.Pos) {
+						if !reportedTypes[v.TestOnlyObj] {
+							violations = append(violations, *v)
+							reportedTypes[v.TestOnlyObj] = true
+						}
 					}
 				}
 			}
@@ -154,6 +170,7 @@ func findFunctionCallViolation(
 				Kind:        annotations.TestOnlyOnFunc,
 				UsedInFile:  *ctx.fileName,
 				Reason:      fmt.Sprintf("function %s is marked @testonly and can only be called in test files", funcName),
+				Code:        codes.TestOnlyFunctionCall,
 			}
 		}
 
@@ -174,6 +191,7 @@ func findFunctionCallViolation(
 							Kind:        annotations.TestOnlyOnFunc,
 							UsedInFile:  *ctx.fileName,
 							Reason:      fmt.Sprintf("function %s is marked @testonly and can only be called in test files", funcName),
+							Code:        codes.TestOnlyFunctionCall,
 						}
 					}
 					return nil // Not a testonly func, but also not a method
@@ -192,6 +210,7 @@ func findFunctionCallViolation(
 					Kind:        annotations.TestOnlyOnMethod,
 					UsedInFile:  *ctx.fileName,
 					Reason:      fmt.Sprintf("method %s on %s is marked @testonly and can only be called in test files", methodName, typeInfo.TypeName),
+					Code:        codes.TestOnlyMethodCall,
 				}
 			}
 		}
@@ -217,6 +236,7 @@ func findTypeLiteralViolation(
 			Kind:        annotations.TestOnlyOnType,
 			UsedInFile:  *ctx.fileName,
 			Reason:      fmt.Sprintf("type %s is marked @testonly and can only be used in test files", typeInfo.TypeName),
+			Code:        codes.TestOnlyTypeUsage,
 		}
 	}
 	return nil
@@ -245,6 +265,7 @@ func findTypeUsageViolation(
 			Kind:        annotations.TestOnlyOnType,
 			UsedInFile:  *ctx.fileName,
 			Reason:      fmt.Sprintf("type %s is marked @testonly and can only be used in test files", typeInfo.TypeName),
+			Code:        codes.TestOnlyTypeUsage,
 		}
 	}
 	return nil
