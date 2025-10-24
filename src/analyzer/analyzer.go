@@ -27,8 +27,8 @@ func runAnnotationReader(pass *analysis.Pass) (interface{}, error) {
 	packageAnnotations := annotations.ReadAllAnnotations(pass)
 
 	// Export facts before isProjectPackage check so dependencies can use them
-	fact := (*annotations.AnnotationReaderFact)(&packageAnnotations)
-	pass.ExportPackageFact(fact)
+	fact := annotations.AnnotationReaderFact(packageAnnotations)
+	pass.ExportPackageFact(&fact)
 
 	return packageAnnotations, nil
 }
@@ -59,8 +59,8 @@ func runImplementsChecker(pass *analysis.Pass) (interface{}, error) {
 	}
 
 	// Export facts before isProjectPackage check so dependencies can use them
-	fact := (*annotations.ImplementsCheckerFact)(&localAnnotations)
-	pass.ExportPackageFact(fact)
+	fact := annotations.ImplementsCheckerFact(localAnnotations)
+	pass.ExportPackageFact(&fact)
 
 	if len(localAnnotations.ImplementsAnnotations) == 0 {
 		return nil, nil
@@ -108,8 +108,8 @@ func runImmutableChecker(pass *analysis.Pass) (interface{}, error) {
 	}
 
 	// Export facts before isProjectPackage check so dependencies can use them
-	fact := (*annotations.ImmutableCheckerFact)(&localAnnotations)
-	pass.ExportPackageFact(fact)
+	fact := annotations.ImmutableCheckerFact(localAnnotations)
+	pass.ExportPackageFact(&fact)
 
 	// Note: We still run the checker even if there are no local @immutable annotations,
 	// because we need to check for violations of @immutable types from imported packages
@@ -147,8 +147,8 @@ func runConstructorChecker(pass *analysis.Pass) (interface{}, error) {
 	}
 
 	// Export facts before isProjectPackage check so dependencies can use them
-	fact := (*annotations.ConstructorCheckerFact)(&localAnnotations)
-	pass.ExportPackageFact(fact)
+	fact := annotations.ConstructorCheckerFact(localAnnotations)
+	pass.ExportPackageFact(&fact)
 
 	// Note: We still run the checker even if there are no local @constructor annotations,
 	// because we need to check for violations of @constructor types from imported packages
@@ -186,8 +186,8 @@ func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 	}
 
 	// Export facts before isProjectPackage check so dependencies can use them
-	fact := (*annotations.TestOnlyCheckerFact)(&localAnnotations)
-	pass.ExportPackageFact(fact)
+	fact := annotations.TestOnlyCheckerFact(localAnnotations)
+	pass.ExportPackageFact(&fact)
 
 	// Note: We still run the checker even if there are no local @testonly annotations,
 	// because we need to check for violations of @testonly items from imported packages
