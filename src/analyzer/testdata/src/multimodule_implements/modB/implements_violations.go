@@ -8,25 +8,25 @@ import (
 
 // PackageNotFoundType references non-imported package
 // @implements nonexistent.Reader
-type PackageNotFoundType struct { // want "package \"nonexistent\" referenced in @implements.*not imported"
+type PackageNotFoundType struct { // want "\\[IMPL01\\].*package \"nonexistent\" referenced in @implements.*not imported"
 	data string
 }
 
 // InterfaceNotFoundType references non-existent interface from io
 // @implements io.NonExistentInterface
-type InterfaceNotFoundType struct { // want "interface \"io.NonExistentInterface\" not found"
+type InterfaceNotFoundType struct { // want "\\[IMPL02\\].*interface \"io.NonExistentInterface\" not found"
 	value int
 }
 
 // BadReader claims to implement io.Reader but doesn't
 // @implements io.Reader
-type BadReader struct { // want "does not implement interface.*io.Reader"
+type BadReader struct { // want "\\[IMPL03\\].*does not implement interface.*io.Reader"
 	data string
 }
 
 // BadModAReader claims to implement modA.Reader but doesn't
 // @implements modA.Reader
-type BadModAReader struct { // want "does not implement interface.*modA.Reader"
+type BadModAReader struct { // want "\\[IMPL03\\].*does not implement interface.*modA.Reader"
 	value int
 }
 
