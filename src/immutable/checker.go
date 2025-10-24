@@ -36,7 +36,7 @@ func CheckImmutable(pass *analysis.Pass, packageAnnotations *annotations.Package
 		currentFunction: nil,
 	}
 
-	for _, file := range filesToCheck {
+	for file := range filesToCheck {
 
 		// First pass: check simple assignments and inc/dec operations
 		// We skip compound assignments (+=, -=, etc.) here to avoid duplicates

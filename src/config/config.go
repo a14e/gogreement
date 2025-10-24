@@ -2,6 +2,7 @@ package config
 
 import (
 	"go/ast"
+	"iter"
 	"os"
 	"strconv"
 	"strings"
@@ -11,7 +12,7 @@ import (
 
 // Config holds the configuration for goagreement analyzers
 // @immutable
-// @constructor New, FromEnv, Default
+// @constructor New
 type Config struct {
 	// ScanTests determines whether test files should be analyzed
 	// By default, test files (*_test.go) are excluded from analysis
@@ -110,14 +111,18 @@ func (c *Config) ShouldSkipFile(pass *analysis.Pass, file *ast.File) bool {
 }
 
 // FilterFiles returns only the files that should be analyzed based on configuration
-func (c *Config) FilterFiles(pass *analysis.Pass) []*ast.File {
-	filtered := make([]*ast.File, 0, len(pass.Files))
-	for _, file := range pass.Files {
-		if !c.ShouldSkipFile(pass, file) {
-			filtered = append(filtered, file)
+func (c *Config) FilterFiles(pass *analysis.Pass) iter.Seq[*ast.File] {
+
+	return func(yield func(*ast.File) bool) {
+		for _, file := range pass.Files {
+			if !c.ShouldSkipFile(pass, file) {
+				if !yield(file) {
+					return
+				}
+			}
 		}
+
 	}
-	return filtered
 }
 
 // Global configuration instance - initialized from environment by default

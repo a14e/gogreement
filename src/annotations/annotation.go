@@ -422,7 +422,7 @@ func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
 	// Filter files based on configuration (skip test files by default)
 	filesToScan := config.Global.FilterFiles(pass)
 
-	for _, file := range filesToScan {
+	for file := range filesToScan {
 		// Build import map for this file
 		imports := &util.ImportMap{}
 		for _, imp := range file.Imports {

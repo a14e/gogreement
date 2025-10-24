@@ -43,7 +43,7 @@ func CheckTestOnly(pass *analysis.Pass, packageAnnotations *annotations.PackageA
 		testOnlyTypes:   &testOnlyTypes,
 	}
 
-	for _, file := range filesToCheck {
+	for file := range filesToCheck {
 		fileName := pass.Fset.Position(file.Pos()).Filename
 		context.fileName = &fileName
 

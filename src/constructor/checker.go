@@ -24,7 +24,7 @@ func CheckConstructor(pass *analysis.Pass, packageAnnotations *annotations.Packa
 	// Filter files based on configuration (skip test files by default)
 	filesToCheck := config.Global.FilterFiles(pass)
 
-	for _, file := range filesToCheck {
+	for file := range filesToCheck {
 		currentFunction := ""
 
 		ast.Inspect(file, func(n ast.Node) bool {

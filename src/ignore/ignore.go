@@ -113,7 +113,7 @@ func ReadIgnoreAnnotations(pass *analysis.Pass) *util.IgnoreSet {
 	// Filter files based on configuration
 	filesToScan := config.Global.FilterFiles(pass)
 
-	for _, file := range filesToScan {
+	for file := range filesToScan {
 		// Scan all comment groups in the file
 		for _, commentGroup := range file.Comments {
 			for _, comment := range commentGroup.List {
