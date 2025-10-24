@@ -133,6 +133,7 @@ type ImplementsAnnotation struct {
 	PackageNotFound bool   // true if package was referenced but not found in imports
 }
 
+// ConstructorAnnotation
 // @constructor parseConstructorAnnotation
 // @immutable
 type ConstructorAnnotation struct {
@@ -143,6 +144,7 @@ type ConstructorAnnotation struct {
 	ConstructorNames []string // ["New", "Create"]
 }
 
+// ImmutableAnnotation
 // @immutable
 // @constructor parseImmutableAnnotation
 type ImmutableAnnotation struct {
@@ -160,6 +162,7 @@ const (
 	TestOnlyOnMethod                     // @testonly on method
 )
 
+// TestOnlyAnnotation
 // @immutable
 type TestOnlyAnnotation struct {
 	// Kind of declaration: type, func, or method

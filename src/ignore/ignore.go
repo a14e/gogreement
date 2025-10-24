@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/cloudflare/ahocorasick"
@@ -109,15 +110,6 @@ func ReadIgnoreAnnotations(pass *analysis.Pass) *util.IgnoreSet {
 	filesToScan := config.Global.FilterFiles(pass)
 
 	for _, file := range filesToScan {
-		// Lazy initialization: build a comment-to-statement map only if we find at least one @ignore
-		var commentToNextStmt map[token.Pos]token.Pos
-
-		// Determine the first declaration position for file-level annotations
-		var firstDeclPos = token.NoPos
-		if len(file.Decls) > 0 {
-			firstDeclPos = file.Decls[0].Pos()
-		}
-
 		// Scan all comment groups in the file
 		for _, commentGroup := range file.Comments {
 			for _, comment := range commentGroup.List {
@@ -130,20 +122,18 @@ func ReadIgnoreAnnotations(pass *analysis.Pass) *util.IgnoreSet {
 
 				// Parse @ignore annotation
 				if strings.Contains(text, "@ignore") {
-					// Lazy initialization: build map only on first @ignore found
-					if commentToNextStmt == nil {
-						commentToNextStmt = buildCommentToStmtMap(file, pass.Fset)
-					}
-
 					startPos := comment.Pos()
-					endPos := commentToNextStmt[startPos]
+					var endPos token.Pos
 
-					// If we couldn't find next statement, check if it's a file-level annotation
-					if endPos == token.NoPos {
-						// If comment is before first declaration, it's file-level
-						if firstDeclPos != token.NoPos && startPos < firstDeclPos {
-							endPos = file.End()
-						} else {
+					// File-level annotation: comment before package declaration
+					if startPos < file.Package {
+						endPos = file.End()
+					} else {
+						// Find the next node after comment
+						endPos = findNextNodeAfterComment(file, startPos)
+
+						// If no next node found, scope is just the comment itself
+						if endPos == token.NoPos {
 							endPos = comment.End()
 						}
 					}
@@ -160,65 +150,50 @@ func ReadIgnoreAnnotations(pass *analysis.Pass) *util.IgnoreSet {
 	return ignoreSet
 }
 
-// buildCommentToStmtMap builds a mapping from comment position to the position
-// of the next statement that follows it. This is used to determine the scope
-// of @ignore directives.
-func buildCommentToStmtMap(file *ast.File, fset *token.FileSet) map[token.Pos]token.Pos {
-	result := make(map[token.Pos]token.Pos)
+// findNextNodeAfterComment finds the position of the next statement or declaration
+// that follows the given comment position. Uses binary search on top-level declarations
+// followed by linear search within the found declaration for efficiency.
+// Returns token.NoPos if no node found after comment.
+func findNextNodeAfterComment(file *ast.File, commentPos token.Pos) token.Pos {
+	// Binary search to find the declaration that contains or follows the comment
+	idx := sort.Search(len(file.Decls), func(i int) bool {
+		return file.Decls[i].End() > commentPos
+	})
 
-	// Walk through all declarations and statements to find what comes after each comment
-	ast.Inspect(file, func(n ast.Node) bool {
-		switch node := n.(type) {
-		case *ast.FuncDecl:
-			// Map function comments to function body start
-			if node.Doc != nil && node.Body != nil {
-				for _, comment := range node.Doc.List {
-					result[comment.Pos()] = node.Body.Lbrace
-				}
-			}
-			// Process function body statements
-			if node.Body != nil {
-				mapCommentsInStmtList(node.Body.List, fset, result)
-			}
+	// If no declaration found after comment, return NoPos
+	if idx >= len(file.Decls) {
+		return token.NoPos
+	}
 
-		case *ast.GenDecl:
-			// Map declaration comments to declaration start
-			if node.Doc != nil {
-				for _, comment := range node.Doc.List {
-					result[comment.Pos()] = node.Pos()
-				}
-			}
+	decl := file.Decls[idx]
+
+	// If comment is before this declaration, the next node is the declaration itself
+	if commentPos < decl.Pos() {
+		return decl.Pos()
+	}
+
+	// Comment is inside this declaration - find the next node after comment
+	var nextPos = token.NoPos
+
+	ast.Inspect(decl, func(n ast.Node) bool {
+		if n == nil {
+			return false
 		}
+
+		// Skip nodes that start before or at comment position
+		if n.Pos() <= commentPos {
+			return true
+		}
+
+		// Found a node after comment
+		if nextPos == token.NoPos || n.Pos() < nextPos {
+			nextPos = n.Pos()
+			// Stop searching once we found the first node
+			return false
+		}
+
 		return true
 	})
 
-	return result
-}
-
-// mapCommentsInStmtList maps comments in a statement list to their following statements
-func mapCommentsInStmtList(stmts []ast.Stmt, fset *token.FileSet, result map[token.Pos]token.Pos) {
-	for i, stmt := range stmts {
-		// Check if this statement has a comment before it
-		// We'll look at the previous line to see if there's a comment
-
-		// For now, we'll use a simpler approach: map any statement position
-		// to the next statement position (if exists), or to its own end
-		if i < len(stmts)-1 {
-			// There's a next statement
-			nextStmt := stmts[i+1]
-			// Any comment on this statement's line maps to next statement
-			result[stmt.Pos()] = nextStmt.Pos()
-		} else {
-			// Last statement - map to its end
-			result[stmt.Pos()] = stmt.End()
-		}
-
-		// Recursively handle nested statements
-		ast.Inspect(stmt, func(n ast.Node) bool {
-			if blockStmt, ok := n.(*ast.BlockStmt); ok {
-				mapCommentsInStmtList(blockStmt.List, fset, result)
-			}
-			return true
-		})
-	}
+	return nextPos
 }
