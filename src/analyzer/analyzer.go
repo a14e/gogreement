@@ -7,6 +7,7 @@ import (
 
 	"goagreement/src/annotations"
 	"goagreement/src/constructor"
+	"goagreement/src/ignore"
 	"goagreement/src/immutable"
 	"goagreement/src/implements"
 	"goagreement/src/testonly"
@@ -201,6 +202,22 @@ func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
+// IgnoreReader reads @ignore annotations from code
+var IgnoreReader = &analysis.Analyzer{
+	Name:       "ignorereader",
+	Doc:        "Reads @ignore CODE1, CODE2 annotations from code",
+	Run:        runIgnoreReader,
+	ResultType: reflect.TypeOf(ignore.IgnoreResult{}),
+}
+
+func runIgnoreReader(pass *analysis.Pass) (interface{}, error) {
+	ignoreSet := ignore.ReadIgnoreAnnotations(pass)
+
+	return ignore.IgnoreResult{
+		IgnoreSet: ignoreSet,
+	}, nil
+}
+
 // AllAnalyzers returns all available analyzers
 func AllAnalyzers() []*analysis.Analyzer {
 	return []*analysis.Analyzer{
@@ -209,5 +226,6 @@ func AllAnalyzers() []*analysis.Analyzer {
 		ImmutableChecker,
 		ConstructorChecker,
 		TestOnlyChecker,
+		IgnoreReader,
 	}
 }
