@@ -8,15 +8,14 @@ import (
 	"golang.org/x/tools/go/analysis"
 
 	"goagreement/src/annotations"
-	"goagreement/src/testutil"
+	"goagreement/src/config"
 	"goagreement/src/testutil/testfacts"
 )
 
 func TestBuildImmutableTypesIndex(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
 
 	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
-	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	packageAnnotations := annotations.ReadAllAnnotations(config.Empty(), pass)
 
 	index := BuildImmutableTypesIndex[*annotations.ImmutableCheckerFact](pass, &packageAnnotations)
 
@@ -91,10 +90,9 @@ func TestBuildImmutableTypesIndexEmpty(t *testing.T) {
 }
 
 func TestBuildImmutableTypesIndexWithImports(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
 
 	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
-	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	packageAnnotations := annotations.ReadAllAnnotations(config.Empty(), pass)
 
 	index := BuildImmutableTypesIndex[*annotations.ImmutableCheckerFact](pass, &packageAnnotations)
 
@@ -110,10 +108,9 @@ func TestBuildImmutableTypesIndexWithImports(t *testing.T) {
 }
 
 func TestBuildConstructorIndex(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
 
 	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
-	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	packageAnnotations := annotations.ReadAllAnnotations(config.Empty(), pass)
 
 	index := BuildConstructorIndex[*annotations.ConstructorCheckerFact](pass, &packageAnnotations)
 
@@ -199,10 +196,9 @@ func TestBuildConstructorIndexEmpty(t *testing.T) {
 }
 
 func TestBuildConstructorIndexWithImports(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
 
 	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
-	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	packageAnnotations := annotations.ReadAllAnnotations(config.Empty(), pass)
 
 	index := BuildConstructorIndex[*annotations.ConstructorCheckerFact](pass, &packageAnnotations)
 
@@ -217,10 +213,9 @@ func TestBuildConstructorIndexWithImports(t *testing.T) {
 }
 
 func TestBuildTestOnlyTypesIndex(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
 
 	pass := testfacts.CreateTestPassWithFacts(t, "testonlyexample")
-	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	packageAnnotations := annotations.ReadAllAnnotations(config.Empty(), pass)
 
 	index := BuildTestOnlyTypesIndex[*annotations.TestOnlyCheckerFact](pass, &packageAnnotations)
 
@@ -241,10 +236,9 @@ func TestBuildTestOnlyTypesIndex(t *testing.T) {
 }
 
 func TestBuildTestOnlyFuncsIndex(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
 
 	pass := testfacts.CreateTestPassWithFacts(t, "testonlyexample")
-	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	packageAnnotations := annotations.ReadAllAnnotations(config.Empty(), pass)
 
 	index := BuildTestOnlyFuncsIndex[*annotations.TestOnlyCheckerFact](pass, &packageAnnotations)
 
@@ -265,10 +259,9 @@ func TestBuildTestOnlyFuncsIndex(t *testing.T) {
 }
 
 func TestBuildTestOnlyMethodsIndex(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
 
 	pass := testfacts.CreateTestPassWithFacts(t, "testonlyexample")
-	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	packageAnnotations := annotations.ReadAllAnnotations(config.Empty(), pass)
 
 	index := BuildTestOnlyMethodsIndex[*annotations.TestOnlyCheckerFact](pass, &packageAnnotations)
 

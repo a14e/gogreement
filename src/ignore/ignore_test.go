@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/go/analysis"
 
-	"goagreement/src/testutil"
+	"goagreement/src/config"
 	"goagreement/src/testutil/testfacts"
 )
 
@@ -133,7 +133,8 @@ func InvalidIgnoreNoCode() {
 	}
 
 	// Read annotations
-	ignoreSet := ReadIgnoreAnnotations(pass)
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
 
 	// We expect 3 valid @ignore annotations (CODE1, CODE2+CODE3, CODE4)
 	// The one without codes should be filtered out
@@ -163,7 +164,8 @@ func EmptyFunction() {
 		Pkg:   types.NewPackage("testpkg", "testpkg"),
 	}
 
-	ignoreSet := ReadIgnoreAnnotations(pass)
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
 	assert.Equal(t, 0, ignoreSet.Len(), "expected no annotations in empty file")
 }
 
@@ -196,18 +198,19 @@ func ComplexFunction() {
 		Pkg:   types.NewPackage("testpkg", "testpkg"),
 	}
 
-	ignoreSet := ReadIgnoreAnnotations(pass)
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
 	require.Equal(t, 3, ignoreSet.Len(), "expected 3 ignore annotations")
 }
 
 // TestReadIgnoreAnnotationsFromTestData tests reading ignore annotations from testdata
 func TestReadIgnoreAnnotationsFromTestData(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
 
 	pass := testfacts.CreateTestPassWithFacts(t, "ignoretests")
 
 	// Read ignore annotations
-	ignoreSet := ReadIgnoreAnnotations(pass)
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
 
 	t.Logf("Found %d ignore annotations", ignoreSet.Len())
 
@@ -292,7 +295,8 @@ func Function2() {
 	}
 
 	// Read annotations
-	ignoreSet := ReadIgnoreAnnotations(pass)
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
 
 	// We expect 1 file-level @ignore annotation
 	require.Equal(t, 1, ignoreSet.Len(), "expected 1 file-level ignore annotation")
@@ -350,7 +354,8 @@ func RegularFunction() {
 		Pkg:   types.NewPackage("testpkg", "testpkg"),
 	}
 
-	ignoreSet := ReadIgnoreAnnotations(pass)
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
 
 	// We expect 2 annotations: file-level + specific function
 	require.Equal(t, 2, ignoreSet.Len(), "expected 2 ignore annotations")
@@ -398,7 +403,8 @@ func Function2() {
 		Pkg:   types.NewPackage("testpkg", "testpkg"),
 	}
 
-	ignoreSet := ReadIgnoreAnnotations(pass)
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
 
 	// We expect 1 function-level annotation (not file-level)
 	require.Equal(t, 1, ignoreSet.Len(), "expected 1 function-level ignore annotation")
@@ -436,7 +442,8 @@ func TestFunction() {
 		Pkg:   types.NewPackage("testpkg", "testpkg"),
 	}
 
-	ignoreSet := ReadIgnoreAnnotations(pass)
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
 
 	// We expect 2 inline ignore annotations
 	require.Equal(t, 2, ignoreSet.Len(), "expected 2 inline ignore annotations")
@@ -492,7 +499,8 @@ func TestFunction() {
 		Pkg:   types.NewPackage("testpkg", "testpkg"),
 	}
 
-	ignoreSet := ReadIgnoreAnnotations(pass)
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
 
 	// We expect 2 annotations: 1 block, 1 inline
 	require.Equal(t, 2, ignoreSet.Len(), "expected 2 ignore annotations")
@@ -543,7 +551,8 @@ type User struct {
 		Pkg:   types.NewPackage("testpkg", "testpkg"),
 	}
 
-	ignoreSet := ReadIgnoreAnnotations(pass)
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
 
 	// We expect 2 inline annotations
 	require.Equal(t, 2, ignoreSet.Len(), "expected 2 inline ignore annotations")
@@ -589,7 +598,8 @@ type User struct {
 		Pkg:   types.NewPackage("testpkg", "testpkg"),
 	}
 
-	ignoreSet := ReadIgnoreAnnotations(pass)
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
 
 	// We expect 1 inline annotation
 	require.Equal(t, 1, ignoreSet.Len(), "expected 1 inline ignore annotation")
@@ -637,7 +647,8 @@ type TestHelper struct {
 		Pkg:   types.NewPackage("testpkg", "testpkg"),
 	}
 
-	ignoreSet := ReadIgnoreAnnotations(pass)
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
 
 	// We expect 1 inline annotation
 	require.Equal(t, 1, ignoreSet.Len(), "expected 1 inline ignore annotation")

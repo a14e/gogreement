@@ -66,42 +66,85 @@ func TestWithScanTests(t *testing.T) {
 }
 
 func TestFromEnv(t *testing.T) {
-	tests := []struct {
-		name     string
-		envValue string
-		expected bool
-	}{
-		{"empty", "", false},
-		{"true", "true", true},
-		{"TRUE", "TRUE", true},
-		{"True", "True", true},
-		{"1", "1", true},
-		{"yes", "yes", true},
-		{"YES", "YES", true},
-		{"on", "on", true},
-		{"ON", "ON", true},
-		{"false", "false", false},
-		{"FALSE", "FALSE", false},
-		{"0", "0", false},
-		{"no", "no", false},
-		{"invalid", "invalid", false},
-		{"random", "xyz", false},
-	}
+	t.Run("ScanTests parsing", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			envValue string
+			expected bool
+		}{
+			{"empty", "", false},
+			{"true", "true", true},
+			{"TRUE", "TRUE", true},
+			{"True", "True", true},
+			{"1", "1", true},
+			{"yes", "yes", true},
+			{"YES", "YES", true},
+			{"on", "on", true},
+			{"ON", "ON", true},
+			{"false", "false", false},
+			{"FALSE", "FALSE", false},
+			{"0", "0", false},
+			{"no", "no", false},
+			{"invalid", "invalid", false},
+			{"random", "xyz", false},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Ensure exclude paths don't interfere with defaults
-			t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "")
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Setenv("GOAGREEMENT_SCAN_TESTS", tt.envValue)
 
-			// Set environment variable (empty string simulates "unset" for our logic)
-			t.Setenv("GOAGREEMENT_SCAN_TESTS", tt.envValue)
+				cfg := FromEnv()
+				assert.Equal(t, tt.expected, cfg.ScanTests, "env value %q should result in ScanTests=%v", tt.envValue, tt.expected)
+			})
+		}
+	})
 
-			cfg := FromEnv()
-			assert.Equal(t, tt.expected, cfg.ScanTests, "env value %q should result in ScanTests=%v", tt.envValue, tt.expected)
-			// Default exclude paths should be preserved unless explicitly set
-			assert.Equal(t, []string{"testdata"}, cfg.ExcludePaths)
-		})
-	}
+	t.Run("ExcludePaths defaults to testdata when not set", func(t *testing.T) {
+		cfg := FromEnv()
+		assert.Equal(t, []string{"testdata"}, cfg.ExcludePaths)
+	})
+
+	t.Run("ExcludePaths empty string means no exclusions", func(t *testing.T) {
+		t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "")
+
+		cfg := FromEnv()
+		assert.Equal(t, []string{}, cfg.ExcludePaths, "empty string should result in no exclusions")
+	})
+
+	t.Run("ExcludePaths single path", func(t *testing.T) {
+		t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "vendor")
+
+		cfg := FromEnv()
+		assert.Equal(t, []string{"vendor"}, cfg.ExcludePaths)
+	})
+
+	t.Run("ExcludePaths multiple paths", func(t *testing.T) {
+		t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "vendor,node_modules,tmp")
+
+		cfg := FromEnv()
+		assert.Equal(t, []string{"vendor", "node_modules", "tmp"}, cfg.ExcludePaths)
+	})
+
+	t.Run("ExcludePaths with spaces", func(t *testing.T) {
+		t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", " vendor , node_modules , tmp ")
+
+		cfg := FromEnv()
+		assert.Equal(t, []string{"vendor", "node_modules", "tmp"}, cfg.ExcludePaths)
+	})
+
+	t.Run("ExcludePaths with empty items", func(t *testing.T) {
+		t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "vendor,,node_modules")
+
+		cfg := FromEnv()
+		assert.Equal(t, []string{"vendor", "node_modules"}, cfg.ExcludePaths, "empty items should be filtered out")
+	})
+
+	t.Run("ExcludePaths with only spaces and commas", func(t *testing.T) {
+		t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", " , , ")
+
+		cfg := FromEnv()
+		assert.Equal(t, []string{}, cfg.ExcludePaths, "only spaces should result in empty array")
+	})
 }
 
 func TestParseBool(t *testing.T) {

@@ -15,7 +15,11 @@ import (
 	"goagreement/src/util"
 )
 
-func CheckImmutable(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) []ImmutableViolation {
+func CheckImmutable(
+	cfg *config.Config,
+	pass *analysis.Pass,
+	packageAnnotations *annotations.PackageAnnotations,
+) []ImmutableViolation {
 	var violations []ImmutableViolation
 
 	// Build indices for efficient lookup during AST traversal
@@ -27,7 +31,7 @@ func CheckImmutable(pass *analysis.Pass, packageAnnotations *annotations.Package
 	constructors := indexing.BuildConstructorIndex[*annotations.ConstructorCheckerFact](pass, packageAnnotations)
 
 	// Filter files based on configuration (skip test files by default)
-	filesToCheck := config.Global.FilterFiles(pass)
+	filesToCheck := cfg.FilterFiles(pass)
 
 	ctx := &checkerContext{
 		pass:            pass,

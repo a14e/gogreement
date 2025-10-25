@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	config "goagreement/src/config"
 	"reflect"
 
 	"golang.org/x/tools/go/analysis"
@@ -26,7 +27,8 @@ var AnnotationReader = &analysis.Analyzer{
 }
 
 func runAnnotationReader(pass *analysis.Pass) (interface{}, error) {
-	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	cfg := config.FromEnv()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
 
 	// Export facts before isProjectPackage check so dependencies can use them
 	fact := annotations.AnnotationReaderFact(packageAnnotations)
@@ -44,7 +46,8 @@ var IgnoreReader = &analysis.Analyzer{
 }
 
 func runIgnoreReader(pass *analysis.Pass) (interface{}, error) {
-	ignoreSet := ignore.ReadIgnoreAnnotations(pass)
+	cfg := config.FromEnv()
+	ignoreSet := ignore.ReadIgnoreAnnotations(cfg, pass)
 
 	return ignore.IgnoreResult{
 		IgnoreSet: ignoreSet,
@@ -130,6 +133,7 @@ func runImmutableChecker(pass *analysis.Pass) (interface{}, error) {
 	if !ok {
 		return nil, nil
 	}
+	cfg := config.FromEnv()
 
 	// Export facts before isProjectPackage check so dependencies can use them
 	fact := annotations.ImmutableCheckerFact(localAnnotations)
@@ -147,7 +151,7 @@ func runImmutableChecker(pass *analysis.Pass) (interface{}, error) {
 	}
 
 	// Check immutability violations
-	violations := immutable.CheckImmutable(pass, &localAnnotations)
+	violations := immutable.CheckImmutable(cfg, pass, &localAnnotations)
 
 	// Report violations (filtered by ignore set)
 	immutable.ReportViolations(pass, violations, ignoreSet)
@@ -178,6 +182,7 @@ func runConstructorChecker(pass *analysis.Pass) (interface{}, error) {
 	if !ok {
 		return nil, nil
 	}
+	cfg := config.FromEnv()
 
 	// Export facts before isProjectPackage check so dependencies can use them
 	fact := annotations.ConstructorCheckerFact(localAnnotations)
@@ -195,7 +200,7 @@ func runConstructorChecker(pass *analysis.Pass) (interface{}, error) {
 	}
 
 	// Check constructor violations
-	violations := constructor.CheckConstructor(pass, &localAnnotations)
+	violations := constructor.CheckConstructor(cfg, pass, &localAnnotations)
 
 	// Report violations (filtered by ignore set)
 	constructor.ReportViolations(pass, violations, ignoreSet)
@@ -226,6 +231,7 @@ func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 	if !ok {
 		return nil, nil
 	}
+	cfg := config.FromEnv()
 
 	// Export facts before isProjectPackage check so dependencies can use them
 	fact := annotations.TestOnlyCheckerFact(localAnnotations)
@@ -248,7 +254,7 @@ func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 	// violation detection. If we filter later in ReportViolations, ignored
 	// violations would still mark types as "reported", preventing subsequent
 	// non-ignored violations of the same type from being detected.
-	violations := testonly.CheckTestOnly(pass, &localAnnotations, ignoreSet)
+	violations := testonly.CheckTestOnly(cfg, pass, &localAnnotations, ignoreSet)
 
 	// Report violations (already filtered by ignoreSet in CheckTestOnly)
 	testonly.ReportViolations(pass, violations)

@@ -2,7 +2,7 @@ package testonly
 
 import (
 	"goagreement/src/annotations"
-	"goagreement/src/testutil"
+	"goagreement/src/config"
 	"goagreement/src/testutil/testfacts"
 	"testing"
 
@@ -11,12 +11,12 @@ import (
 )
 
 func TestCheckTestOnly(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
 
 	pass := testfacts.CreateTestPassWithFacts(t, "testonlyviolations")
-	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
 
-	violations := CheckTestOnly(pass, &packageAnnotations, nil)
+	violations := CheckTestOnly(cfg, pass, &packageAnnotations, nil)
 
 	t.Run("Should detect violations", func(t *testing.T) {
 		assert.NotEmpty(t, violations, "expected to find violations")
@@ -115,28 +115,28 @@ func TestIsTestFile(t *testing.T) {
 }
 
 func TestGetTypeName(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
 
 	pass := testfacts.CreateTestPassWithFacts(t, "testonlyexample")
 
 	t.Run("Extract type name from types", func(t *testing.T) {
 		// We'll test this indirectly through the checker
 		// as we need actual types.Type objects
-		packageAnnotations := annotations.ReadAllAnnotations(pass)
+		cfg := config.Empty()
+		packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
 		require.NotEmpty(t, packageAnnotations.TestonlyAnnotations)
 	})
 }
 
 func TestCheckTestOnlyWithNoAnnotations(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
 
 	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
-	packageAnnotations := annotations.ReadAllAnnotations(pass)
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
 
 	// Filter out testonly annotations for this test
 	packageAnnotations.TestonlyAnnotations = nil
 
-	violations := CheckTestOnly(pass, &packageAnnotations, nil)
+	violations := CheckTestOnly(cfg, pass, &packageAnnotations, nil)
 
 	assert.Empty(t, violations, "should have no violations when no @testonly annotations")
 }

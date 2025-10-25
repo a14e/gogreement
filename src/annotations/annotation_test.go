@@ -2,6 +2,7 @@ package annotations
 
 import (
 	"go/ast"
+	"goagreement/src/config"
 	"goagreement/src/testutil"
 	"testing"
 
@@ -333,11 +334,11 @@ func TestParseImmutableAnnotation(t *testing.T) {
 }
 
 func TestReadAllAnnotations(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
 
 	pass := testutil.CreateTestPass(t, "withimports")
 
-	annotations := ReadAllAnnotations(pass)
+	cfg := config.Empty()
+	annotations := ReadAllAnnotations(cfg, pass)
 
 	require.NotEmpty(t, annotations.ImplementsAnnotations, "expected to find implements annotations")
 
@@ -457,11 +458,10 @@ func TestReadAllAnnotations(t *testing.T) {
 }
 
 func TestReadAllAnnotationsWithImmutable(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
-
 	pass := testutil.CreateTestPass(t, "interfacesforloading")
 
-	annotations := ReadAllAnnotations(pass)
+	cfg := config.Empty()
+	annotations := ReadAllAnnotations(cfg, pass)
 
 	// Helper to find immutable annotation
 	findImmutable := func(onType string) *ImmutableAnnotation {
@@ -634,11 +634,10 @@ func TestParseTestOnlyAnnotation(t *testing.T) {
 }
 
 func TestReadTestOnlyAnnotations(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
-
 	pass := testutil.CreateTestPass(t, "testonlyexample")
 
-	annotations := ReadAllAnnotations(pass)
+	cfg := config.Empty()
+	annotations := ReadAllAnnotations(cfg, pass)
 
 	// Helper to find testonly annotation
 	findTestOnly := func(objectName string, kind TestOnlyKind) *TestOnlyAnnotation {

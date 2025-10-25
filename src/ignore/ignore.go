@@ -107,11 +107,11 @@ var ignoreMatcher = ahocorasick.NewStringMatcher([]string{
 
 // ReadIgnoreAnnotations scans pass for @ignore annotations and returns IgnoreSet
 // This function looks for @ignore comments and determines their scope
-func ReadIgnoreAnnotations(pass *analysis.Pass) *util.IgnoreSet {
+func ReadIgnoreAnnotations(cfg *config.Config, pass *analysis.Pass) *util.IgnoreSet {
 	ignoreSet := &util.IgnoreSet{}
 
 	// Filter files based on configuration
-	filesToScan := config.Global.FilterFiles(pass)
+	filesToScan := cfg.FilterFiles(pass)
 
 	for file := range filesToScan {
 		// Scan all comment groups in the file

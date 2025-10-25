@@ -1,20 +1,43 @@
 package analyzer
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/go/analysis/analysistest"
 
 	"goagreement/src/ignore"
-	"goagreement/src/testutil"
 )
 
 // Cross-module integration tests for each analyzer
 
+// setupTestEnv clears test-related env vars and returns a cleanup function
+func setupTestEnv() func() {
+	oldScanTests, setScanTests := os.LookupEnv("GOAGREEMENT_SCAN_TESTS")
+	oldExcludePaths, setExcludePaths := os.LookupEnv("GOAGREEMENT_EXCLUDE_PATHS")
+
+	// Set exclude paths to empty string to disable exclusions (including testdata)
+	os.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "")
+	os.Unsetenv("GOAGREEMENT_SCAN_TESTS")
+
+	return func() {
+		if setScanTests {
+			os.Setenv("GOAGREEMENT_SCAN_TESTS", oldScanTests)
+		} else {
+			os.Unsetenv("GOAGREEMENT_SCAN_TESTS")
+		}
+		if setExcludePaths {
+			os.Setenv("GOAGREEMENT_EXCLUDE_PATHS", oldExcludePaths)
+		} else {
+			os.Unsetenv("GOAGREEMENT_EXCLUDE_PATHS")
+		}
+	}
+}
+
 // TestImplementsCheckerCrossModule tests implements checking across modules
 func TestImplementsCheckerCrossModule(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
+	defer setupTestEnv()()
 
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, ImplementsChecker, "multimodule_implements/modA", "multimodule_implements/modB")
@@ -22,7 +45,7 @@ func TestImplementsCheckerCrossModule(t *testing.T) {
 
 // TestImmutableCheckerCrossModule tests immutability checking across modules
 func TestImmutableCheckerCrossModule(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
+	defer setupTestEnv()()
 
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, ImmutableChecker, "multimodule_immutable/modA", "multimodule_immutable/modB")
@@ -30,7 +53,7 @@ func TestImmutableCheckerCrossModule(t *testing.T) {
 
 // TestConstructorCheckerCrossModule tests constructor checking across modules
 func TestConstructorCheckerCrossModule(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
+	defer setupTestEnv()()
 
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, ConstructorChecker, "multimodule_constructor/modA", "multimodule_constructor/modB")
@@ -38,7 +61,7 @@ func TestConstructorCheckerCrossModule(t *testing.T) {
 
 // TestTestOnlyCheckerCrossModule tests testonly checking across modules
 func TestTestOnlyCheckerCrossModule(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
+	defer setupTestEnv()()
 
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, TestOnlyChecker, "multimodule_testonly/modA", "multimodule_testonly/modB")
@@ -46,7 +69,7 @@ func TestTestOnlyCheckerCrossModule(t *testing.T) {
 
 // TestIgnoreReaderCrossModule tests ignore reader across modules
 func TestIgnoreReaderCrossModule(t *testing.T) {
-	defer testutil.WithTestConfig(t)()
+	defer setupTestEnv()()
 
 	testdata := analysistest.TestData()
 	results := analysistest.Run(t, testdata, IgnoreReader, "multimodule_ignore/modA", "multimodule_ignore/modB")

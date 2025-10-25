@@ -411,7 +411,10 @@ var matcher = ahocorasick.NewStringMatcher([]string{
 	"@usein",
 })
 
-func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
+func ReadAllAnnotations(
+	cfg *config.Config,
+	pass *analysis.Pass,
+) PackageAnnotations {
 	var implements []ImplementsAnnotation
 	var constructors []ConstructorAnnotation
 	var immutables []ImmutableAnnotation
@@ -420,7 +423,7 @@ func ReadAllAnnotations(pass *analysis.Pass) PackageAnnotations {
 	currentPkgPath := pass.Pkg.Path()
 
 	// Filter files based on configuration (skip test files by default)
-	filesToScan := config.Global.FilterFiles(pass)
+	filesToScan := cfg.FilterFiles(pass)
 
 	for file := range filesToScan {
 		// Build import map for this file

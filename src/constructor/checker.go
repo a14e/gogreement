@@ -13,7 +13,11 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-func CheckConstructor(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) []ConstructorViolation {
+func CheckConstructor(
+	config *config.Config,
+	pass *analysis.Pass,
+	packageAnnotations *annotations.PackageAnnotations,
+) []ConstructorViolation {
 	var violations []ConstructorViolation
 
 	constructors := indexing.BuildConstructorIndex[*annotations.ConstructorCheckerFact](pass, packageAnnotations)
@@ -22,7 +26,7 @@ func CheckConstructor(pass *analysis.Pass, packageAnnotations *annotations.Packa
 	}
 
 	// Filter files based on configuration (skip test files by default)
-	filesToCheck := config.Global.FilterFiles(pass)
+	filesToCheck := config.FilterFiles(pass)
 
 	for file := range filesToCheck {
 		currentFunction := ""

@@ -12,7 +12,7 @@ import (
 
 // Config holds the configuration for goagreement analyzers
 // @immutable
-// @constructor New
+// @constructor New, Empty
 type Config struct {
 	// ScanTests determines whether test files should be analyzed
 	// By default, test files (*_test.go) are excluded from analysis
@@ -29,6 +29,10 @@ type Config struct {
 // Default returns the default configuration
 func Default() *Config {
 	return New(false, []string{"testdata"})
+}
+
+func Empty() *Config {
+	return New(false, []string{})
 }
 
 // New creates a new Config with specified settings
@@ -51,14 +55,20 @@ func FromEnv() *Config {
 		scanTests = parseBool(envVal)
 	}
 
-	if envVal := os.Getenv("GOAGREEMENT_EXCLUDE_PATHS"); envVal != "" {
-		// Split by comma and trim each path
-		parts := strings.Split(envVal, ",")
-		excludePaths = make([]string, 0, len(parts))
-		for _, part := range parts {
-			trimmed := strings.TrimSpace(part)
-			if trimmed != "" {
-				excludePaths = append(excludePaths, trimmed)
+	if envVal, set := os.LookupEnv("GOAGREEMENT_EXCLUDE_PATHS"); set {
+		// Variable is explicitly set - parse it even if empty
+		// Empty string means no exclusions
+		if envVal == "" {
+			excludePaths = []string{}
+		} else {
+			// Split by comma and trim each path
+			parts := strings.Split(envVal, ",")
+			excludePaths = make([]string, 0, len(parts))
+			for _, part := range parts {
+				trimmed := strings.TrimSpace(part)
+				if trimmed != "" {
+					excludePaths = append(excludePaths, trimmed)
+				}
 			}
 		}
 	}
@@ -124,6 +134,3 @@ func (c *Config) FilterFiles(pass *analysis.Pass) iter.Seq[*ast.File] {
 
 	}
 }
-
-// Global configuration instance - initialized from environment by default
-var Global = FromEnv()

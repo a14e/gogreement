@@ -17,7 +17,12 @@ import (
 )
 
 // CheckTestOnly checks that @testonly annotated items are only used in test files
-func CheckTestOnly(pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations, ignoreSet *util.IgnoreSet) []TestOnlyViolation {
+func CheckTestOnly(
+	cfg *config.Config,
+	pass *analysis.Pass,
+	packageAnnotations *annotations.PackageAnnotations,
+	ignoreSet *util.IgnoreSet,
+) []TestOnlyViolation {
 	var violations []TestOnlyViolation
 
 	// Build indices for @testonly items (including imported packages)
@@ -33,7 +38,7 @@ func CheckTestOnly(pass *analysis.Pass, packageAnnotations *annotations.PackageA
 	currentPkgPath := pass.Pkg.Path()
 
 	// Check all files (but skip test files as they can use @testonly items)
-	filesToCheck := config.Global.FilterFiles(pass)
+	filesToCheck := cfg.FilterFiles(pass)
 
 	context := testOnlyContext{
 		pass:            pass,

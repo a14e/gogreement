@@ -7,6 +7,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 
 	"goagreement/src/annotations"
+	"goagreement/src/config"
 	"goagreement/src/testutil"
 )
 
@@ -50,7 +51,7 @@ func CreateTestPassWithFacts(t *testing.T, pkgName string) *analysis.Pass {
 			return false
 		}
 
-		importedAnnotations := annotations.ReadAllAnnotations(importedPass)
+		importedAnnotations := annotations.ReadAllAnnotations(config.Empty(), importedPass)
 		factCache[pkg.Path()] = importedAnnotations
 		*targetAnnotations = importedAnnotations
 		return true
