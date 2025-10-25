@@ -18,19 +18,19 @@ func setupTestEnv() func() {
 	oldExcludePaths, setExcludePaths := os.LookupEnv("GOAGREEMENT_EXCLUDE_PATHS")
 
 	// Set exclude paths to empty string to disable exclusions (including testdata)
-	os.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "")
-	os.Unsetenv("GOAGREEMENT_SCAN_TESTS")
+	_ = os.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "")
+	_ = os.Unsetenv("GOAGREEMENT_SCAN_TESTS")
 
 	return func() {
 		if setScanTests {
-			os.Setenv("GOAGREEMENT_SCAN_TESTS", oldScanTests)
+			_ = os.Setenv("GOAGREEMENT_SCAN_TESTS", oldScanTests)
 		} else {
-			os.Unsetenv("GOAGREEMENT_SCAN_TESTS")
+			_ = os.Unsetenv("GOAGREEMENT_SCAN_TESTS")
 		}
 		if setExcludePaths {
-			os.Setenv("GOAGREEMENT_EXCLUDE_PATHS", oldExcludePaths)
+			_ = os.Setenv("GOAGREEMENT_EXCLUDE_PATHS", oldExcludePaths)
 		} else {
-			os.Unsetenv("GOAGREEMENT_EXCLUDE_PATHS")
+			_ = os.Unsetenv("GOAGREEMENT_EXCLUDE_PATHS")
 		}
 	}
 }
