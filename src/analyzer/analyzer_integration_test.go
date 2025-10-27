@@ -8,6 +8,7 @@ import (
 	"golang.org/x/tools/go/analysis/analysistest"
 
 	"gogreement/src/ignore"
+	"gogreement/src/testutil"
 )
 
 // Cross-module integration tests for each analyzer
@@ -39,7 +40,8 @@ func setupTestEnv() func() {
 func TestImplementsCheckerCrossModule(t *testing.T) {
 	defer setupTestEnv()()
 
-	testdata := analysistest.TestData()
+	testdata := testutil.GetRootTestdataPath() + "/integration"
+	t.Logf("Using testdata path: %s", testdata)
 	analysistest.Run(t, testdata, ImplementsChecker, "multimodule_implements/modA", "multimodule_implements/modB")
 }
 
@@ -47,7 +49,7 @@ func TestImplementsCheckerCrossModule(t *testing.T) {
 func TestImmutableCheckerCrossModule(t *testing.T) {
 	defer setupTestEnv()()
 
-	testdata := analysistest.TestData()
+	testdata := testutil.GetRootTestdataPath() + "/integration"
 	analysistest.Run(t, testdata, ImmutableChecker, "multimodule_immutable/modA", "multimodule_immutable/modB")
 }
 
@@ -55,7 +57,7 @@ func TestImmutableCheckerCrossModule(t *testing.T) {
 func TestConstructorCheckerCrossModule(t *testing.T) {
 	defer setupTestEnv()()
 
-	testdata := analysistest.TestData()
+	testdata := testutil.GetRootTestdataPath() + "/integration"
 	analysistest.Run(t, testdata, ConstructorChecker, "multimodule_constructor/modA", "multimodule_constructor/modB")
 }
 
@@ -63,7 +65,7 @@ func TestConstructorCheckerCrossModule(t *testing.T) {
 func TestTestOnlyCheckerCrossModule(t *testing.T) {
 	defer setupTestEnv()()
 
-	testdata := analysistest.TestData()
+	testdata := testutil.GetRootTestdataPath() + "/integration"
 	analysistest.Run(t, testdata, TestOnlyChecker, "multimodule_testonly/modA", "multimodule_testonly/modB")
 }
 
@@ -71,7 +73,7 @@ func TestTestOnlyCheckerCrossModule(t *testing.T) {
 func TestIgnoreReaderCrossModule(t *testing.T) {
 	defer setupTestEnv()()
 
-	testdata := analysistest.TestData()
+	testdata := testutil.GetRootTestdataPath() + "/integration"
 	results := analysistest.Run(t, testdata, IgnoreReader, "multimodule_ignore/modA", "multimodule_ignore/modB")
 
 	// Verify we got results for both modules

@@ -32,10 +32,14 @@ func setCachedPass(pkgName string, pass *analysis.Pass) {
 
 // getTestdataPath returns absolute path to testdata directory
 // @testonly
-func getTestdataPath() string {
+func getTestdataPath(integration bool) string {
 	_, filename, _, _ := runtime.Caller(0)
-	dir := filepath.Dir(filename)
-	return filepath.Join(dir, "testdata")
+	// Go from src/testutil/testpass.go to project root (3 levels up)
+	dir := filepath.Dir(filepath.Dir(filepath.Dir(filename)))
+	if integration {
+		return filepath.Join(dir, "testdata", "integration")
+	}
+	return filepath.Join(dir, "testdata", "unit")
 }
 
 // LoadPackageByPath loads a package by its full path for testing
@@ -49,7 +53,7 @@ func LoadPackageByPath(t *testing.T, pkgPath string) *analysis.Pass {
 		return cached
 	}
 
-	testdataPath := getTestdataPath()
+	testdataPath := getTestdataPath(false) // unit tests by default
 
 	cfg := &packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedTypes |
@@ -82,7 +86,7 @@ func CreateTestPass(t *testing.T, pkgName string) *analysis.Pass {
 		return cached
 	}
 
-	testdataPath := getTestdataPath()
+	testdataPath := getTestdataPath(false) // unit tests by default
 
 	cfg := &packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedTypes |
@@ -125,4 +129,25 @@ func CreateTestPass(t *testing.T, pkgName string) *analysis.Pass {
 	setCachedPass(pkgName, pass)
 
 	return pass
+}
+
+// GetRootTestdataPath returns the path to the root testdata directory
+// @testonly
+func GetRootTestdataPath() string {
+	_, filename, _, _ := runtime.Caller(0)
+	// Go from src/testutil/testpass.go to project root (3 levels up)
+	dir := filepath.Dir(filepath.Dir(filepath.Dir(filename)))
+	return filepath.Join(dir, "testdata")
+}
+
+// GetIntegrationTestdataPath returns the path to the integration testdata directory
+// @testonly
+func GetIntegrationTestdataPath() string {
+	return getTestdataPath(true)
+}
+
+// GetUnitTestdataPath returns the path to the unit testdata directory
+// @testonly
+func GetUnitTestdataPath() string {
+	return getTestdataPath(false)
 }

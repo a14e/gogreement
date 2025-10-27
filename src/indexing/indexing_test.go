@@ -102,7 +102,7 @@ func TestBuildImmutableTypesIndexWithImports(t *testing.T) {
 	assert.True(t, index.Contains(localPkgPath, "Config"))
 
 	// Check imported types
-	importedPkgPath := "gogreement/src/testutil/testdata/interfacesforloading"
+	importedPkgPath := "gogreement/testdata/unit/interfacesforloading"
 	assert.True(t, index.Contains(importedPkgPath, "FileReader"), "should include FileReader from imported package")
 	assert.True(t, index.Contains(importedPkgPath, "BufferWriter"), "should include BufferWriter from imported package")
 }

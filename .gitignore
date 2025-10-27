@@ -7,3 +7,5 @@
 CLAUDE.md
 /src/testutil/testdata/pkg
 /src/analyzer/testdata/pkg/
+/testdata/pkg
+/testdata/integration/pkg
