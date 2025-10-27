@@ -11,7 +11,7 @@ import (
 type Import struct {
 	Alias       string // explicit alias (if present) or empty
 	FullPath    string // full import path like "io" or "github.com/user/pkg"
-	PackageName string // actual package name from the code (e.g., "importmap" for "goagreement/src/util")
+	PackageName string // actual package name from the code (e.g., "importmap" for "gogreement/src/util")
 }
 
 // ImportMap is a collection of imports with lookup methods

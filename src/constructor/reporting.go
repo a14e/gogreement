@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
-	"goagreement/src/util"
+	"gogreement/src/util"
 )
 
 type ConstructorViolation struct {

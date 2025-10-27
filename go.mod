@@ -1,4 +1,4 @@
-module goagreement
+module gogreement
 
 go 1.25
 

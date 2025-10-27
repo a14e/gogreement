@@ -1,8 +1,8 @@
 package implements
 
 import (
-	"goagreement/src/annotations"
-	"goagreement/src/testutil"
+	"gogreement/src/annotations"
+	"gogreement/src/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

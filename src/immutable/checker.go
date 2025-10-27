@@ -5,14 +5,14 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"goagreement/src/indexing"
+	"gogreement/src/indexing"
 
 	"golang.org/x/tools/go/analysis"
 
-	"goagreement/src/annotations"
-	"goagreement/src/codes"
-	"goagreement/src/config"
-	"goagreement/src/util"
+	"gogreement/src/annotations"
+	"gogreement/src/codes"
+	"gogreement/src/config"
+	"gogreement/src/util"
 )
 
 func CheckImmutable(

@@ -6,9 +6,9 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
-	"goagreement/src/annotations"
-	"goagreement/src/config"
-	"goagreement/src/testutil"
+	"gogreement/src/annotations"
+	"gogreement/src/config"
+	"gogreement/src/testutil"
 )
 
 // CreateTestPassWithFacts creates a test pass with ImportPackageFact support for annotations

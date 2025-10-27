@@ -2,7 +2,7 @@ package implements
 
 import (
 	"fmt"
-	"goagreement/src/codes"
+	"gogreement/src/codes"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"

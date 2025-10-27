@@ -1,7 +1,7 @@
 package immutabletests
 
 import (
-	"goagreement/src/testutil/testdata/interfacesforloading"
+	"gogreement/src/testutil/testdata/interfacesforloading"
 )
 
 // Person is an immutable type

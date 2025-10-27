@@ -2,7 +2,7 @@ package implements
 
 import (
 	"go/token"
-	"goagreement/src/annotations"
+	"gogreement/src/annotations"
 )
 
 // ========== Error Types ==========

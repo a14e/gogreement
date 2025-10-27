@@ -2,9 +2,9 @@ package immutable
 
 import (
 	"go/token"
-	"goagreement/src/annotations"
-	"goagreement/src/config"
-	"goagreement/src/testutil/testfacts"
+	"gogreement/src/annotations"
+	"gogreement/src/config"
+	"gogreement/src/testutil/testfacts"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

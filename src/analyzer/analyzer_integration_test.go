@@ -7,30 +7,30 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/go/analysis/analysistest"
 
-	"goagreement/src/ignore"
+	"gogreement/src/ignore"
 )
 
 // Cross-module integration tests for each analyzer
 
 // setupTestEnv clears test-related env vars and returns a cleanup function
 func setupTestEnv() func() {
-	oldScanTests, setScanTests := os.LookupEnv("GOAGREEMENT_SCAN_TESTS")
-	oldExcludePaths, setExcludePaths := os.LookupEnv("GOAGREEMENT_EXCLUDE_PATHS")
+	oldScanTests, setScanTests := os.LookupEnv("gogreement_SCAN_TESTS")
+	oldExcludePaths, setExcludePaths := os.LookupEnv("gogreement_EXCLUDE_PATHS")
 
 	// Set exclude paths to empty string to disable exclusions (including testdata)
-	_ = os.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "")
-	_ = os.Unsetenv("GOAGREEMENT_SCAN_TESTS")
+	_ = os.Setenv("gogreement_EXCLUDE_PATHS", "")
+	_ = os.Unsetenv("gogreement_SCAN_TESTS")
 
 	return func() {
 		if setScanTests {
-			_ = os.Setenv("GOAGREEMENT_SCAN_TESTS", oldScanTests)
+			_ = os.Setenv("gogreement_SCAN_TESTS", oldScanTests)
 		} else {
-			_ = os.Unsetenv("GOAGREEMENT_SCAN_TESTS")
+			_ = os.Unsetenv("gogreement_SCAN_TESTS")
 		}
 		if setExcludePaths {
-			_ = os.Setenv("GOAGREEMENT_EXCLUDE_PATHS", oldExcludePaths)
+			_ = os.Setenv("gogreement_EXCLUDE_PATHS", oldExcludePaths)
 		} else {
-			_ = os.Unsetenv("GOAGREEMENT_EXCLUDE_PATHS")
+			_ = os.Unsetenv("gogreement_EXCLUDE_PATHS")
 		}
 	}
 }

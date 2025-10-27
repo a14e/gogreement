@@ -1,0 +1,5 @@
+[book]
+authors = ["Andrei Borisenko"]
+language = "en"
+src = "src"
+title = "Gogreement. Golang linter to ensure developers agreements"

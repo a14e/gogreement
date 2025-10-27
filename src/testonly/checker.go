@@ -9,11 +9,11 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
-	"goagreement/src/annotations"
-	"goagreement/src/codes"
-	"goagreement/src/config"
-	"goagreement/src/indexing"
-	"goagreement/src/util"
+	"gogreement/src/annotations"
+	"gogreement/src/codes"
+	"gogreement/src/config"
+	"gogreement/src/indexing"
+	"gogreement/src/util"
 )
 
 // CheckTestOnly checks that @testonly annotated items are only used in test files

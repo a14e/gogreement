@@ -3,7 +3,7 @@ package util
 import (
 	"go/token"
 
-	"goagreement/src/codes"
+	"gogreement/src/codes"
 )
 
 // IgnoreAnnotation interface for adding annotations to the set

@@ -6,8 +6,8 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
-	"goagreement/src/annotations"
-	"goagreement/src/util"
+	"gogreement/src/annotations"
+	"gogreement/src/util"
 )
 
 // BuildImmutableTypesIndex creates an index of immutable types from current and imported packages

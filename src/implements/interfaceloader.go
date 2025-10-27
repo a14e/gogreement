@@ -2,7 +2,7 @@ package implements
 
 import (
 	"go/types"
-	"goagreement/src/annotations"
+	"gogreement/src/annotations"
 
 	"golang.org/x/tools/go/analysis"
 )

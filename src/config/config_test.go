@@ -91,7 +91,7 @@ func TestFromEnv(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				t.Setenv("GOAGREEMENT_SCAN_TESTS", tt.envValue)
+				t.Setenv("gogreement_SCAN_TESTS", tt.envValue)
 
 				cfg := FromEnv()
 				assert.Equal(t, tt.expected, cfg.ScanTests, "env value %q should result in ScanTests=%v", tt.envValue, tt.expected)
@@ -105,42 +105,42 @@ func TestFromEnv(t *testing.T) {
 	})
 
 	t.Run("ExcludePaths empty string means no exclusions", func(t *testing.T) {
-		t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "")
+		t.Setenv("gogreement_EXCLUDE_PATHS", "")
 
 		cfg := FromEnv()
 		assert.Equal(t, []string{}, cfg.ExcludePaths, "empty string should result in no exclusions")
 	})
 
 	t.Run("ExcludePaths single path", func(t *testing.T) {
-		t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "vendor")
+		t.Setenv("gogreement_EXCLUDE_PATHS", "vendor")
 
 		cfg := FromEnv()
 		assert.Equal(t, []string{"vendor"}, cfg.ExcludePaths)
 	})
 
 	t.Run("ExcludePaths multiple paths", func(t *testing.T) {
-		t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "vendor,node_modules,tmp")
+		t.Setenv("gogreement_EXCLUDE_PATHS", "vendor,node_modules,tmp")
 
 		cfg := FromEnv()
 		assert.Equal(t, []string{"vendor", "node_modules", "tmp"}, cfg.ExcludePaths)
 	})
 
 	t.Run("ExcludePaths with spaces", func(t *testing.T) {
-		t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", " vendor , node_modules , tmp ")
+		t.Setenv("gogreement_EXCLUDE_PATHS", " vendor , node_modules , tmp ")
 
 		cfg := FromEnv()
 		assert.Equal(t, []string{"vendor", "node_modules", "tmp"}, cfg.ExcludePaths)
 	})
 
 	t.Run("ExcludePaths with empty items", func(t *testing.T) {
-		t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", "vendor,,node_modules")
+		t.Setenv("gogreement_EXCLUDE_PATHS", "vendor,,node_modules")
 
 		cfg := FromEnv()
 		assert.Equal(t, []string{"vendor", "node_modules"}, cfg.ExcludePaths, "empty items should be filtered out")
 	})
 
 	t.Run("ExcludePaths with only spaces and commas", func(t *testing.T) {
-		t.Setenv("GOAGREEMENT_EXCLUDE_PATHS", " , , ")
+		t.Setenv("gogreement_EXCLUDE_PATHS", " , , ")
 
 		cfg := FromEnv()
 		assert.Equal(t, []string{}, cfg.ExcludePaths, "only spaces should result in empty array")

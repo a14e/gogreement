@@ -1,18 +1,18 @@
 package analyzer
 
 import (
-	config "goagreement/src/config"
+	config "gogreement/src/config"
 	"reflect"
 
 	"golang.org/x/tools/go/analysis"
 
-	"goagreement/src/annotations"
-	"goagreement/src/constructor"
-	"goagreement/src/ignore"
-	"goagreement/src/immutable"
-	"goagreement/src/implements"
-	"goagreement/src/testonly"
-	"goagreement/src/util"
+	"gogreement/src/annotations"
+	"gogreement/src/constructor"
+	"gogreement/src/ignore"
+	"gogreement/src/immutable"
+	"gogreement/src/implements"
+	"gogreement/src/testonly"
+	"gogreement/src/util"
 )
 
 // AnnotationReader reads annotations from code and exports them as facts

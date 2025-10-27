@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
-	"goagreement/src/util"
+	"gogreement/src/util"
 )
 
 // ImmutableViolation represents a mutation of an immutable type

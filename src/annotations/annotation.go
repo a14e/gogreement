@@ -9,8 +9,8 @@ import (
 	"github.com/cloudflare/ahocorasick"
 	"golang.org/x/tools/go/analysis"
 
-	"goagreement/src/config"
-	"goagreement/src/util"
+	"gogreement/src/config"
+	"gogreement/src/util"
 )
 
 // PackageAnnotations
