@@ -108,10 +108,18 @@ func TestParseImplementsAnnotation(t *testing.T) {
 			expectNil: true,
 		},
 		{
-			name:      "with extra text after before",
+			name:      "with extra text after should work now",
 			comment:   "//  @implements &io.Reader text after",
 			typeName:  "MyStruct",
-			expectNil: true,
+			expectNil: false,
+			expectedAnnot: &ImplementsAnnotation{
+				OnType:          "MyStruct",
+				InterfaceName:   "Reader",
+				PackageName:     "io",
+				IsPointer:       true,
+				PackageFullPath: "io",
+				PackageNotFound: false,
+			},
 		},
 		{
 			name:      "with extra spaces",
@@ -282,10 +290,10 @@ func TestParseImmutableAnnotation(t *testing.T) {
 			expectNil: true,
 		},
 		{
-			name:      "extra text after - should fail",
+			name:      "extra text after - should work now",
 			comment:   "// @immutable text after",
 			typeName:  "MyStruct",
-			expectNil: true,
+			expectNil: false,
 		},
 		{
 			name:      "not an annotation",
@@ -574,10 +582,10 @@ func TestParseTestOnlyAnnotation(t *testing.T) {
 			expectNil: true,
 		},
 		{
-			name:      "extra text after - should fail",
+			name:      "extra text after - should work now",
 			comment:   "// @testonly text after",
 			typeName:  "MyStruct",
-			expectNil: true,
+			expectNil: false,
 		},
 		{
 			name:      "not an annotation",

@@ -239,7 +239,7 @@ func (p *PackageAnnotations) ToTypeQuery() []TypeQuery {
 
 // Compile regex once
 var implementsRegex = regexp.MustCompile(
-	`^\s*//\s*@implements\s+(&)?(?:(\w+)\.)?(\w+)\s*$`,
+	`^\s*//\s*@implements\s+(&)?(?:(\w+)\.)?(\w+)(?:\s+.*)?$`,
 	//                           ^1   ^2         ^3
 	// 1: pointer (optional)
 	// 2: package (optional)
@@ -247,19 +247,19 @@ var implementsRegex = regexp.MustCompile(
 )
 
 var constructorRegex = regexp.MustCompile(
-	`^\s*//\s*@constructor(?:\s+(.+?))?\s*$`,
+	`^\s*//\s*@constructor(?:\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*(?:\s*,)?))?(?:\s+.*)?$`,
 	//                              ^1
-	// 1: comma-separated constructor names (optional)
+	// 1: comma-separated constructor names (only valid Go identifiers, optional trailing comma)
 )
 
 var immutableRegex = regexp.MustCompile(
-	`^\s*//\s*@immutable\s*$`,
+	`^\s*//\s*@immutable(?:\s+.*)?$`,
 	//                              ^1
 	// 1: comma-separated constructor names (optional)
 )
 
 var testonlyRegex = regexp.MustCompile(
-	`^\s*//\s*@testonly\s*$`,
+	`^\s*//\s*@testonly(?:\s+.*)?$`,
 	//                              ^1
 	// 1: comma-separated constructor names (optional)
 )
@@ -317,7 +317,7 @@ func parseConstructorAnnotation(commentText string, typeName string, pos token.P
 		return nil
 	}
 
-	// match[1] = "New, Create" or ""
+	// match[1] = "New,Create" or "" (regex now captures only valid identifiers)
 	namesStr := strings.TrimSpace(match[1])
 
 	// If no names provided, return nil (user must specify constructor names explicitly)
