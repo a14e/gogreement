@@ -1,7 +1,9 @@
 [book]
-
-git-repository-url = "https://github.com/a14e/gogreement"
 authors = ["Andrei Borisenko"]
 language = "en"
 src = "src"
-title = "Gogreement. Golang linter to ensure developers agreements"
+title = "GoAgreement - Go Linter for Enforcing Code Agreements"
+
+[output.html]
+git-repository-url = "https://github.com/a14e/gogreement"
+git-repository-icon = "fa-github"
