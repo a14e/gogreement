@@ -1,4 +1,6 @@
 [book]
+
+git-repository-url = "https://github.com/a14e/gogreement"
 authors = ["Andrei Borisenko"]
 language = "en"
 src = "src"

@@ -76,13 +76,13 @@ func parseIgnoreAnnotation(commentText string, startPos token.Pos, endPos token.
 		return nil
 	}
 
-	// Split by comma and trim each code
+	// Split by comma and trim each code, convert to uppercase
 	var codes []string
 	parts := strings.Split(codesStr, ",")
 	for _, part := range parts {
 		code := strings.TrimSpace(part)
 		if code != "" {
-			codes = append(codes, code)
+			codes = append(codes, strings.ToUpper(code))
 		}
 	}
 
@@ -109,6 +109,11 @@ var ignoreMatcher = ahocorasick.NewStringMatcher([]string{
 // This function looks for @ignore comments and determines their scope
 func ReadIgnoreAnnotations(cfg *config.Config, pass *analysis.Pass) *util.IgnoreSet {
 	ignoreSet := &util.IgnoreSet{}
+
+	// Add module-level ignores from config ExcludeChecks
+	if len(cfg.ExcludeChecks) > 0 {
+		ignoreSet.AddModuleIgnore(cfg.ExcludeChecks)
+	}
 
 	// Filter files based on configuration
 	filesToScan := cfg.FilterFiles(pass)

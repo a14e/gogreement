@@ -1,13 +1,13 @@
 // @ignore FILELEVEL
 package ignoretests
 
-// @ignore CODE1
+// @ignore code1
 func FunctionWithIgnore() {
 
 	// This function should be ignored for CODE1
 }
 
-// @ignore CODE2, CODE3
+// @ignore CODE2, code3
 type StructWithIgnore struct {
 	Field int
 }

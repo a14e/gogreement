@@ -2,6 +2,7 @@ package util
 
 import (
 	"go/token"
+	"strings"
 
 	"gogreement/src/codes"
 )
@@ -132,6 +133,47 @@ func (s *IgnoreSet) Len() int {
 		return 0
 	}
 	return len(s.Markers)
+}
+
+// AddModuleIgnore adds ignore for entire module/flag from position 0 to max int
+// This will ignore all violations for the specified codes everywhere
+func (s *IgnoreSet) AddModuleIgnore(codes []string) {
+	s.ensureInitialized()
+	if s == nil {
+		return
+	}
+
+	// Convert codes to uppercase
+	upperCodes := make([]string, len(codes))
+	for i, code := range codes {
+		upperCodes[i] = strings.ToUpper(code)
+	}
+
+	// Create marker that covers entire range (0 to max int)
+	marker := IgnoreMarker{
+		Codes:    upperCodes,
+		StartPos: 0,
+		EndPos:   token.Pos(^uint(0) >> 1), // Max int for token.Pos
+	}
+
+	// Add to markers list
+	index := len(s.Markers)
+	s.Markers = append(s.Markers, marker)
+
+	// Update code index
+	for _, code := range marker.Codes {
+		s.CodeIndex[code] = append(s.CodeIndex[code], index)
+	}
+
+	// Update min/max positions
+	// Since this covers entire range, set extremes
+	if s.MinPos == token.NoPos || 0 < s.MinPos {
+		s.MinPos = 0
+	}
+	maxPos := token.Pos(^uint(0) >> 1)
+	if s.MaxPos == token.NoPos || maxPos > s.MaxPos {
+		s.MaxPos = maxPos
+	}
 }
 
 // Empty returns true if the set contains no markers
