@@ -1,7 +1,7 @@
 .PHONY: build install lint pre-build fmt test
 
 build: pre-build
-	go build cmd/gogreement/main.go
+	go build -o gogreement ./cmd/gogreement
 
 install: tidy
 	go install go.uber.org/nilaway/cmd/nilaway@latest
@@ -26,4 +26,4 @@ pre-build: tidy fmt lint test
 ci: pre-build build
 
 run: pre-build
-	 go run cmd/gogreement/main.go   ./...
+	go run ./cmd/gogreement ./...

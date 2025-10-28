@@ -33,7 +33,7 @@ When contributing code, please ensure:
 ### Tests
 
 - `testdata/unit/` - Unit test fixtures for individual checkers
-- `testdata/integration/` - Integration test fixtures for cross-package analysis
+- `testdata/integration/src/` - Integration test fixtures for cross-package analysis
 
 ### Documentation
 
@@ -77,6 +77,8 @@ go test ./src/immutable/...
 # Run integration tests
 go test ./src/analyzer/...
 ```
+
+**Note**: Integration tests use a multi-module structure in `testdata/integration/src`. Each test scenario (e.g., `multimodule_implements/`) is a separate Go module in that directory. The `analysistest.Run()` function automatically adds `/src` to the testdata path and handles module loading.
 
 ### 4. Pre-Commit Checks
 
@@ -151,7 +153,7 @@ To add a new annotation checker:
 
 5. **Create unit tests** in `testdata/unit/newcheckertests/`
 
-6. **Create integration tests** in `testdata/integration/multimodule_newchecker/`
+6. **Create integration tests** in `testdata/integration/src/multimodule_newchecker/`
 
 7. **Update documentation** in `book/gogreement-docs/src/02_0X_newchecker.md`
 

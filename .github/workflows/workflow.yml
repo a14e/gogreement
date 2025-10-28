@@ -37,3 +37,6 @@ jobs:
 
       - name: Run project CI
         run: make ci
+
+      - name: Run gogreement on itself (dogfooding)
+        run: ./gogreement ./...
