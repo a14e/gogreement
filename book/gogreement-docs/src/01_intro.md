@@ -1,39 +1,149 @@
-# О проекте GoGreement
+# About GoGreement
 
-Добро пожаловать в докумнетацию проекта GoGreement!
-Цель проекта -- расширить возможно языка GO в части работы со структурами и добавить дополнительные возможности в язык.
-Например, это может быть имутабельность, требование по реализации интерфейса, ограничение на создание обьектов только в конструкторе и тд.
+Welcome to the GoGreement project documentation!
 
-#  Почему GoGreement? 
-потому что программирование -- это про agreements между разработчиками. И цель проекта -- помочь энфорсить эни соглашения
+GoGreement is a static analysis linter that extends Go's capabilities by adding compile-time enforcements for architectural agreements. It helps teams maintain code quality through annotations like immutability, interface implementation contracts, constructor restrictions, and test-only boundaries.
 
-# Как мы это проверяем?
+## Why GoGreement?
 
-Мы добавляем аннотации в виде комментариев вида
-```
+Programming is about **agreements** between developers. The goal of this project is to help **enforce** these agreements through static analysis.
+
+Many modern programming languages provide built-in mechanisms for:
+- Ensuring immutability (`final` in Java, `readonly` in C#)
+- Explicitly declaring interface implementations (`implements` keyword)
+- Restricting object instantiation (private constructors, factory patterns)
+- Marking code as test-only (`@VisibleForTesting` in various languages)
+
+Go doesn't have these built-in features. GoGreement fills this gap.
+
+## How Does It Work?
+
+We add annotations as comments in your Go code:
+
+```go
 // @implements io.Writer
 // @immutable
 // @testonly
-// @constructor myConstructor
+// @constructor New
 ```
-После чего делаем статический анализ кода нашим линтером. Он выдаст ошибку, если что-то пошло не так
 
-(Claude сделай пожалуйста тут более большой пример с emoji и комментариями, что можно, а что нельзя)
+Then run the GoGreement linter as part of your static analysis pipeline. It will report errors if the agreements are violated.
 
-## ПРимер
+## Quick Example
+
+### ✅ Valid Code - Agreement Enforced
+
 ```go
 package mypackage
 
+import "io"
+
 // @implements &io.Reader
-// ^ линтер будет проверять эту аннотацию
+// The linter will verify this annotation
 type MyReader struct {
-	data []byte
+    data []byte
+    pos  int
 }
 
+// Correctly implements Read method
 func (r *MyReader) Read(p []byte) (n int, err error) {
-	return 0, nil
+    if r.pos >= len(r.data) {
+        return 0, io.EOF
+    }
+
+    n = copy(p, r.data[r.pos:])
+    r.pos += n
+    return n, nil
 }
 ```
 
+### ❌ Invalid Code - Linter Catches the Error
 
+```go
+package mypackage
 
+import "io"
+
+// @implements &io.Reader
+type BrokenReader struct {
+    data []byte
+}
+
+// ERROR: Missing Read method!
+// Linter will report: IMPL03 - Missing required methods: Read
+```
+
+## More Powerful Examples
+
+### Immutability Enforcement
+
+```go
+// @immutable
+// @constructor NewPoint
+type Point struct {
+    X, Y int
+}
+
+func NewPoint(x, y int) Point {
+    return Point{X: x, Y: y}  // ✅ Allowed in constructor
+}
+
+func MovePoint(p Point) {
+    p.X += 10  // ❌ ERROR: IMM01 - Field of immutable type is being assigned
+}
+
+func ValidUsage(p Point) Point {
+    // ✅ Correct: Create new instances instead of mutating
+    return Point{X: p.X + 10, Y: p.Y}
+}
+```
+
+### Constructor Restrictions
+
+```go
+// @constructor NewDB, MustConnect
+type Database struct {
+    conn *sql.DB
+}
+
+func NewDB(dsn string) (*Database, error) {
+    // ✅ Allowed: Named constructor
+    return &Database{conn: nil}, nil
+}
+
+func createBroken() {
+    db := Database{}  // ❌ ERROR: CTOR01 - Use constructor functions
+}
+```
+
+### Test-Only Boundaries
+
+```go
+// @testonly
+type MockService struct {
+    calls int
+}
+
+// @testonly
+func CreateMock() *MockService {
+    return &MockService{}
+}
+```
+
+```go
+// in production code (not *_test.go)
+func productionFunc() {
+    mock := CreateMock()  // ❌ ERROR: TONL02 - TestOnly function in non-test
+}
+
+// in test file (*_test.go)
+func TestMyCode(t *testing.T) {
+    mock := CreateMock()  // ✅ Allowed in tests
+}
+```
+
+## What's Next?
+
+- **[Getting Started](01_01_getting_started.md)** - Install and configure GoGreement
+- **[Annotations](02_annotations.md)** - Learn about all available annotations
+- **[Error Codes](03_codes.md)** - Reference for all error codes
