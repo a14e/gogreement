@@ -97,7 +97,7 @@ func fromEnvWithFlags(parseFlags bool) *Config {
 
 // cache for FromEnvCached to avoid reallocations
 var (
-	envCache     *Config
+	envCache     *Config = Empty()
 	envCacheOnce sync.Once
 )
 
@@ -140,9 +140,9 @@ func parseFlagValue(value string, toUpper bool) []string {
 // Subsequent calls will return the cached config without allocation.
 func FromEnvCached() *Config {
 	envCacheOnce.Do(func() {
-		envCache = fromEnvWithFlags(true)
+		envCache = FromEnv()
 	})
-	return envCache
+	return envCache //nilaway:ignore
 }
 
 // resetCache resets the cached config for testing purposes
