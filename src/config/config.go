@@ -6,22 +6,23 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/tools/go/analysis"
 )
 
 // Config holds the configuration for gogreement analyzers
 // @immutable
-// @constructor New, Empty
+// @constructor New
 type Config struct {
 	// ScanTests determines whether test files should be analyzed
 	// By default, test files (*_test.go) are excluded from analysis
-	// Environment variable: gogreement_SCAN_TESTS=true|false
+	// Environment variable: GOGREEMENT_SCAN_TESTS=true|false
 	ScanTests bool
 
 	// ExcludePaths is a list of path patterns to exclude from analysis
 	// Paths are matched as substrings (e.g. "testdata" will exclude any path containing "testdata")
-	// Environment variable: gogreement_EXCLUDE_PATHS=path1,path2,path3
+	// Environment variable: GOGREEMENT_EXCLUDE_PATHS=path1,path2,path3
 	// Default: ["testdata"]
 	ExcludePaths []string
 }
@@ -51,11 +52,11 @@ func FromEnv() *Config {
 	scanTests := false
 	excludePaths := []string{"testdata"} // Default
 
-	if envVal := os.Getenv("gogreement_SCAN_TESTS"); envVal != "" {
+	if envVal := os.Getenv("GOGREEMENT_SCAN_TESTS"); envVal != "" {
 		scanTests = parseBool(envVal)
 	}
 
-	if envVal, set := os.LookupEnv("gogreement_EXCLUDE_PATHS"); set {
+	if envVal, set := os.LookupEnv("GOGREEMENT_EXCLUDE_PATHS"); set {
 		// Variable is explicitly set - parse it even if empty
 		// Empty string means no exclusions
 		if envVal == "" {
@@ -74,6 +75,29 @@ func FromEnv() *Config {
 	}
 
 	return New(scanTests, excludePaths)
+}
+
+// cache for FromEnvCached to avoid reallocations
+var (
+	envCache     *Config
+	envCacheOnce sync.Once
+)
+
+// FromEnvCached creates a new Config from environment variables with caching.
+// The first call will parse environment variables and cache the result.
+// Subsequent calls will return the cached config without allocation.
+func FromEnvCached() *Config {
+	envCacheOnce.Do(func() {
+		envCache = FromEnv()
+	})
+	return envCache
+}
+
+// resetCache resets the cached config for testing purposes
+// @testonly
+func resetCache() {
+	envCache = Empty()
+	envCacheOnce = sync.Once{}
 }
 
 // WithScanTests returns a new Config with ScanTests set to the specified value

@@ -91,7 +91,7 @@ func TestFromEnv(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				t.Setenv("gogreement_SCAN_TESTS", tt.envValue)
+				t.Setenv("GOGREEMENT_SCAN_TESTS", tt.envValue)
 
 				cfg := FromEnv()
 				assert.Equal(t, tt.expected, cfg.ScanTests, "env value %q should result in ScanTests=%v", tt.envValue, tt.expected)
@@ -105,42 +105,42 @@ func TestFromEnv(t *testing.T) {
 	})
 
 	t.Run("ExcludePaths empty string means no exclusions", func(t *testing.T) {
-		t.Setenv("gogreement_EXCLUDE_PATHS", "")
+		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", "")
 
 		cfg := FromEnv()
 		assert.Equal(t, []string{}, cfg.ExcludePaths, "empty string should result in no exclusions")
 	})
 
 	t.Run("ExcludePaths single path", func(t *testing.T) {
-		t.Setenv("gogreement_EXCLUDE_PATHS", "vendor")
+		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", "vendor")
 
 		cfg := FromEnv()
 		assert.Equal(t, []string{"vendor"}, cfg.ExcludePaths)
 	})
 
 	t.Run("ExcludePaths multiple paths", func(t *testing.T) {
-		t.Setenv("gogreement_EXCLUDE_PATHS", "vendor,node_modules,tmp")
+		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", "vendor,node_modules,tmp")
 
 		cfg := FromEnv()
 		assert.Equal(t, []string{"vendor", "node_modules", "tmp"}, cfg.ExcludePaths)
 	})
 
 	t.Run("ExcludePaths with spaces", func(t *testing.T) {
-		t.Setenv("gogreement_EXCLUDE_PATHS", " vendor , node_modules , tmp ")
+		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", " vendor , node_modules , tmp ")
 
 		cfg := FromEnv()
 		assert.Equal(t, []string{"vendor", "node_modules", "tmp"}, cfg.ExcludePaths)
 	})
 
 	t.Run("ExcludePaths with empty items", func(t *testing.T) {
-		t.Setenv("gogreement_EXCLUDE_PATHS", "vendor,,node_modules")
+		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", "vendor,,node_modules")
 
 		cfg := FromEnv()
 		assert.Equal(t, []string{"vendor", "node_modules"}, cfg.ExcludePaths, "empty items should be filtered out")
 	})
 
 	t.Run("ExcludePaths with only spaces and commas", func(t *testing.T) {
-		t.Setenv("gogreement_EXCLUDE_PATHS", " , , ")
+		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", " , , ")
 
 		cfg := FromEnv()
 		assert.Equal(t, []string{}, cfg.ExcludePaths, "only spaces should result in empty array")
@@ -182,6 +182,47 @@ func TestParseBool(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "parseBool(%q) should return %v", tt.input, tt.expected)
 		})
 	}
+}
+
+func TestFromEnvCached(t *testing.T) {
+	t.Run("returns cached config on subsequent calls", func(t *testing.T) {
+		defer resetCache() // Reset cache before test
+		t.Setenv("GOGREEMENT_SCAN_TESTS", "true")
+		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", "vendor,node_modules")
+
+		// First call
+		cfg1 := FromEnvCached()
+		assert.True(t, cfg1.ScanTests)
+		assert.Equal(t, []string{"vendor", "node_modules"}, cfg1.ExcludePaths)
+
+		// Second call should return same cached instance
+		cfg2 := FromEnvCached()
+		assert.Same(t, cfg1, cfg2, "FromEnvCached should return the same cached instance")
+		assert.Equal(t, cfg1.ScanTests, cfg2.ScanTests)
+		assert.Equal(t, cfg1.ExcludePaths, cfg2.ExcludePaths)
+	})
+
+	t.Run("works with default environment", func(t *testing.T) {
+		defer resetCache() // Reset cache before test
+		// Don't set env vars, let them be unset to test defaults
+
+		cfg := FromEnvCached()
+		assert.False(t, cfg.ScanTests, "default ScanTests should be false")
+		assert.Equal(t, []string{"testdata"}, cfg.ExcludePaths, "default ExcludePaths should be [testdata]")
+	})
+
+	t.Run("multiple calls return same pointer", func(t *testing.T) {
+		defer resetCache() // Reset cache before test
+		t.Setenv("GOGREEMENT_SCAN_TESTS", "false")
+
+		cfg1 := FromEnvCached()
+		cfg2 := FromEnvCached()
+		cfg3 := FromEnvCached()
+
+		assert.Same(t, cfg1, cfg2, "All calls should return same instance")
+		assert.Same(t, cfg2, cfg3, "All calls should return same instance")
+		assert.Same(t, cfg1, cfg3, "All calls should return same instance")
+	})
 }
 
 func TestConfigImmutability(t *testing.T) {

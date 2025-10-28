@@ -27,7 +27,7 @@ var AnnotationReader = &analysis.Analyzer{
 }
 
 func runAnnotationReader(pass *analysis.Pass) (interface{}, error) {
-	cfg := config.FromEnv()
+	cfg := config.FromEnvCached()
 	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
 
 	// Export facts before isProjectPackage check so dependencies can use them
@@ -46,7 +46,7 @@ var IgnoreReader = &analysis.Analyzer{
 }
 
 func runIgnoreReader(pass *analysis.Pass) (interface{}, error) {
-	cfg := config.FromEnv()
+	cfg := config.FromEnvCached()
 	ignoreSet := ignore.ReadIgnoreAnnotations(cfg, pass)
 
 	return ignore.IgnoreResult{
@@ -133,7 +133,7 @@ func runImmutableChecker(pass *analysis.Pass) (interface{}, error) {
 	if !ok {
 		return nil, nil
 	}
-	cfg := config.FromEnv()
+	cfg := config.FromEnvCached()
 
 	// Export facts before isProjectPackage check so dependencies can use them
 	fact := annotations.ImmutableCheckerFact(localAnnotations)
@@ -182,7 +182,7 @@ func runConstructorChecker(pass *analysis.Pass) (interface{}, error) {
 	if !ok {
 		return nil, nil
 	}
-	cfg := config.FromEnv()
+	cfg := config.FromEnvCached()
 
 	// Export facts before isProjectPackage check so dependencies can use them
 	fact := annotations.ConstructorCheckerFact(localAnnotations)
@@ -231,7 +231,7 @@ func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 	if !ok {
 		return nil, nil
 	}
-	cfg := config.FromEnv()
+	cfg := config.FromEnvCached()
 
 	// Export facts before isProjectPackage check so dependencies can use them
 	fact := annotations.TestOnlyCheckerFact(localAnnotations)

@@ -1,8 +1,8 @@
 # Summary
 
 [О проекте GoGreement](01_intro.md)
-- [Установка и использование](01_01_installation_and_usage.md)
-- [Main Limitations](01_01_installation_and_usage.md)
+- [Установка и использование](01_01_getting_started.md)
+- [Limitations](01_01_getting_started.md)
 
 [Аннотации](02_annotations.md)
 - [@implements](02_01_implements.md)
