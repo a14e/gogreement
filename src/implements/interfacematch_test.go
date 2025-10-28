@@ -1,7 +1,7 @@
 package implements
 
 import (
-	annotations2 "gogreement/src/annotations"
+	annotations2 "github.com/a14e/gogreement/src/annotations"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

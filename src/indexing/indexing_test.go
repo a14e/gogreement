@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/tools/go/analysis"
 
-	"gogreement/src/annotations"
-	"gogreement/src/config"
-	"gogreement/src/testutil/testfacts"
+	"github.com/a14e/gogreement/src/annotations"
+	"github.com/a14e/gogreement/src/config"
+	"github.com/a14e/gogreement/src/testutil/testfacts"
 )
 
 func TestBuildImmutableTypesIndex(t *testing.T) {
@@ -102,7 +102,7 @@ func TestBuildImmutableTypesIndexWithImports(t *testing.T) {
 	assert.True(t, index.Contains(localPkgPath, "Config"))
 
 	// Check imported types
-	importedPkgPath := "gogreement/testdata/unit/interfacesforloading"
+	importedPkgPath := "github.com/a14e/gogreement/testdata/unit/interfacesforloading"
 	assert.True(t, index.Contains(importedPkgPath, "FileReader"), "should include FileReader from imported package")
 	assert.True(t, index.Contains(importedPkgPath, "BufferWriter"), "should include BufferWriter from imported package")
 }

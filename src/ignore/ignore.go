@@ -10,8 +10,8 @@ import (
 	"github.com/cloudflare/ahocorasick"
 	"golang.org/x/tools/go/analysis"
 
-	"gogreement/src/config"
-	"gogreement/src/util"
+	"github.com/a14e/gogreement/src/config"
+	"github.com/a14e/gogreement/src/util"
 )
 
 // IgnoreAnnotation represents parsed @ignore CODE1, CODE2 annotation

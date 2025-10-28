@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gogreement/src/util"
+	"github.com/a14e/gogreement/src/util"
 )
 
 func TestIgnoreResultGobSerialization(t *testing.T) {

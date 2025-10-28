@@ -2,14 +2,14 @@ package constructor
 
 import (
 	"fmt"
+	"github.com/a14e/gogreement/src/annotations"
+	"github.com/a14e/gogreement/src/codes"
+	"github.com/a14e/gogreement/src/config"
+	"github.com/a14e/gogreement/src/indexing"
+	"github.com/a14e/gogreement/src/util"
 	"go/ast"
 	"go/token"
 	"go/types"
-	"gogreement/src/annotations"
-	"gogreement/src/codes"
-	"gogreement/src/config"
-	"gogreement/src/indexing"
-	"gogreement/src/util"
 
 	"golang.org/x/tools/go/analysis"
 )

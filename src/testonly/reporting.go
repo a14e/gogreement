@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
-	"gogreement/src/annotations"
+	"github.com/a14e/gogreement/src/annotations"
 )
 
 // TestOnlyViolation represents a violation of @testonly usage

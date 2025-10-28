@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/go/analysis"
 
-	"gogreement/src/config"
-	"gogreement/src/testutil/testfacts"
+	"github.com/a14e/gogreement/src/config"
+	"github.com/a14e/gogreement/src/testutil/testfacts"
 )
 
 func TestParseIgnoreAnnotation(t *testing.T) {

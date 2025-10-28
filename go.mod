@@ -1,4 +1,4 @@
-module gogreement
+module github.com/a14e/gogreement
 
 go 1.25
 

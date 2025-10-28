@@ -1,8 +1,8 @@
 package implements
 
 import (
+	"github.com/a14e/gogreement/src/annotations"
 	"go/types"
-	"gogreement/src/annotations"
 
 	"golang.org/x/tools/go/analysis"
 )

@@ -1,9 +1,9 @@
 package testonly
 
 import (
-	"gogreement/src/annotations"
-	"gogreement/src/config"
-	"gogreement/src/testutil/testfacts"
+	"github.com/a14e/gogreement/src/annotations"
+	"github.com/a14e/gogreement/src/config"
+	"github.com/a14e/gogreement/src/testutil/testfacts"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

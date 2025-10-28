@@ -47,15 +47,15 @@ func TestImportMapAddWithPackage(t *testing.T) {
 	importMap := &ImportMap{}
 
 	// Create mock package with name different from path
-	mockPkg := types.NewPackage("gogreement/src/util", "importmap")
+	mockPkg := types.NewPackage("github.com/a14e/gogreement/src/util", "importmap")
 
 	// Add import with package info
 	importMap.Add(&ast.ImportSpec{
-		Path: &ast.BasicLit{Value: `"gogreement/src/util"`},
+		Path: &ast.BasicLit{Value: `"github.com/a14e/gogreement/src/util"`},
 	}, mockPkg)
 
 	assert.Len(t, *importMap, 1)
-	assert.Equal(t, "gogreement/src/util", (*importMap)[0].FullPath)
+	assert.Equal(t, "github.com/a14e/gogreement/src/util", (*importMap)[0].FullPath)
 	assert.Equal(t, "", (*importMap)[0].Alias)
 	assert.Equal(t, "importmap", (*importMap)[0].PackageName)
 }
@@ -138,11 +138,11 @@ func TestImportMapFindByPackageName(t *testing.T) {
 	importMap := &ImportMap{}
 
 	// Create mock package
-	mockPkg := types.NewPackage("gogreement/src/util", "importmap")
+	mockPkg := types.NewPackage("github.com/a14e/gogreement/src/util", "importmap")
 
 	// Add import where path != package name (with package info)
 	importMap.Add(&ast.ImportSpec{
-		Path: &ast.BasicLit{Value: `"gogreement/src/util"`},
+		Path: &ast.BasicLit{Value: `"github.com/a14e/gogreement/src/util"`},
 	}, mockPkg)
 
 	// Add regular import (without package info)
@@ -160,13 +160,13 @@ func TestImportMapFindByPackageName(t *testing.T) {
 			name:         "find by package name (not path component)",
 			shortName:    "importmap",
 			expectNil:    false,
-			expectedPath: "gogreement/src/util",
+			expectedPath: "github.com/a14e/gogreement/src/util",
 		},
 		{
 			name:         "find by path component still works",
 			shortName:    "util",
 			expectNil:    false,
-			expectedPath: "gogreement/src/util",
+			expectedPath: "github.com/a14e/gogreement/src/util",
 		},
 		{
 			name:         "find regular import",
@@ -215,17 +215,17 @@ func TestImportMapFindPriority(t *testing.T) {
 	t.Run("package name has priority over path component", func(t *testing.T) {
 		importMap := &ImportMap{}
 
-		mockPkg := types.NewPackage("gogreement/src/util", "importmap")
+		mockPkg := types.NewPackage("github.com/a14e/gogreement/src/util", "importmap")
 
 		// Add import with package name "importmap" but path ending in "util"
 		importMap.Add(&ast.ImportSpec{
-			Path: &ast.BasicLit{Value: `"gogreement/src/util"`},
+			Path: &ast.BasicLit{Value: `"github.com/a14e/gogreement/src/util"`},
 		}, mockPkg)
 
 		// Should find by package name "importmap", not by path component "util"
 		result := importMap.Find("importmap")
 		require.NotNil(t, result)
-		assert.Equal(t, "gogreement/src/util", result.FullPath)
+		assert.Equal(t, "github.com/a14e/gogreement/src/util", result.FullPath)
 		assert.Equal(t, "importmap", result.PackageName)
 	})
 

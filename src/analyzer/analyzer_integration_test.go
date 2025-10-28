@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/go/analysis/analysistest"
 
-	"gogreement/src/ignore"
-	"gogreement/src/testutil"
+	"github.com/a14e/gogreement/src/ignore"
+	"github.com/a14e/gogreement/src/testutil"
 )
 
 // Cross-module integration tests for each analyzer

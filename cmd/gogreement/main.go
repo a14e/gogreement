@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gogreement/src/analyzer"
+	"github.com/a14e/gogreement/src/analyzer"
 
 	"golang.org/x/tools/go/analysis/multichecker"
 )

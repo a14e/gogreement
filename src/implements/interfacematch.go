@@ -1,8 +1,8 @@
 package implements
 
 import (
+	"github.com/a14e/gogreement/src/annotations"
 	"go/token"
-	"gogreement/src/annotations"
 )
 
 // ========== Error Types ==========

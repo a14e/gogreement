@@ -195,7 +195,7 @@ Follow these steps when adding a new violation type:
 
 2. **Update checker** to use the new code:
    ```go
-   import "gogreement/src/codes"
+   import "github.com/a14e/github.com/a14e/gogreement/src/codes"
 
    violation := Violation{
        Code: codes.NewCode03,

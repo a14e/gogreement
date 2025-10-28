@@ -1,15 +1,15 @@
 package annotations
 
 import (
+	"github.com/a14e/gogreement/src/config"
+	"github.com/a14e/gogreement/src/testutil"
 	"go/ast"
-	"gogreement/src/config"
-	"gogreement/src/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gogreement/src/util"
+	"github.com/a14e/gogreement/src/util"
 )
 
 func TestParseImplementsAnnotation(t *testing.T) {

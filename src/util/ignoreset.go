@@ -4,7 +4,7 @@ import (
 	"go/token"
 	"strings"
 
-	"gogreement/src/codes"
+	"github.com/a14e/gogreement/src/codes"
 )
 
 // IgnoreAnnotation interface for adding annotations to the set
