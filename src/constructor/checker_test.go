@@ -196,6 +196,46 @@ func TestNestedInstantiation(t *testing.T) {
 	assert.True(t, hasHelperViolation, "should detect violations in helper functions")
 }
 
+func TestVarDeclarationViolations(t *testing.T) {
+
+	pass := testfacts.CreateTestPassWithFacts(t, "constructortests")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckConstructor(cfg, pass, &packageAnnotations)
+
+	varFuncViolations := 0
+	hasVarDeclarationCode := false
+
+	for _, v := range violations {
+		funcName := getFunctionNameFromPosition(pass, v.Pos)
+		if funcName == "VarDeclarationViolations" {
+			varFuncViolations++
+			if v.Code == "CTOR03" {
+				hasVarDeclarationCode = true
+			}
+			t.Logf("Found var declaration violation: %s (%s)", v.Reason, v.Code)
+		}
+	}
+
+	assert.Equal(t, 2, varFuncViolations, "should detect exactly 2 var declaration violations (User, Config)")
+	assert.True(t, hasVarDeclarationCode, "should detect violations with CTOR03 code for var declarations")
+}
+
+func TestVarDeclarationInConstructors(t *testing.T) {
+
+	pass := testfacts.CreateTestPassWithFacts(t, "constructortests")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckConstructor(cfg, pass, &packageAnnotations)
+
+	for _, v := range violations {
+		funcName := getFunctionNameFromPosition(pass, v.Pos)
+		if funcName == "NewUserWithVar" {
+			t.Errorf("Unexpected violation in constructor %s: %s", funcName, v.Reason)
+		}
+	}
+}
+
 func getFunctionNameFromPosition(pass *analysis.Pass, pos token.Pos) string {
 	for _, file := range pass.Files {
 		for _, decl := range file.Decls {

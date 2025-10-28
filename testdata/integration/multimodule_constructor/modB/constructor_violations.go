@@ -69,3 +69,28 @@ func CreateMultipleIgnored() (*modA.User, *modA.Config) {
 	c := new(modA.Config)                // Ignored via CTOR02
 	return u, c
 }
+
+// Test var declarations
+func CreateVarDeclarations() {
+	var user modA.User     // want "zero-initialized variable declaration must be in constructor"
+	var config modA.Config // want "zero-initialized variable declaration must be in constructor"
+
+	// Use variables to avoid "declared and not used" errors
+	_ = user
+	_ = config
+
+	// Pointer var should be allowed
+	var userPtr *modA.User     // OK: nil pointer
+	var configPtr *modA.Config // OK: nil pointer
+	_ = userPtr
+	_ = configPtr
+}
+
+// Test @ignore with var declarations (CTOR03)
+// @ignore CTOR03
+func CreateVarIgnored() {
+	var user modA.User     // This should be ignored
+	var config modA.Config // This should be ignored
+	_ = user
+	_ = config
+}

@@ -1,7 +1,7 @@
 package constructortests
 
 // User has a constructor annotation
-// @constructor NewUser
+// @constructor NewUser, NewUserWithVar
 type User struct {
 	Name string
 	Age  int
@@ -88,4 +88,30 @@ func MakePoint() Point {
 func HelperFunction() {
 	_ = &User{Name: "nested"} // ❌ VIOLATION
 	_ = new(Config)           // ❌ VIOLATION
+}
+
+// Var declarations that should violate constructor rules
+func VarDeclarationViolations() {
+	var user User     // ❌ VIOLATION: zero-initialized User outside constructor
+	var config Config // ❌ VIOLATION: zero-initialized Config outside constructor
+
+	// Use variables to avoid "declared and not used" errors
+	_ = user
+	_ = config
+
+	// Pointer var declarations should be allowed (they only create nil pointers)
+	var userPtr *User // ✅ OK: nil pointer
+	_ = userPtr
+
+	// Types without constructor annotation should be allowed
+	var service Service // ✅ OK: no @constructor annotation
+	_ = service
+}
+
+// Var declarations in constructors should be allowed
+func NewUserWithVar(name string, age int) *User {
+	var user User // ✅ OK: in constructor
+	user.Name = name
+	user.Age = age
+	return &user
 }
