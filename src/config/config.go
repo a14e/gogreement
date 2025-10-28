@@ -142,7 +142,7 @@ func FromEnvCached() *Config {
 	envCacheOnce.Do(func() {
 		envCache = FromEnv()
 	})
-	return envCache //nilaway:ignore
+	return envCache
 }
 
 // resetCache resets the cached config for testing purposes

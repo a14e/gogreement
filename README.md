@@ -16,7 +16,7 @@ type Config struct {
 
 func main() {
     cfg := Config{Host: "localhost", Port: 8080}
-    cfg.Port = 9000  // Error: IMM01: assignment to field Port of immutable type Config
+    cfg.Port = 9000  // [IMM01] immutability violation in type "Config": cannot assign to field "Port" of immutable type
 }
 ```
 
@@ -43,7 +43,7 @@ type Point struct {
 }
 
 p := Point{X: 1, Y: 2}
-p.X = 10  // Error: can't modify immutable type
+p.X = 10  // [IMM01] immutability violation in type "Point": cannot assign to field "X" of immutable type
 ```
 
 ### Enforce constructor usage with `@constructor`
@@ -60,7 +60,7 @@ func NewUser(name string) *User {
 }
 
 // This won't compile:
-u := User{name: "John"}  // Error: use NewUser constructor
+u := User{name: "John"}  // [CTOR01] type instantiation must be in constructor (allowed: [NewUser])
 ```
 
 ### Restrict code to tests with `@testonly`
@@ -72,7 +72,7 @@ func CreateTestDatabase() *DB {
 }
 
 // In production code:
-db := CreateTestDatabase()  // Error: testonly function used in non-test code
+db := CreateTestDatabase()  // [TONL02] function CreateTestDatabase is marked @testonly and can only be called in test files
 ```
 
 ### Verify interface implementations with `@implements`

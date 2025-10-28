@@ -138,7 +138,7 @@ func NewUser(id int, name string) *User {
 }
 
 func createBroken() {
-    u := User{ID: 1, Name: "Alice"}  // ❌ ERROR: CTOR01
+    u := User{ID: 1, Name: "Alice"}  // ❌ [CTOR01] type instantiation must be in constructor (allowed: [NewUser])
 }
 ```
 
@@ -155,7 +155,7 @@ func NewBuffer(size int) *Buffer {
 }
 
 func allocateBroken() {
-    buf := new(Buffer)  // ❌ ERROR: CTOR02
+    buf := new(Buffer)  // ❌ [CTOR02] type instantiation with new() must be in constructor (allowed: [NewBuffer])
 }
 ```
 
@@ -172,7 +172,7 @@ func NewPoint(x, y int) Point {
 }
 
 func useBroken() {
-    var p Point  // ❌ ERROR: CTOR03
+    var p Point  // ❌ [CTOR03] zero-initialized variable declaration must be in constructor (allowed: [NewPoint])
     p = NewPoint(1, 2)  // Too late - already zero-initialized
 }
 ```

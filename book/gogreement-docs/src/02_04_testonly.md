@@ -132,7 +132,7 @@ func TestSomething(t *testing.T) {
 package myapp
 
 func ProductionCode() {
-    helper := NewTestHelper()  // ❌ ERROR: TONL02 - TestOnly function in non-test
+    helper := NewTestHelper()  // ❌ [TONL02] function NewTestHelper is marked @testonly and can only be called in test files
 }
 ```
 
@@ -195,13 +195,13 @@ type MockCache struct {
 }
 
 func ProductionCode() {
-    // ❌ ERROR: TONL01 - TestOnly type used in non-test
+    // ❌ [TONL01] type MockCache is marked @testonly and can only be used in test files
     var cache MockCache
 
-    // ❌ ERROR: TONL01 - TestOnly type used in non-test
+    // ❌ [TONL01] type MockCache is marked @testonly and can only be used in test files
     cache = MockCache{data: make(map[string]string)}
 
-    // ❌ ERROR: TONL01 - Type assertion with TestOnly type
+    // ❌ [TONL01] type MockCache is marked @testonly and can only be used in test files
     if c, ok := something.(*MockCache); ok {
         _ = c
     }
@@ -218,7 +218,7 @@ func GenerateTestID() string {
 
 func CreateUser(name string) *User {
     return &User{
-        ID: GenerateTestID(),  // ❌ ERROR: TONL02 - TestOnly function in non-test
+        ID: GenerateTestID(),  // ❌ [TONL02] function GenerateTestID is marked @testonly and can only be called in test files
         Name: name,
     }
 }
@@ -238,7 +238,7 @@ func (r *UserRepository) ClearAll() error {
 }
 
 func ResetProduction(repo *UserRepository) {
-    repo.ClearAll()  // ❌ ERROR: TONL03 - TestOnly method in non-test
+    repo.ClearAll()  // ❌ [TONL03] method ClearAll on UserRepository is marked @testonly and can only be called in test files
 }
 ```
 

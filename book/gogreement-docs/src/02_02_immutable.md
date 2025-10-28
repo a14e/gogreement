@@ -135,8 +135,8 @@ type Point struct {
 }
 
 func MovePoint(p *Point) {
-    p.X += 10  // ❌ ERROR: IMM02 - Compound assignment to immutable field
-    p.Y = 20   // ❌ ERROR: IMM01 - Field assignment
+    p.X += 10  // ❌ [IMM02] immutability violation in type "Point": cannot use += on field "X" of immutable type (outside constructor)
+    p.Y = 20   // ❌ [IMM01] immutability violation in type "Point": cannot assign to field "Y" of immutable type
 }
 ```
 
@@ -149,11 +149,11 @@ type Counter struct {
 }
 
 func Increment(c *Counter) {
-    c.value++  // ❌ ERROR: IMM03 - Increment of immutable field
+    c.value++  // ❌ [IMM03] immutability violation in type "Counter": cannot use ++ on field "value" of immutable type (outside constructor)
 }
 
 func Decrement(c *Counter) {
-    c.value--  // ❌ ERROR: IMM03 - Decrement of immutable field
+    c.value--  // ❌ [IMM03] immutability violation in type "Counter": cannot use -- on field "value" of immutable type (outside constructor)
 }
 ```
 
@@ -167,8 +167,8 @@ type Data struct {
 }
 
 func Modify(d *Data) {
-    d.items[0] = 42          // ❌ ERROR: IMM04 - Index assignment to immutable collection
-    d.dict["key"] = 100      // ❌ ERROR: IMM04 - Index assignment to immutable collection
+    d.items[0] = 42          // ❌ [IMM04] immutability violation in type "Data": cannot modify element of field "items" of immutable type
+    d.dict["key"] = 100      // ❌ [IMM04] immutability violation in type "Data": cannot modify element of field "dict" of immutable type
 }
 ```
 

@@ -11,7 +11,7 @@ import (
 // TestCodeUniqueness verifies that all error codes are unique
 func TestCodeUniqueness(t *testing.T) {
 	seen := make(map[string]bool)
-	duplicates := []string{}
+	var duplicates []string
 
 	for category, codes := range CodesByCategory {
 		for _, code := range codes {
