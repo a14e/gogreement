@@ -15,23 +15,23 @@ import (
 
 // setupTestEnv clears test-related env vars and returns a cleanup function
 func setupTestEnv() func() {
-	oldScanTests, setScanTests := os.LookupEnv("gogreement_SCAN_TESTS")
-	oldExcludePaths, setExcludePaths := os.LookupEnv("gogreement_EXCLUDE_PATHS")
+	oldScanTests, setScanTests := os.LookupEnv("GOGREEMENT_SCAN_TESTS")
+	oldExcludePaths, setExcludePaths := os.LookupEnv("GOGREEMENT_EXCLUDE_PATHS")
 
 	// Set exclude paths to empty string to disable exclusions (including testdata)
-	_ = os.Setenv("gogreement_EXCLUDE_PATHS", "")
-	_ = os.Unsetenv("gogreement_SCAN_TESTS")
+	_ = os.Setenv("GOGREEMENT_EXCLUDE_PATHS", "")
+	_ = os.Unsetenv("GOGREEMENT_SCAN_TESTS")
 
 	return func() {
 		if setScanTests {
-			_ = os.Setenv("gogreement_SCAN_TESTS", oldScanTests)
+			_ = os.Setenv("GOGREEMENT_SCAN_TESTS", oldScanTests)
 		} else {
-			_ = os.Unsetenv("gogreement_SCAN_TESTS")
+			_ = os.Unsetenv("GOGREEMENT_SCAN_TESTS")
 		}
 		if setExcludePaths {
-			_ = os.Setenv("gogreement_EXCLUDE_PATHS", oldExcludePaths)
+			_ = os.Setenv("GOGREEMENT_EXCLUDE_PATHS", oldExcludePaths)
 		} else {
-			_ = os.Unsetenv("gogreement_EXCLUDE_PATHS")
+			_ = os.Unsetenv("GOGREEMENT_EXCLUDE_PATHS")
 		}
 	}
 }

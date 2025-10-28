@@ -188,7 +188,9 @@ func (rw *BrokenRW) Read(p []byte) (n int, err error) {
     return 0, nil
 }
 
-// ERROR: IMPL03 - Missing required methods: Write
+// [IMPL03] type "BrokenRW" does not implement interface "&io.ReadWriter"
+// missing methods:
+//   Write([]byte) (int, error)
 ```
 
 ### ❌ Wrong Signature
@@ -197,7 +199,9 @@ func (rw *BrokenRW) Read(p []byte) (n int, err error) {
 // @implements &io.Reader
 type BadReader struct {}
 
-// ERROR: IMPL03 - Method signature doesn't match
+// [IMPL03] type "BadReader" does not implement interface "&io.Reader"
+// missing methods:
+//   Read([]byte) (int, error)
 func (r *BadReader) Read(p []byte) int {
     return 0
 }
@@ -207,7 +211,7 @@ func (r *BadReader) Read(p []byte) int {
 
 ```go
 // @implements http.Handler
-// ERROR: IMPL01 - Package "http" not found in imports
+// [IMPL01] package "http" referenced in @implements annotation on type "MyHandler" is not imported
 type MyHandler struct {}
 ```
 
@@ -234,7 +238,9 @@ func (w *Writer) Write(p []byte) (n int, err error) {
     return len(p), nil
 }
 
-// ERROR: IMPL03 - Method signatures don't match
+// [IMPL03] type "Writer" does not implement interface "io.Writer"
+// missing methods:
+//   Write([]byte) (int, error)
 ```
 
 **Fix**: Use `&` in annotation
