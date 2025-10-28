@@ -115,15 +115,30 @@ To add a new annotation checker:
    └── reporting.go
    ```
 
-2. **Define fact type** in `src/annotations/annotation.go`
+2. **Add annotation type** to `PackageAnnotations` struct in `src/annotations/annotation.go` (if your checker needs a new annotation type):
+
+   ```go
+   type PackageAnnotations struct {
+       ImplementsAnnotations  []ImplementsAnnotation
+       ConstructorAnnotations []ConstructorAnnotation
+       ImmutableAnnotations   []ImmutableAnnotation
+       TestonlyAnnotations    []TestOnlyAnnotation
+       NewCheckerAnnotations  []NewCheckerAnnotation  // Add your annotation slice here
+   }
+   ```
+
+3. **Define fact type** in `src/annotations/annotation.go`
+
+   **Important**: Each checker must have its own fact type. This is a workaround for a limitation in the Go analysis framework—facts are not shared between different analyzers. By creating separate types (even though they wrap the same `PackageAnnotations`), we allow each checker to export and import facts independently.
+
    ```go
    type NewCheckerFact PackageAnnotations
    func (*NewCheckerFact) AFact() {}
-   func (f *NewCheckerFact) GetAnnotations() *PackageAnnotations { ... }
-   func (*NewCheckerFact) Empty() AnnotationWrapper { ... }
+   func (f *NewCheckerFact) GetAnnotations() *PackageAnnotations { return (*PackageAnnotations)(f) }
+   func (*NewCheckerFact) Empty() AnnotationWrapper { return &NewCheckerFact{} }
    ```
 
-3. **Add error codes** in `src/codes/codes.go`
+4. **Add error codes** in `src/codes/codes.go`
    ```go
    const (
        NewCheckerViolation01 = "NEWC01"
@@ -139,7 +154,7 @@ To add a new annotation checker:
    }
    ```
 
-4. **Register analyzer** in `src/analyzer/analyzer.go`
+5. **Register analyzer** in `src/analyzer/analyzer.go`
    ```go
    func AllAnalyzers() []*analysis.Analyzer {
        return []*analysis.Analyzer{
@@ -151,11 +166,11 @@ To add a new annotation checker:
    }
    ```
 
-5. **Create unit tests** in `testdata/unit/newcheckertests/`
+6. **Create unit tests** in `testdata/unit/newcheckertests/`
 
-6. **Create integration tests** in `testdata/integration/src/multimodule_newchecker/`
+7. **Create integration tests** in `testdata/integration/src/multimodule_newchecker/`
 
-7. **Update documentation** in `book/gogreement-docs/src/02_0X_newchecker.md`
+8. **Update documentation** in `book/gogreement-docs/src/02_0X_newchecker.md`
 
 ### Adding a New Error Code
 
