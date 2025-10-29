@@ -100,3 +100,34 @@ func (b *ByteSlice) Append(data byte) {
 func UpdateMyReaderCache(reader *MyReader, data map[string]interface{}) {
 	reader.cache = data // This should be allowed - cache is @mutable
 }
+
+// === @ignore examples for implements ===
+
+// This should be ignored - @ignore IMPL01
+// @ignore IMPL01
+// @implements nonexistent.Reader
+type IgnoredPackageNotFound struct {
+	data string
+}
+
+// This should be ignored - @ignore IMPL02
+// @ignore IMPL02
+// @implements io.NonExistentInterface
+type IgnoredInterfaceNotFound struct {
+	value int
+}
+
+// This should be ignored - @ignore IMPL03
+// @ignore IMPL03
+// @implements io.Reader
+type IgnoredBadReader struct {
+	data string
+}
+
+// This should be ignored - @ignore ALL
+// @ignore ALL
+// @implements nonexistent.Reader
+// @implements io.NonExistentInterface
+type AllIgnoredWithImports struct {
+	data string
+}

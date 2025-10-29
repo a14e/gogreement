@@ -44,9 +44,6 @@ type IgnoreSet struct {
 // ensureInitialized initializes the set if it hasn't been initialized yet
 // Safe to call on nil receiver - does nothing if receiver is nil.
 func (s *IgnoreSet) ensureInitialized() {
-	if s == nil {
-		return
-	}
 	if !s.Initialized {
 		s.Markers = make([]IgnoreMarker, 0)
 		s.CodeIndex = make(map[string][]int)

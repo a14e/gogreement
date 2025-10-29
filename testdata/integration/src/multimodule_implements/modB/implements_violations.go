@@ -49,3 +49,48 @@ type GoodReader struct {
 func (r *GoodReader) Read(p []byte) (n int, err error) {
 	return 0, nil
 }
+
+// === @ignore examples ===
+
+// IgnoredPackageNotFoundType should not report IMPL01 due to @ignore
+// @ignore IMPL01
+// @implements nonexistent.Reader
+type IgnoredPackageNotFoundType struct {
+	data string
+}
+
+// IgnoredInterfaceNotFoundType should not report IMPL02 due to @ignore
+// @ignore IMPL02
+// @implements io.NonExistentInterface
+type IgnoredInterfaceNotFoundType struct {
+	value int
+}
+
+// IgnoredBadReader should not report IMPL03 due to @ignore
+// @ignore IMPL03
+// @implements io.Reader
+type IgnoredBadReader struct {
+	data string
+}
+
+// IgnoredBadModAReader should not report IMPL03 due to @ignore
+// @ignore IMPL03
+// @implements modA.Reader
+type IgnoredBadModAReader struct {
+	value int
+}
+
+// MultipleIgnoredType should not report any IMPL codes due to @ignore IMPL01
+// @ignore IMPL01
+// @implements nonexistent.Reader
+type MultipleIgnoredType struct {
+	data string
+}
+
+// AllIgnoredType should not report any errors due to @ignore ALL
+// @ignore ALL
+// @implements nonexistent.Reader
+// @implements io.NonExistentInterface
+type AllIgnoredType struct {
+	data string
+}

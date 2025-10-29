@@ -73,22 +73,6 @@ For `@implements` annotations, you must be explicit about pointer vs value recei
 type MyReader struct {}
 ```
 
-## 7. @ignore Does Not Work with @implements
-
-The `@ignore` directive cannot suppress `@implements` violations. This is intentional - interface contracts should always be enforced.
-
-```go
-// @implements &io.Reader
-type Broken struct {}
-
-// @ignore IMPL03  ← This will NOT suppress the error
-func useIt() {
-    _ = Broken{}  // ERROR: Missing Read method
-}
-```
-
-**Rationale**: Interface implementations are under your direct control (you add the annotation), so there's no reason to suppress violations.
-
 ## Workarounds
 
 Most limitations can be worked around:
@@ -96,4 +80,3 @@ Most limitations can be worked around:
 - **No generics**: Use concrete types or wrapper types
 - **Import-based analysis**: Ensure annotated types are imported where needed
 - **golangci-lint**: Run GoGreement as a separate step in CI/CD
-- **@implements + @ignore**: Simply remove the `@implements` annotation if you don't want enforcement

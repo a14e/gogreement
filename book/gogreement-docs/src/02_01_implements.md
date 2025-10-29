@@ -40,12 +40,11 @@ The `@implements` annotation fills this gap by providing a **clear, explicit dec
 
 1. **No generics support**: Cannot be used with generic types or interfaces
 2. **Imports required**: External interfaces must be imported (even with `import _ "package"` if not used)
-3. **@ignore not supported**: Intentional - you control the annotation, so violations should always be fixed
-4. **Pointer vs value**: `@implements Interface` and `@implements &Interface` are different contracts
-5. **Signature matching**: Validation is based on method signature comparison
-6. **No multi-interface syntax**: Use separate lines for multiple interfaces
-7. **Strict parsing**: Extra characters before the annotation will cause it to be ignored
-8. **Receiver compatibility**: Pointer receiver methods can satisfy value receiver requirements (following Go's standard method set rules), but value receiver methods cannot satisfy pointer receiver requirements
+3. **Pointer vs value**: `@implements Interface` and `@implements &Interface` are different contracts
+4. **Signature matching**: Validation is based on method signature comparison
+5. **No multi-interface syntax**: Use separate lines for multiple interfaces
+6. **Strict parsing**: Extra characters before the annotation will cause it to be ignored
+7. **Receiver compatibility**: Pointer receiver methods can satisfy value receiver requirements (following Go's standard method set rules), but value receiver methods cannot satisfy pointer receiver requirements
 
 ## Can Be Declared On
 
@@ -294,4 +293,3 @@ type UserHandler struct {
 ## See Also
 
 - [Error Codes Reference](03_codes.md)
-- [Limitations](01_02_limitations.md#7-ignore-does-not-work-with-implements)

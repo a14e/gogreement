@@ -55,9 +55,6 @@ func runIgnoreReader(pass *analysis.Pass) (interface{}, error) {
 }
 
 // ImplementsChecker checks @implements annotations
-//
-// NOTE: @ignore directives do not work with ImplementsChecker.
-// Interface implementation violations cannot be suppressed.
 var ImplementsChecker = &analysis.Analyzer{
 	Name: "implementschecker",
 	Doc:  "Checks that types implement interfaces as declared by @implements",
@@ -72,7 +69,6 @@ var ImplementsChecker = &analysis.Analyzer{
 }
 
 // runImplementsChecker validates @implements annotations
-// NOTE: @ignore directives are not supported for this checker
 func runImplementsChecker(pass *analysis.Pass) (interface{}, error) {
 
 	result := pass.ResultOf[AnnotationReader]
@@ -92,6 +88,14 @@ func runImplementsChecker(pass *analysis.Pass) (interface{}, error) {
 		return nil, nil
 	}
 
+	// Get ignore set from IgnoreReader
+	var ignoreSet *util.IgnoreSet
+	if ignoreResult := pass.ResultOf[IgnoreReader]; ignoreResult != nil {
+		if ir, ok := ignoreResult.(ignore.IgnoreResult); ok {
+			ignoreSet = ir.IgnoreSet
+		}
+	}
+
 	// Load interfaces and types
 	interfaceQueries := localAnnotations.ToInterfaceQuery()
 	interfaces := implements.LoadInterfaces(pass, interfaceQueries)
@@ -104,8 +108,8 @@ func runImplementsChecker(pass *analysis.Pass) (interface{}, error) {
 	missingInterfaces := implements.FindMissingInterfaces(localAnnotations.ImplementsAnnotations, interfaces)
 	missingMethods := implements.FindMissingMethods(localAnnotations.ImplementsAnnotations, interfaces, types)
 
-	// Report problems
-	implements.ReportProblems(pass, missingPackages, missingInterfaces, missingMethods)
+	// Report problems (filtered by ignore set)
+	implements.ReportProblems(pass, missingPackages, missingInterfaces, missingMethods, ignoreSet)
 
 	return nil, nil
 }

@@ -2,23 +2,30 @@ package implements
 
 import (
 	"fmt"
-	"github.com/a14e/gogreement/src/codes"
 	"strings"
+
+	"github.com/a14e/gogreement/src/codes"
+	"github.com/a14e/gogreement/src/util"
 
 	"golang.org/x/tools/go/analysis"
 )
 
 // ReportProblems reports all implements violations to the analysis pass.
-// Note: @ignore directives are NOT supported for implements violations.
-// These violations represent structural issues that must be fixed.
+// Supports @ignore directives for suppressing violations when needed.
 func ReportProblems(
 	pass *analysis.Pass,
 	missingPackages []MissingPackageReport,
 	missingInterfaces []MissingInterfaceReport,
 	missingMethods []MissingMethodsReport,
+	ignoreSet *util.IgnoreSet,
 ) {
 	// Report missing packages
 	for _, mp := range missingPackages {
+		// Check if this violation should be ignored
+		if ignoreSet.Contains(codes.ImplementsPackageNotFound, mp.Pos) {
+			continue
+		}
+
 		pass.Report(analysis.Diagnostic{
 			Pos: mp.Pos,
 			Message: fmt.Sprintf(
@@ -32,6 +39,11 @@ func ReportProblems(
 
 	// Report missing interfaces
 	for _, mi := range missingInterfaces {
+		// Check if this violation should be ignored
+		if ignoreSet.Contains(codes.ImplementsInterfaceNotFound, mi.Pos) {
+			continue
+		}
+
 		pkgPrefix := ""
 		if mi.PackageName != "" {
 			pkgPrefix = mi.PackageName + "."
@@ -50,6 +62,11 @@ func ReportProblems(
 
 	// Report missing methods
 	for _, mm := range missingMethods {
+		// Check if this violation should be ignored
+		if ignoreSet.Contains(codes.ImplementsMissingMethods, mm.Pos) {
+			continue
+		}
+
 		pkgPrefix := ""
 		if mm.PackageName != "" {
 			pkgPrefix = mm.PackageName + "."
