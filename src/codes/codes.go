@@ -1,6 +1,9 @@
 package codes
 
-import "iter"
+import (
+	"iter"
+	"strings"
+)
 
 // Code represents an error code with its metadata
 type Code struct {
@@ -115,5 +118,23 @@ func GetCodesForCheck(code string) iter.Seq[string] {
 				return
 			}
 		}
+	}
+}
+
+// GetDocumentationURL returns the documentation URL for the given error code
+func GetDocumentationURL(code string) string {
+	baseURL := "https://a14e.github.io/gogreement/"
+
+	switch {
+	case strings.HasPrefix(code, "IMM"):
+		return baseURL + "02_02_immutable.html"
+	case strings.HasPrefix(code, "CTOR"):
+		return baseURL + "02_03_constructor.html"
+	case strings.HasPrefix(code, "TONL"):
+		return baseURL + "02_04_testonly.html"
+	case strings.HasPrefix(code, "IMPL"):
+		return baseURL + "02_01_implements.html"
+	default:
+		return baseURL
 	}
 }

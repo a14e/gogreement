@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -72,6 +73,7 @@ func LoadPackageByPath(t *testing.T, pkgPath string) *analysis.Pass {
 		Files:     pkgs[0].Syntax,
 		TypesInfo: pkgs[0].TypesInfo,
 		Fset:      pkgs[0].Fset,
+		ReadFile:  os.ReadFile,
 	}
 
 	setCachedPass(pkgName, pass)
@@ -123,6 +125,7 @@ func CreateTestPass(t *testing.T, pkgName string) *analysis.Pass {
 			position := pkgs[0].Fset.Position(diag.Pos)
 			t.Logf("Diagnostic at %s: %s", position, diag.Message)
 		},
+		ReadFile: os.ReadFile,
 	}
 
 	// Cache the result

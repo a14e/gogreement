@@ -2,34 +2,7 @@ package implements
 
 import (
 	"github.com/a14e/gogreement/src/annotations"
-	"go/token"
 )
-
-// ========== Error Types ==========
-
-// @immutable
-type MissingPackageReport struct {
-	PackageName string
-	TypeName    string
-	Pos         token.Pos
-}
-
-// @immutable
-type MissingInterfaceReport struct {
-	InterfaceName string
-	PackageName   string
-	TypeName      string
-	Pos           token.Pos
-}
-
-// @immutable
-type MissingMethodsReport struct {
-	InterfaceName string
-	PackageName   string
-	TypeName      string
-	Methods       []InterfaceMethod // Full method signatures
-	Pos           token.Pos
-}
 
 // FindMissingPackages identifies annotations with unresolved package references
 func FindMissingPackages(annotations []annotations.ImplementsAnnotation) []MissingPackageReport {

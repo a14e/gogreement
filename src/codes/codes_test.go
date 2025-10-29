@@ -116,3 +116,50 @@ func TestCodeToCheckListInitialization(t *testing.T) {
 		}
 	}
 }
+
+// TestGetDocumentationURL verifies the correct documentation URLs are returned
+func TestGetDocumentationURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		code     string
+		expected string
+	}{
+		{
+			name:     "IMM01 returns immutable documentation",
+			code:     ImmutableFieldAssignment,
+			expected: "https://a14e.github.io/gogreement/02_02_immutable.html",
+		},
+		{
+			name:     "IMM02 returns immutable documentation",
+			code:     ImmutableFieldCompoundAssign,
+			expected: "https://a14e.github.io/gogreement/02_02_immutable.html",
+		},
+		{
+			name:     "CTOR01 returns constructor documentation",
+			code:     ConstructorCompositeLiteral,
+			expected: "https://a14e.github.io/gogreement/02_03_constructor.html",
+		},
+		{
+			name:     "TONL01 returns testonly documentation",
+			code:     TestOnlyTypeUsage,
+			expected: "https://a14e.github.io/gogreement/02_04_testonly.html",
+		},
+		{
+			name:     "IMPL01 returns implements documentation",
+			code:     ImplementsPackageNotFound,
+			expected: "https://a14e.github.io/gogreement/02_01_implements.html",
+		},
+		{
+			name:     "Unknown code returns base documentation",
+			code:     "UNKNOWN",
+			expected: "https://a14e.github.io/gogreement/",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetDocumentationURL(tt.code)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

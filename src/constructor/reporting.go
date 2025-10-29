@@ -7,9 +7,12 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
+	"github.com/a14e/gogreement/src/reporting"
 	"github.com/a14e/gogreement/src/util"
 )
 
+// ConstructorViolation represents a constructor violation
+// implements reporting.Violation
 type ConstructorViolation struct {
 	TypeName string
 	Reason   string
@@ -18,21 +21,27 @@ type ConstructorViolation struct {
 	Node     ast.Node
 }
 
-// ReportViolations reports constructor violations via analysis.Pass
+// GetCode returns the error code for this violation
+func (v ConstructorViolation) GetCode() string {
+	return v.Code
+}
+
+// GetPos returns the position of the violation
+func (v ConstructorViolation) GetPos() token.Pos {
+	return v.Pos
+}
+
+// GetMessage returns the main error message without formatting
+func (v ConstructorViolation) GetMessage() string {
+	return fmt.Sprintf("[%s] %s", v.Code, v.Reason)
+}
+
+// ReportViolations reports constructor violations using the new pretty formatter
 func ReportViolations(pass *analysis.Pass, violations []ConstructorViolation, ignoreSet *util.IgnoreSet) {
-	for _, v := range violations {
-		// Check if this violation should be ignored
-		if ignoreSet.Contains(v.Code, v.Pos) {
-			continue
-		}
+	reporter := reporting.NewReporter(pass, ignoreSet)
 
-		msg := fmt.Sprintf("[%s] %s", v.Code, v.Reason)
-
-		pass.Report(analysis.Diagnostic{
-			Pos:     v.Pos,
-			End:     0,
-			Message: msg,
-			Related: nil,
-		})
+	// Convert to generic violations and report
+	for _, violation := range violations {
+		reporter.ReportViolation(violation)
 	}
 }

@@ -1,20 +1,19 @@
 package immutable
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
-	"go/format"
 	"go/token"
-	"strings"
 
 	"golang.org/x/tools/go/analysis"
 
+	"github.com/a14e/gogreement/src/reporting"
 	"github.com/a14e/gogreement/src/util"
 )
 
 // ImmutableViolation represents a mutation of an immutable type
 // @immutable
+// implements reporting.Violation
 type ImmutableViolation struct {
 	TypeName string
 	Reason   string
@@ -23,26 +22,27 @@ type ImmutableViolation struct {
 	Node     ast.Node
 }
 
+// GetCode returns the error code for this violation
+func (v ImmutableViolation) GetCode() string {
+	return v.Code
+}
+
+// GetPos returns the position of the violation
+func (v ImmutableViolation) GetPos() token.Pos {
+	return v.Pos
+}
+
+// GetMessage returns the main error message without formatting
+func (v ImmutableViolation) GetMessage() string {
+	return fmt.Sprintf("[%s] immutability violation in type %q: %s", v.Code, v.TypeName, v.Reason)
+}
+
+// ReportViolations reports immutable violations using the new pretty formatter
 func ReportViolations(pass *analysis.Pass, violations []ImmutableViolation, ignoreSet *util.IgnoreSet) {
-	for _, v := range violations {
-		// Check if this violation should be ignored
-		if ignoreSet != nil && ignoreSet.Contains(v.Code, v.Pos) {
-			continue
-		}
+	reporter := reporting.NewReporter(pass, ignoreSet)
 
-		msg := fmt.Sprintf("[%s] immutability violation in type %q: %s", v.Code, v.TypeName, v.Reason)
-
-		if v.Node != nil {
-			var buf bytes.Buffer
-			if err := format.Node(&buf, pass.Fset, v.Node); err == nil {
-				code := strings.TrimSpace(buf.String())
-				msg = fmt.Sprintf("%s\n\t%s", msg, code)
-			}
-		}
-
-		pass.Report(analysis.Diagnostic{
-			Pos:     v.Pos,
-			Message: msg,
-		})
+	// Convert to generic violations and report
+	for _, violation := range violations {
+		reporter.ReportViolation(violation)
 	}
 }

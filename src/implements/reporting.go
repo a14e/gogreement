@@ -2,15 +2,124 @@ package implements
 
 import (
 	"fmt"
+	"go/token"
 	"strings"
 
 	"github.com/a14e/gogreement/src/codes"
+	"github.com/a14e/gogreement/src/reporting"
 	"github.com/a14e/gogreement/src/util"
 
 	"golang.org/x/tools/go/analysis"
 )
 
-// ReportProblems reports all implements violations to the analysis pass.
+// ========== Violation Types ==========
+
+// @immutable
+// implements reporting.Violation
+type MissingPackageReport struct {
+	PackageName string
+	TypeName    string
+	Pos         token.Pos
+}
+
+// GetCode returns the error code for this violation
+func (v MissingPackageReport) GetCode() string {
+	return codes.ImplementsPackageNotFound
+}
+
+// GetPos returns the position of the violation
+func (v MissingPackageReport) GetPos() token.Pos {
+	return v.Pos
+}
+
+// GetMessage returns the main error message without formatting
+func (v MissingPackageReport) GetMessage() string {
+	return fmt.Sprintf(
+		"[%s] package %q referenced in @implements annotation on type \"%s\" is not imported",
+		codes.ImplementsPackageNotFound,
+		v.PackageName,
+		v.TypeName,
+	)
+}
+
+// @immutable
+// implements reporting.Violation
+type MissingInterfaceReport struct {
+	InterfaceName string
+	PackageName   string
+	TypeName      string
+	Pos           token.Pos
+}
+
+// GetCode returns the error code for this violation
+func (v MissingInterfaceReport) GetCode() string {
+	return codes.ImplementsInterfaceNotFound
+}
+
+// GetPos returns the position of the violation
+func (v MissingInterfaceReport) GetPos() token.Pos {
+	return v.Pos
+}
+
+// GetMessage returns the main error message without formatting
+func (v MissingInterfaceReport) GetMessage() string {
+	pkgPrefix := ""
+	if v.PackageName != "" {
+		pkgPrefix = v.PackageName + "."
+	}
+	return fmt.Sprintf(
+		"[%s] interface \"%s%s\" not found for type \"%s\"",
+		codes.ImplementsInterfaceNotFound,
+		pkgPrefix,
+		v.InterfaceName,
+		v.TypeName,
+	)
+}
+
+// @immutable
+// implements reporting.Violation
+type MissingMethodsReport struct {
+	InterfaceName string
+	PackageName   string
+	TypeName      string
+	Methods       []InterfaceMethod // Full method signatures
+	Pos           token.Pos
+}
+
+// GetCode returns the error code for this violation
+func (v MissingMethodsReport) GetCode() string {
+	return codes.ImplementsMissingMethods
+}
+
+// GetPos returns the position of the violation
+func (v MissingMethodsReport) GetPos() token.Pos {
+	return v.Pos
+}
+
+// GetMessage returns the main error message without formatting
+func (v MissingMethodsReport) GetMessage() string {
+	pkgPrefix := ""
+	if v.PackageName != "" {
+		pkgPrefix = v.PackageName + "."
+	}
+
+	// Format each method signature on a new line
+	var methodLines []string
+	for _, method := range v.Methods {
+		methodLines = append(methodLines, "  "+formatMethodSignature(method))
+	}
+
+	return fmt.Sprintf(
+		"[%s] type \"%s\" does not implement interface \"%s%s\"\nmissing methods:\n%s",
+		codes.ImplementsMissingMethods,
+		v.TypeName,
+		pkgPrefix,
+		v.InterfaceName,
+		strings.Join(methodLines, "\n"),
+	)
+}
+
+// ReportProblems reports all implements violations using the new pretty formatter.
 // Supports @ignore directives for suppressing violations when needed.
 func ReportProblems(
 	pass *analysis.Pass,
@@ -19,79 +128,28 @@ func ReportProblems(
 	missingMethods []MissingMethodsReport,
 	ignoreSet *util.IgnoreSet,
 ) {
-	// Report missing packages
+	reporter := reporting.NewReporter(pass, ignoreSet)
+
+	// Convert all violations to generic Violation interface and report
+	var violations []reporting.Violation
+
+	// Add missing packages
 	for _, mp := range missingPackages {
-		// Check if this violation should be ignored
-		if ignoreSet.Contains(codes.ImplementsPackageNotFound, mp.Pos) {
-			continue
-		}
-
-		pass.Report(analysis.Diagnostic{
-			Pos: mp.Pos,
-			Message: fmt.Sprintf(
-				"[%s] package %q referenced in @implements annotation on type \"%s\" is not imported",
-				codes.ImplementsPackageNotFound,
-				mp.PackageName,
-				mp.TypeName,
-			),
-		})
+		violations = append(violations, mp)
 	}
 
-	// Report missing interfaces
+	// Add missing interfaces
 	for _, mi := range missingInterfaces {
-		// Check if this violation should be ignored
-		if ignoreSet.Contains(codes.ImplementsInterfaceNotFound, mi.Pos) {
-			continue
-		}
-
-		pkgPrefix := ""
-		if mi.PackageName != "" {
-			pkgPrefix = mi.PackageName + "."
-		}
-		pass.Report(analysis.Diagnostic{
-			Pos: mi.Pos,
-			Message: fmt.Sprintf(
-				"[%s] interface \"%s%s\" not found for type \"%s\"",
-				codes.ImplementsInterfaceNotFound,
-				pkgPrefix,
-				mi.InterfaceName,
-				mi.TypeName,
-			),
-		})
+		violations = append(violations, mi)
 	}
 
-	// Report missing methods
+	// Add missing methods
 	for _, mm := range missingMethods {
-		// Check if this violation should be ignored
-		if ignoreSet.Contains(codes.ImplementsMissingMethods, mm.Pos) {
-			continue
-		}
-
-		pkgPrefix := ""
-		if mm.PackageName != "" {
-			pkgPrefix = mm.PackageName + "."
-		}
-
-		// Format each method signature on a new line
-		var methodLines []string
-		for _, method := range mm.Methods {
-			methodLines = append(methodLines, "  "+formatMethodSignature(method))
-		}
-
-		message := fmt.Sprintf(
-			"[%s] type \"%s\" does not implement interface \"%s%s\"\nmissing methods:\n%s",
-			codes.ImplementsMissingMethods,
-			mm.TypeName,
-			pkgPrefix,
-			mm.InterfaceName,
-			strings.Join(methodLines, "\n"),
-		)
-
-		pass.Report(analysis.Diagnostic{
-			Pos:     mm.Pos,
-			Message: message,
-		})
+		violations = append(violations, mm)
 	}
+
+	// Report all violations using the new pretty formatter
+	reporter.ReportViolations(violations)
 }
 
 // formatMethodSignature formats a method signature for display
