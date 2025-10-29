@@ -83,26 +83,33 @@ func (r *Reporter) formatPrettyError(violation Violation) string {
 	builder.WriteString(violation.GetMessage())
 	builder.WriteString("\n")
 
-	// Position info
-	builder.WriteString("  --> ")
-	builder.WriteString(position.String())
-	builder.WriteString("\n")
-
 	// Source code context
 	if len(lines.content) > 0 {
-		builder.WriteString("   |\n")
+		// Calculate max line number width for proper alignment
+		maxLineNum := 0
+		for _, num := range lines.lineNumbers {
+			if num > maxLineNum {
+				maxLineNum = num
+			}
+		}
+		lineNumWidth := len(fmt.Sprintf("%d", maxLineNum))
+
+		// Add top border with proper alignment
+		builder.WriteString(strings.Repeat(" ", lineNumWidth))
+		builder.WriteString(" |\n")
 
 		// Display lines with context
 		for i, line := range lines.content {
 			lineNum := lines.lineNumbers[i]
 			truncatedLine := truncateString(line, MaxLineLength, position.Column)
-			builder.WriteString(fmt.Sprintf("%4d | ", lineNum))
+			builder.WriteString(fmt.Sprintf("%*d | ", lineNumWidth, lineNum))
 			builder.WriteString(truncatedLine)
 			builder.WriteString("\n")
 
 			// Add pointer under the error line
 			if lineNum == position.Line {
-				builder.WriteString("   | ")
+				builder.WriteString(strings.Repeat(" ", lineNumWidth))
+				builder.WriteString(" | ")
 
 				// Calculate column position in truncated line
 				displayColumn := calculateDisplayColumn(line, position.Column, MaxLineLength)
@@ -118,13 +125,14 @@ func (r *Reporter) formatPrettyError(violation Violation) string {
 				builder.WriteString("^\n")
 			}
 		}
-	}
 
-	// Help section with documentation link
-	builder.WriteString("   |\n")
-	builder.WriteString("   = help: ")
-	builder.WriteString(codes.GetDocumentationURL(violation.GetCode()))
-	builder.WriteString("\n")
+		// Help section with documentation link
+		builder.WriteString(strings.Repeat(" ", lineNumWidth))
+		builder.WriteString(" |\n")
+		builder.WriteString("   = help: ")
+		builder.WriteString(codes.GetDocumentationURL(violation.GetCode()))
+		builder.WriteString("\n")
+	}
 
 	return builder.String()
 }
