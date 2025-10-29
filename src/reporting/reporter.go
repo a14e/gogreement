@@ -37,7 +37,6 @@ type Reporter struct {
 	lineCache map[string][]string // filename -> cached lines
 }
 
-// NewReporter creates a new violation reporter
 func NewReporter(pass *analysis.Pass, ignoreSet *util.IgnoreSet) *Reporter {
 	return &Reporter{
 		pass:      pass,
@@ -46,22 +45,17 @@ func NewReporter(pass *analysis.Pass, ignoreSet *util.IgnoreSet) *Reporter {
 	}
 }
 
-// ReportViolation reports a single violation using pretty formatting
 func (r *Reporter) ReportViolation(violation Violation) {
-	// Check if this violation should be ignored (Contains handles nil ignoreSet)
 	if r.ignoreSet.Contains(violation.GetCode(), violation.GetPos()) {
 		return
 	}
 
-	formattedMessage := r.formatPrettyError(violation)
-
 	r.pass.Report(analysis.Diagnostic{
 		Pos:     violation.GetPos(),
-		Message: formattedMessage,
+		Message: r.formatPrettyError(violation),
 	})
 }
 
-// ReportViolations reports multiple violations using pretty formatting
 func (r *Reporter) ReportViolations(violations []Violation) {
 	for _, violation := range violations {
 		r.ReportViolation(violation)
@@ -72,10 +66,8 @@ func (r *Reporter) ReportViolations(violations []Violation) {
 func (r *Reporter) formatPrettyError(violation Violation) string {
 	position := r.pass.Fset.Position(violation.GetPos())
 
-	// Read source lines for context
 	lines := r.readSourceLines(position.Filename, position.Line, 2, 1) // 2 lines before, 1 line after
 
-	// Build the pretty error message
 	var builder strings.Builder
 
 	// Error header
@@ -145,25 +137,21 @@ type sourceLines struct {
 
 // getFileLines reads and caches all lines from a file
 func (r *Reporter) getFileLines(filename string) []string {
-	// Check cache first
 	if lines, exists := r.lineCache[filename]; exists {
 		return lines
 	}
 
-	// Read file
 	content, err := r.pass.ReadFile(filename)
 	if err != nil {
 		return nil
 	}
 
-	// Parse lines
 	var lines []string
 	scanner := bufio.NewScanner(strings.NewReader(string(content)))
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
 
-	// Cache the result
 	r.lineCache[filename] = lines
 	return lines
 }
@@ -176,7 +164,6 @@ func (r *Reporter) readSourceLines(filename string, lineNum, before, after int) 
 		return sourceLines{}
 	}
 
-	// Calculate range
 	start := lineNum - before - 1 // Convert to 0-based index
 	if start < 0 {
 		start = 0
@@ -191,7 +178,6 @@ func (r *Reporter) readSourceLines(filename string, lineNum, before, after int) 
 		return sourceLines{}
 	}
 
-	// Extract the lines
 	var result sourceLines
 	for i := start; i <= end; i++ {
 		result.content = append(result.content, lines[i])
