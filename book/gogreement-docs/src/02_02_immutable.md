@@ -48,6 +48,9 @@ GoGreement detects the following violations on immutable types:
 2. **Compound assignments**: `obj.field += value`, `obj.field -= value`, etc.
 3. **Increment/decrement**: `obj.field++`, `obj.field--`
 4. **Index assignments**: `obj.items[0] = value`, `obj.dict["key"] = value`
+5. **Receiver operations in methods**: For methods on immutable types:
+   - `*receiver = value` (receiver reassignment)
+   - `*receiver++`, `*receiver--` (receiver increment/decrement)
 
 
 ## Key Behaviors
@@ -276,6 +279,32 @@ func WithAge(p Person, newAge int) Person {
 // ✅ Correct: Builder pattern for construction
 func (p Person) WithName(name string) Person {
     return Person{Name: name, Age: p.Age}
+}
+```
+
+### ❌ Receiver Operations in Methods
+
+```go
+// @immutable
+// @constructor NewCounter
+type Counter struct {
+    value int
+}
+
+func NewCounter() Counter {
+    return Counter{value: 0}
+}
+
+func (c *Counter) Increment() {
+    c.value++  // ❌ [IMM03] cannot use ++ on field "value" of immutable type (outside constructor)
+}
+
+func (c *Counter) Reset(newVal int) {
+    *c = Counter{value: newVal}  // ❌ [IMM01] cannot reassign immutable receiver (outside constructor)
+}
+
+func (c *Counter) Decrement() {
+    (*c)--  // ❌ [IMM03] cannot use -- on immutable receiver (outside constructor)
 }
 ```
 

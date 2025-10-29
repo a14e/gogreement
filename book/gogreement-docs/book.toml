@@ -2,7 +2,7 @@
 authors = ["Andrei Borisenko"]
 language = "en"
 src = "src"
-title = "GoAgreement - Go Linter for Enforcing Code Agreements"
+title = "GoGreement - Go Linter for Enforcing Code Agreements"
 
 [output.html]
 git-repository-url = "https://github.com/a14e/gogreement"

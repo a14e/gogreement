@@ -1,10 +1,10 @@
-# GoAgreement
+# GoGreement
 
 A static analyzer for Go that enforces developer agreements through code annotations.
 
 ## What is it?
 
-GoAgreement lets you document and enforce contracts directly in your code using annotations. Mark types as immutable, enforce constructor usage, restrict code to tests, or verify interface implementations—the linter will catch violations at build time.
+GoGreement lets you document and enforce contracts directly in your code using annotations. Mark types as immutable, enforce constructor usage, restrict code to tests, or verify interface implementations—the linter will catch violations at build time.
 
 ```go
 // Mark a type as immutable - prevent field modifications
