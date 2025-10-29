@@ -45,6 +45,7 @@ The `@implements` annotation fills this gap by providing a **clear, explicit dec
 5. **Signature matching**: Validation is based on method signature comparison
 6. **No multi-interface syntax**: Use separate lines for multiple interfaces
 7. **Strict parsing**: Extra characters before the annotation will cause it to be ignored
+8. **Receiver compatibility**: Pointer receiver methods can satisfy value receiver requirements (following Go's standard method set rules), but value receiver methods cannot satisfy pointer receiver requirements
 
 ## Can Be Declared On
 
