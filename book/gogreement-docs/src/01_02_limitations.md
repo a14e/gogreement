@@ -51,9 +51,14 @@ type NeedsFunctions struct {}
 
 ## 4. In-Memory Fact Caching
 
-When using the `analysis` framework directly, package facts are cached in memory. This can lead to increased memory usage for large projects with many cross-package dependencies.
+Package facts are cached in memory during analysis, which can increase memory usage for large projects.
 
-**Note**: This is a property of the underlying `analysis` framework, not specific to GoGreement.
+**Optimization**: Run as vet tool for disk-based caching:
+```bash
+go vet -vettool=gogreement ./...
+```
+
+**Note**: This is a property of the underlying `analysis` framework.
 
 ## 5. No golangci-lint Integration (Yet)
 
@@ -63,19 +68,23 @@ GoGreement is not yet integrated with `golangci-lint`. You need to run it as a s
 
 ## 6. Analysis Framework Limitations
 
-Due to limitations of Go's `analysis` framework, GoGreement must be run **after** all code generation and dependency updates are complete:
+GoGreement must be run **after** all code generation is complete. The analysis framework fails when encountering generated code that references undefined types from other packages.
 
 ```bash
 # Required order:
-go generate ./...         # Generate any code
+go generate ./...         # Generate any code (required)
 go mod tidy              # Update dependencies
 gogreement ./...         # Then run GoGreement
 ```
 
-**Why this matters**: The `analysis` framework works on the AST (Abstract Syntax Tree) of Go code. If code generation or dependency updates happen after analysis, GoGreement may:
-- Analyze outdated code structures
-- Miss newly generated types and annotations
-- Report false positives/negatives due to stale dependency information
+This can cause errors like:
+```
+pkg/somefile.go:119:29: undefined: somepkg.SomeType
+pkg/somefile.go:123:23: undefined: otherpkg.SomeConstant
+pkg/anotherfile.go:150:33: undefined: generatedpb.SomeEnum_Value
+```
+
+In such cases, GoGreement won't start analyzing - the underlying Go compiler that powers the analysis framework will fail to parse the codebase.
 
 ## 7. Pointer vs Value Receiver Distinction Required
 
