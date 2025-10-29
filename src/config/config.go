@@ -79,8 +79,10 @@ func fromEnvWithFlags(parseFlags bool) *Config {
 	if parseFlags {
 		// Setup flags with env values as defaults
 		scanTestsFlag := flag.Bool("scan-tests", scanTests, "Enable analysis of test files")
-		excludePathsFlag := flag.String("exclude-paths", strings.Join(excludePaths, ","), "Comma-separated list of paths to exclude from analysis")
-		excludeChecksFlag := flag.String("exclude-checks", strings.Join(excludeChecks, ","), "Comma-separated list of check codes to exclude from analysis")
+		excludePathsFlag := flag.String("exclude-paths", strings.Join(excludePaths, ","),
+			"Comma-separated list of paths to exclude from analysis")
+		excludeChecksFlag := flag.String("exclude-checks", strings.Join(excludeChecks, ","),
+			"Comma-separated list of check codes to exclude from analysis")
 
 		flag.Parse()
 
