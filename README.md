@@ -87,7 +87,10 @@ func (r *BufferedReader) Read(p []byte) (n int, err error) {
     // Implementation
 }
 
-// If you remove Read() or change its signature, you get a compile error
+// If you remove Read() or change its signature, you get an error:
+// [IMPL03] type "BufferedReader" does not implement interface "io.Reader"
+// missing methods:
+//   Read([]byte) (int, error)
 ```
 
 ## Configuration

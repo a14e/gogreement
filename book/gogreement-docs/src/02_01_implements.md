@@ -62,19 +62,6 @@ func (r *MyReader) Read(p []byte) (n int, err error) {
 }
 ```
 
-### Interface Types
-
-```go
-import "io"
-
-// @implements &io.Reader
-// @implements &io.Closer
-type ReadCloser interface {
-    Read(p []byte) (n int, err error)
-    Close() error
-}
-```
-
 ### Named Types
 
 ```go

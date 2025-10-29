@@ -10,6 +10,13 @@ import (
 	"github.com/a14e/gogreement/src/util"
 )
 
+// We have to use an ugly solution here. This is because in the analysis framework facts are only passed
+// within a single analyzer
+// therefore we have to declare a new type for each analyzer. But this is just a named type over PackageAnnotations
+// that's why we use generics here
+// because of this it's important to ensure that the generic type matches the type used for facts in the specific
+// analyzer, otherwise it won't work
+
 // BuildImmutableTypesIndex creates an index of immutable types from current and imported packages
 func BuildImmutableTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypesMap {
 	result := util.NewTypesMap()
@@ -24,6 +31,8 @@ func BuildImmutableTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pa
 }
 
 // BuildConstructorIndex creates an index of constructor functions for types
+// FIXME do we really need this? there's a strong hypothesis that we only need packageAnnotations of the specific package
+// TODO think about whether we can delete this or significantly simplify it
 func BuildConstructorIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeAssociationRegistry {
 	result := util.NewTypeAssociationRegistry()
 
