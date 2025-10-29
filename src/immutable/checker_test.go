@@ -1,11 +1,12 @@
 package immutable
 
 import (
+	"go/token"
+	"testing"
+
 	"github.com/a14e/gogreement/src/annotations"
 	"github.com/a14e/gogreement/src/config"
 	"github.com/a14e/gogreement/src/testutil/testfacts"
-	"go/token"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -400,6 +401,45 @@ func TestMapFieldModification(t *testing.T) {
 
 	assert.True(t, hasMapStringViolation, "should detect map[string]string element modification")
 	assert.True(t, hasMapIntViolation, "should detect map[int]int element modification")
+}
+
+func TestMutableFieldAllowed(t *testing.T) {
+	pass := testfacts.CreateTestPassWithFacts(t, "withimports")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckImmutable(cfg, pass, &packageAnnotations)
+
+	// Should NOT catch violations for @mutable field modifications
+	hasMutableViolation := false
+	for _, v := range violations {
+		if v.TypeName == "MyReader" && contains(v.Reason, "cache") {
+			hasMutableViolation = true
+			t.Logf("Found unexpected mutable field violation: %s", v.Reason)
+		}
+	}
+
+	assert.False(t, hasMutableViolation, "should NOT report violations for @mutable field assignments")
+}
+
+func TestMutableFieldIndexBuilt(t *testing.T) {
+	pass := testfacts.CreateTestPassWithFacts(t, "withimports")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+
+	// Verify that mutable annotations were parsed
+	mutableCount := len(packageAnnotations.MutableAnnotations)
+	assert.Greater(t, mutableCount, 0, "should have found mutable annotations")
+
+	// Check that MyReader.cache was parsed
+	foundCacheMutable := false
+	for _, annot := range packageAnnotations.MutableAnnotations {
+		if annot.OnType == "MyReader" && annot.FieldName == "cache" {
+			foundCacheMutable = true
+			t.Logf("Found mutable annotation: %s.%s", annot.OnType, annot.FieldName)
+		}
+	}
+
+	assert.True(t, foundCacheMutable, "should have found @mutable annotation on MyReader.cache")
 }
 
 // Helper function

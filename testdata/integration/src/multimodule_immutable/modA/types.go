@@ -6,6 +6,9 @@ package modA // want package:"package modA"
 type User struct {
 	ID   int
 	Name string
+
+	// @mutable
+	Cache map[string]interface{}
 }
 
 // NewUser creates a new User
@@ -22,6 +25,9 @@ func NewUser(id int, name string) *User {
 type Config struct {
 	Host string
 	Port int
+
+	// @mutable
+	Metadata map[string]string
 }
 
 // NewConfig creates a new Config

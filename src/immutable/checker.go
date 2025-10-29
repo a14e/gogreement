@@ -28,7 +28,8 @@ func CheckImmutable(
 		return violations // No immutable types to check
 	}
 
-	constructors := indexing.BuildConstructorIndex[*annotations.ConstructorCheckerFact](pass, packageAnnotations)
+	constructors := indexing.BuildConstructorIndex[*annotations.ImmutableCheckerFact](pass, packageAnnotations)
+	mutableFields := indexing.BuildMutableFieldsIndex[*annotations.ImmutableCheckerFact](pass, packageAnnotations)
 
 	// Filter files based on configuration (skip test files by default)
 	filesToCheck := cfg.FilterFiles(pass)
@@ -37,6 +38,7 @@ func CheckImmutable(
 		pass:            pass,
 		immutableTypes:  immutableTypes,
 		constructors:    constructors,
+		mutableFields:   mutableFields,
 		currentFunction: nil,
 	}
 
@@ -83,7 +85,8 @@ func CheckImmutable(
 type checkerContext struct {
 	pass            *analysis.Pass
 	immutableTypes  util.TypesMap
-	constructors    util.TypeFuncRegistry
+	constructors    util.TypeAssociationRegistry
+	mutableFields   util.TypeAssociationRegistry
 	currentFunction *string
 	currentReceiver *receiverInfo
 }
@@ -195,6 +198,11 @@ func checkFieldAssignment(
 		return nil
 	}
 
+	// Check if the field is marked as @mutable
+	if ctx.mutableFields.Match(pkgPath, selector.Sel.Name, typeName) {
+		return nil
+	}
+
 	return &ImmutableViolation{
 		TypeName: typeName,
 		Code:     codes.ImmutableFieldAssignment,
@@ -241,6 +249,11 @@ func checkIndexAssignment(
 	}
 
 	if ctx.constructors.Match(pkgPath, *ctx.currentFunction, typeName) {
+		return nil
+	}
+
+	// Check if the field is marked as @mutable
+	if ctx.mutableFields.Match(pkgPath, selector.Sel.Name, typeName) {
 		return nil
 	}
 
@@ -312,6 +325,11 @@ func checkFieldIncDec(
 	}
 
 	if ctx.constructors.Match(pkgPath, *ctx.currentFunction, typeName) {
+		return nil
+	}
+
+	// Check if the field is marked as @mutable
+	if ctx.mutableFields.Match(pkgPath, selector.Sel.Name, typeName) {
 		return nil
 	}
 
@@ -428,6 +446,11 @@ func checkCompoundLHS(
 	}
 
 	if ctx.constructors.Match(pkgPath, *ctx.currentFunction, typeName) {
+		return nil
+	}
+
+	// Check if the field is marked as @mutable
+	if ctx.mutableFields.Match(pkgPath, selector.Sel.Name, typeName) {
 		return nil
 	}
 

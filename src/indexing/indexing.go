@@ -24,8 +24,8 @@ func BuildImmutableTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pa
 }
 
 // BuildConstructorIndex creates an index of constructor functions for types
-func BuildConstructorIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
-	result := util.NewTypeFuncRegistry()
+func BuildConstructorIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeAssociationRegistry {
+	result := util.NewTypeAssociationRegistry()
 
 	for pkg, ann := range iterOverPackages[T](pass, packageAnnotations) {
 		for _, annot := range ann.ConstructorAnnotations {
@@ -54,8 +54,8 @@ func BuildTestOnlyTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pas
 }
 
 // BuildTestOnlyFuncsIndex creates an index of @testonly functions from current and imported packages
-func BuildTestOnlyFuncsIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
-	result := util.NewTypeFuncRegistry()
+func BuildTestOnlyFuncsIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeAssociationRegistry {
+	result := util.NewTypeAssociationRegistry()
 
 	for pkg, ann := range iterOverPackages[T](pass, packageAnnotations) {
 		for _, annot := range ann.TestonlyAnnotations {
@@ -70,8 +70,8 @@ func BuildTestOnlyFuncsIndex[T annotations.AnnotationWrapper](pass *analysis.Pas
 }
 
 // BuildTestOnlyMethodsIndex creates an index of @testonly methods from current and imported packages
-func BuildTestOnlyMethodsIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeFuncRegistry {
-	result := util.NewTypeFuncRegistry()
+func BuildTestOnlyMethodsIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeAssociationRegistry {
+	result := util.NewTypeAssociationRegistry()
 
 	for pkg, ann := range iterOverPackages[T](pass, packageAnnotations) {
 		for _, annot := range ann.TestonlyAnnotations {
@@ -79,6 +79,21 @@ func BuildTestOnlyMethodsIndex[T annotations.AnnotationWrapper](pass *analysis.P
 				// Store method as methodName -> receiverType mapping
 				result.Add(pkg.Path(), annot.ObjectName, annot.ReceiverType)
 			}
+		}
+	}
+
+	return result
+}
+
+// BuildMutableFieldsIndex creates an index of @mutable fields in @immutable types
+// Returns a map: packageName -> typeName -> []fieldNames
+func BuildMutableFieldsIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypeAssociationRegistry {
+	result := util.NewTypeAssociationRegistry()
+
+	for pkg, ann := range iterOverPackages[T](pass, packageAnnotations) {
+		for _, annot := range ann.MutableAnnotations {
+			// Add mutable field to the registry (fieldName, typeName)
+			result.Add(pkg.Path(), annot.FieldName, annot.OnType)
 		}
 	}
 

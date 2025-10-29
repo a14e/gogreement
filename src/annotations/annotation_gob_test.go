@@ -105,6 +105,13 @@ func TestPackageAnnotationsGobSerialization(t *testing.T) {
 					ReceiverType: "",
 				},
 			},
+			MutableAnnotations: []MutableAnnotation{
+				{
+					OnType:    "MyStruct",
+					FieldName: "cache",
+					Pos:       token.Pos(450),
+				},
+			},
 		}
 
 		var buf bytes.Buffer
@@ -124,11 +131,17 @@ func TestPackageAnnotationsGobSerialization(t *testing.T) {
 		assert.Equal(t, len(original.ConstructorAnnotations), len(decoded.ConstructorAnnotations))
 		assert.Equal(t, len(original.ImmutableAnnotations), len(decoded.ImmutableAnnotations))
 		assert.Equal(t, len(original.TestonlyAnnotations), len(decoded.TestonlyAnnotations))
+		assert.Equal(t, len(original.MutableAnnotations), len(decoded.MutableAnnotations))
 
 		// Check specific values
 		if len(decoded.TestonlyAnnotations) > 0 {
 			assert.Equal(t, "CreateMockData", decoded.TestonlyAnnotations[0].ObjectName)
 			assert.Equal(t, TestOnlyOnFunc, decoded.TestonlyAnnotations[0].Kind)
+		}
+
+		if len(decoded.MutableAnnotations) > 0 {
+			assert.Equal(t, "MyStruct", decoded.MutableAnnotations[0].OnType)
+			assert.Equal(t, "cache", decoded.MutableAnnotations[0].FieldName)
 		}
 	})
 }

@@ -50,3 +50,27 @@ func StillDetected(u *modA.User, cfg *modA.Config) {
 	u.Name = "changed" // want "cannot assign to field"
 	cfg.Port = 80      // want "cannot assign to field"
 }
+
+// Test @mutable field modifications - these are allowed
+func UpdateUserCache(u *modA.User) {
+	u.Cache = map[string]interface{}{"key": "value"} // Allowed - Cache is @mutable
+}
+
+func UpdateConfigMetadata(cfg *modA.Config) {
+	cfg.Metadata = map[string]string{"env": "test"} // Allowed - Metadata is @mutable
+}
+
+// Test @mutable field with different operations
+func MutableFieldOperations(u *modA.User, cfg *modA.Config) {
+	u.Cache["new_key"] = "new_value" // Allowed - map access on @mutable field
+	cfg.Metadata["version"] = "1.0"  // Allowed - map access on @mutable field
+}
+
+// Test mixed case - mutable allowed, non-mutable not allowed
+func MixedMutableOperations(u *modA.User, cfg *modA.Config) {
+	u.Cache = map[string]interface{}{"test": true} // Allowed
+	u.Name = "changed"                             // want "cannot assign to field"
+
+	cfg.Metadata = map[string]string{"debug": "true"} // Allowed
+	cfg.Port = 9080                                   // want "cannot assign to field"
+}

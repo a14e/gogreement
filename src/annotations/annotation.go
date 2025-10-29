@@ -21,6 +21,7 @@ type PackageAnnotations struct {
 	ConstructorAnnotations []ConstructorAnnotation
 	ImmutableAnnotations   []ImmutableAnnotation
 	TestonlyAnnotations    []TestOnlyAnnotation
+	MutableAnnotations     []MutableAnnotation
 }
 
 func (*PackageAnnotations) AFact() {}
@@ -178,6 +179,20 @@ type TestOnlyAnnotation struct {
 	ReceiverType string
 }
 
+// MutableAnnotation
+// @immutable
+// @constructor parseMutableAnnotation
+type MutableAnnotation struct {
+	// Type on which the field is defined
+	OnType string // "MyStruct"
+
+	// Field name that is marked as mutable
+	FieldName string // "MutableField"
+
+	// Position of the field declaration
+	Pos token.Pos
+}
+
 // TypeQuery represents what type we're looking for
 // @immutable
 type TypeQuery struct {
@@ -262,6 +277,10 @@ var testonlyRegex = regexp.MustCompile(
 	`^\s*//\s*@testonly(?:\s+.*)?$`,
 	//                              ^1
 	// 1: comma-separated constructor names (optional)
+)
+
+var mutableRegex = regexp.MustCompile(
+	`^\s*//\s*@mutable(?:\s+.*)?$`,
 )
 
 // parseImplementsAnnotation parses string "@implements &pkg.Interface" or "@implements Interface"
@@ -373,6 +392,19 @@ func parseTestOnlyAnnotation(commentText string, objectName string, pos token.Po
 	}
 }
 
+func parseMutableAnnotation(commentText string, typeName string, fieldName string, pos token.Pos) *MutableAnnotation {
+	match := mutableRegex.FindStringSubmatch(commentText)
+	if match == nil {
+		return nil
+	}
+
+	return &MutableAnnotation{
+		OnType:    typeName,
+		FieldName: fieldName,
+		Pos:       pos,
+	}
+}
+
 // getFuncKindAndReceiver determines if a function declaration is a method or function
 // Returns: (kind, receiverType)
 // - For methods: (TestOnlyOnMethod, "MyStruct")
@@ -408,6 +440,7 @@ var matcher = ahocorasick.NewStringMatcher([]string{
 	"@constructor",
 	"@immutable",
 	"@testonly",
+	"@mutable",
 	"@usein",
 })
 
@@ -419,6 +452,7 @@ func ReadAllAnnotations(
 	var constructors []ConstructorAnnotation
 	var immutables []ImmutableAnnotation
 	var testonly []TestOnlyAnnotation
+	var mutables []MutableAnnotation
 
 	currentPkgPath := pass.Pkg.Path()
 
@@ -490,6 +524,10 @@ func ReadAllAnnotations(
 						annotation := parseImmutableAnnotation(text, typeName, pos)
 						if annotation != nil {
 							immutables = append(immutables, *annotation)
+
+							// Read field annotations for this immutable type
+							fieldMutables := readFieldAnnotationsForType(typeSpec, typeName)
+							mutables = append(mutables, fieldMutables...)
 						}
 					}
 
@@ -546,5 +584,56 @@ func ReadAllAnnotations(
 		ConstructorAnnotations: constructors,
 		ImmutableAnnotations:   immutables,
 		TestonlyAnnotations:    testonly,
+		MutableAnnotations:     mutables,
 	}
+}
+
+// readFieldAnnotationsForType scans struct fields for annotations (currently only @mutable)
+// Called only for types that have @immutable annotation
+func readFieldAnnotationsForType(typeSpec *ast.TypeSpec, typeName string) []MutableAnnotation {
+	var mutables []MutableAnnotation
+
+	// Only process struct types
+	structType, ok := typeSpec.Type.(*ast.StructType)
+	if !ok {
+		return mutables
+	}
+
+	// Iterate through struct fields
+	for _, field := range structType.Fields.List {
+		// Skip fields without names (embedded fields)
+		if len(field.Names) == 0 {
+			continue
+		}
+
+		// Check for field documentation comments
+		if field.Doc == nil {
+			continue
+		}
+
+		// Process each field name (multiple fields can be declared together)
+		for _, fieldName := range field.Names {
+			pos := fieldName.Pos()
+
+			// Check each comment for @mutable annotation
+			for _, comment := range field.Doc.List {
+				text := comment.Text
+
+				// Micro-optimization: skip comments without annotations
+				if !matcher.Contains([]byte(text)) {
+					continue
+				}
+
+				// Parse @mutable
+				if strings.Contains(text, "@mutable") {
+					annotation := parseMutableAnnotation(text, typeName, fieldName.Name, pos)
+					if annotation != nil {
+						mutables = append(mutables, *annotation)
+					}
+				}
+			}
+		}
+	}
+
+	return mutables
 }

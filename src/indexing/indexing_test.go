@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/go/analysis"
 
 	"github.com/a14e/gogreement/src/annotations"
@@ -284,4 +285,67 @@ func TestBuildTestOnlyMethodsIndex(t *testing.T) {
 		// Reset and GetTestData methods should be indexed
 		assert.Equal(t, 2, index.Len())
 	})
+}
+
+func TestBuildMutableFieldsIndex(t *testing.T) {
+	pass := testfacts.CreateTestPassWithFacts(t, "withimports")
+	packageAnnotations := annotations.ReadAllAnnotations(config.Empty(), pass)
+
+	index := BuildMutableFieldsIndex[*annotations.AnnotationReaderFact](pass, &packageAnnotations)
+
+	pkgPath := pass.Pkg.Path()
+
+	t.Run("Contains cache field for MyReader", func(t *testing.T) {
+		matches := index.Match(pkgPath, "cache", "MyReader")
+		assert.True(t, matches, "cache field should be in index for MyReader")
+	})
+
+	t.Run("Get mutable fields for MyReader", func(t *testing.T) {
+		fields := index.GetAssociated(pkgPath, "MyReader")
+		require.NotNil(t, fields, "MyReader should have mutable fields")
+		assert.Contains(t, fields, "cache", "cache should be in MyReader's mutable fields")
+		assert.Equal(t, 1, len(fields), "MyReader should have exactly 1 mutable field")
+	})
+
+	t.Run("Index has correct size", func(t *testing.T) {
+		// Only cache field should be indexed
+		assert.Equal(t, 1, index.Len())
+	})
+
+	t.Run("HasType works correctly", func(t *testing.T) {
+		assert.True(t, index.HasType(pkgPath, "MyReader"), "MyReader should have mutable fields")
+		assert.False(t, index.HasType(pkgPath, "MyWriteCloser"), "MyWriteCloser should not have mutable fields")
+		assert.False(t, index.HasType(pkgPath, "MyContext"), "MyContext should not have mutable fields")
+	})
+}
+
+func TestBuildMutableFieldsIndexEmpty(t *testing.T) {
+	pass := testfacts.CreateTestPassWithFacts(t, "withimports")
+
+	emptyAnnotations := annotations.PackageAnnotations{
+		MutableAnnotations: []annotations.MutableAnnotation{},
+	}
+
+	index := BuildMutableFieldsIndex[*annotations.AnnotationReaderFact](pass, &emptyAnnotations)
+
+	assert.Equal(t, 0, index.Len(), "should be empty when no mutable annotations")
+	assert.True(t, index.Empty(), "should be empty")
+}
+
+func TestBuildMutableFieldsIndexWithImports(t *testing.T) {
+	pass := testfacts.CreateTestPassWithFacts(t, "withimports")
+	packageAnnotations := annotations.ReadAllAnnotations(config.Empty(), pass)
+
+	index := BuildMutableFieldsIndex[*annotations.AnnotationReaderFact](pass, &packageAnnotations)
+
+	// Check local mutable fields
+	localPkgPath := pass.Pkg.Path()
+	assert.True(t, index.Match(localPkgPath, "cache", "MyReader"))
+
+	// Verify the structure
+	fields := index.GetAssociated(localPkgPath, "MyReader")
+	require.NotNil(t, fields)
+	assert.Contains(t, fields, "cache")
+
+	assert.Greater(t, index.Len(), 0, "should have mutable fields indexed")
 }

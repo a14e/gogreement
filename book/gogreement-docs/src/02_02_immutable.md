@@ -25,6 +25,21 @@ type TypeName struct {
 
 No parameters required - simply add `// @immutable` above the type declaration.
 
+### @mutable Field Exceptions
+
+Specific fields in immutable types can be marked as mutable to allow runtime modifications like cache updates or state changes.
+
+```go
+// @immutable
+type CachedUser struct {
+    ID    int64
+    Name  string
+
+    // @mutable
+    Cache map[string]interface{}
+}
+```
+
 ## How It Works
 
 GoGreement detects the following violations on immutable types:
@@ -34,6 +49,7 @@ GoGreement detects the following violations on immutable types:
 3. **Increment/decrement**: `obj.field++`, `obj.field--`
 4. **Index assignments**: `obj.items[0] = value`, `obj.dict["key"] = value`
 
+
 ## Key Behaviors
 
 1. **No generics support**: Cannot be used with generic types
@@ -42,8 +58,9 @@ GoGreement detects the following violations on immutable types:
    - Prevents assignments through methods
    - Does NOT prevent mutations through pointers or reflection
 3. **Constructor exception**: Checks are ignored inside functions marked with `@constructor`
-4. **Can be suppressed**: Use `@ignore` to disable checks in specific scopes
-5. **Cross-package enforcement**: Works even if `@immutable` was declared in external modules
+4. **@mutable field exceptions**: Fields marked with `@mutable` can be modified even in immutable types
+5. **Can be suppressed**: Use `@ignore` to disable checks in specific scopes
+6. **Cross-package enforcement**: Works even if `@immutable` was declared in external modules
 
 ## Can Be Declared On
 
@@ -212,6 +229,28 @@ func updateUser(u *models.User) {
 }
 ```
 
+### ✅ Using @mutable Fields
+
+```go
+// @immutable
+// @constructor NewCachedUser
+type CachedUser struct {
+    ID    int64     // ❌ Cannot be modified
+    Name  string    // ❌ Cannot be modified
+
+    // @mutable
+    Cache map[string]interface{}  // ✅ Can be modified
+}
+
+func UpdateCache(user *CachedUser, key string, value interface{}) {
+    user.Cache[key] = value  // ✅ Allowed - Cache is @mutable
+}
+
+func UpdateName(user *CachedUser, name string) {
+    user.Name = name  // ❌ ERROR: IMM01 - Name is not @mutable
+}
+```
+
 ### ✅ Correct Pattern: Return New Instances
 
 ```go
@@ -297,7 +336,8 @@ func (m Money) Add(other Money) (Money, error) {
 }
 ```
 
-### 4. Document Immutability Intent
+
+### 5. Document Immutability Intent
 
 ```go
 // @immutable

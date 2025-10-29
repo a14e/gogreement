@@ -7,7 +7,7 @@ import (
 )
 
 func TestFuncMap_Add(t *testing.T) {
-	fm := NewTypeFuncRegistry()
+	fm := NewTypeAssociationRegistry()
 
 	fm.Add("", "NewMyType", "MyType")
 	fm.Add("io", "NewReader", "Reader")
@@ -19,7 +19,7 @@ func TestFuncMap_Add(t *testing.T) {
 }
 
 func TestFuncMap_Match(t *testing.T) {
-	fm := NewTypeFuncRegistry()
+	fm := NewTypeAssociationRegistry()
 	fm.Add("pkg", "NewUser", "User")
 	fm.Add("pkg", "NewConfig", "Config")
 
@@ -46,7 +46,7 @@ func TestFuncMap_Match(t *testing.T) {
 }
 
 func TestFuncMap_MultipleConstructors(t *testing.T) {
-	fm := NewTypeFuncRegistry()
+	fm := NewTypeAssociationRegistry()
 
 	// Add multiple constructors for same type
 	fm.Add("pkg", "NewUser", "User")
@@ -59,7 +59,7 @@ func TestFuncMap_MultipleConstructors(t *testing.T) {
 	assert.True(t, fm.Match("pkg", "MakeUser", "User"))
 
 	// Should have 3 constructors
-	constructors := fm.GetFuncs("pkg", "User")
+	constructors := fm.GetAssociated("pkg", "User")
 	assert.Equal(t, 3, len(constructors))
 	assert.Contains(t, constructors, "NewUser")
 	assert.Contains(t, constructors, "CreateUser")
@@ -67,7 +67,7 @@ func TestFuncMap_MultipleConstructors(t *testing.T) {
 }
 
 func TestFuncMap_GetConstructors(t *testing.T) {
-	fm := NewTypeFuncRegistry()
+	fm := NewTypeAssociationRegistry()
 	fm.Add("pkg", "NewUser", "User")
 	fm.Add("pkg", "NewConfig", "Config")
 	fm.Add("pkg", "NewDefaultConfig", "Config")
@@ -106,14 +106,14 @@ func TestFuncMap_GetConstructors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := fm.GetFuncs(tt.pkgPath, tt.typeName)
+			result := fm.GetAssociated(tt.pkgPath, tt.typeName)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
 
 func TestFuncMap_HasType(t *testing.T) {
-	fm := NewTypeFuncRegistry()
+	fm := NewTypeAssociationRegistry()
 	fm.Add("pkg", "NewUser", "User")
 	fm.Add("pkg", "NewConfig", "Config")
 
@@ -138,7 +138,7 @@ func TestFuncMap_HasType(t *testing.T) {
 }
 
 func TestFuncMap_Len(t *testing.T) {
-	fm := NewTypeFuncRegistry()
+	fm := NewTypeAssociationRegistry()
 
 	assert.Equal(t, 0, fm.Len())
 
@@ -157,7 +157,7 @@ func TestFuncMap_Len(t *testing.T) {
 }
 
 func TestFuncMap_Empty(t *testing.T) {
-	fm := NewTypeFuncRegistry()
+	fm := NewTypeAssociationRegistry()
 
 	assert.True(t, fm.Empty())
 
@@ -169,13 +169,13 @@ func TestFuncMap_Empty(t *testing.T) {
 }
 
 func TestFuncMap_DuplicateAdd(t *testing.T) {
-	fm := NewTypeFuncRegistry()
+	fm := NewTypeAssociationRegistry()
 
 	fm.Add("pkg", "NewUser", "User")
 	fm.Add("pkg", "NewUser", "User") // Duplicate
 
 	// Should have both entries
-	constructors := fm.GetFuncs("pkg", "User")
+	constructors := fm.GetAssociated("pkg", "User")
 	assert.Equal(t, 2, len(constructors))
 
 	// Match should still work
@@ -183,22 +183,22 @@ func TestFuncMap_DuplicateAdd(t *testing.T) {
 }
 
 func TestFuncMap_CurrentPackage(t *testing.T) {
-	fm := NewTypeFuncRegistry()
+	fm := NewTypeAssociationRegistry()
 
 	// Add func to current package (empty string key)
 	fm.Add("", "NewMyType", "MyType")
 
 	// Should be found with empty string
 	assert.True(t, fm.Match("", "NewMyType", "MyType"))
-	assert.Equal(t, []string{"NewMyType"}, fm.GetFuncs("", "MyType"))
+	assert.Equal(t, []string{"NewMyType"}, fm.GetAssociated("", "MyType"))
 
 	// Should NOT be found with actual package path
 	assert.False(t, fm.Match("myapp/pkg", "NewMyType", "MyType"))
-	assert.Nil(t, fm.GetFuncs("myapp/pkg", "MyType"))
+	assert.Nil(t, fm.GetAssociated("myapp/pkg", "MyType"))
 }
 
 func TestFuncMap_MultiplePackages(t *testing.T) {
-	fm := NewTypeFuncRegistry()
+	fm := NewTypeAssociationRegistry()
 
 	fm.Add("", "NewLocal", "Local")
 	fm.Add("io", "NewReader", "Reader")
@@ -212,20 +212,20 @@ func TestFuncMap_MultiplePackages(t *testing.T) {
 }
 
 func TestFuncMap_EmptyMap(t *testing.T) {
-	fm := NewTypeFuncRegistry()
+	fm := NewTypeAssociationRegistry()
 
 	assert.Equal(t, 0, fm.Len())
 	assert.False(t, fm.Match("", "AnyFunc", "AnyType"))
 	assert.False(t, fm.Match("pkg", "AnyFunc", "AnyType"))
 	assert.False(t, fm.HasType("", "AnyType"))
-	assert.Nil(t, fm.GetFuncs("", "AnyType"))
+	assert.Nil(t, fm.GetAssociated("", "AnyType"))
 }
 
 func TestFuncMap_BackwardCompatibility(t *testing.T) {
 	// This test ensures the API is backward compatible
 	// Old usage: fm.Add(pkgPath, funcName, typeName) -> fm.Match(pkgPath, funcName, typeName)
 
-	fm := NewTypeFuncRegistry()
+	fm := NewTypeAssociationRegistry()
 
 	// Old style usage
 	fm.Add("pkg", "NewUser", "User")
@@ -235,6 +235,6 @@ func TestFuncMap_BackwardCompatibility(t *testing.T) {
 	assert.False(t, fm.Match("pkg", "OtherFunc", "User"))
 
 	// New functionality - get all constructors
-	constructors := fm.GetFuncs("pkg", "User")
+	constructors := fm.GetAssociated("pkg", "User")
 	assert.Equal(t, []string{"NewUser"}, constructors)
 }

@@ -40,6 +40,16 @@ gogreement ./...
 
 This will analyze all packages in the current module.
 
+### Alternative: Using go vet
+
+You can also run GoGreement using `go vet` with the `-vettool` flag:
+
+```bash
+go vet -vettool=gogreement ./...
+```
+
+This approach has the advantage of **persistent package facts** between analyzers, which can improve cross-package analysis performance and accuracy in large multi-module projects.
+
 ### Analyzing Specific Packages
 
 ```bash

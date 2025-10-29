@@ -9,7 +9,10 @@ import (
 // Existing struct types...
 // @implements &io.Reader
 // @immutable
-type MyReader struct{}
+type MyReader struct {
+	// @mutable
+	cache map[string]interface{}
+}
 
 func (m *MyReader) Read(p []byte) (n int, err error) {
 	return 0, nil
@@ -91,4 +94,9 @@ func (b ByteSlice) Len() int {
 
 func (b *ByteSlice) Append(data byte) {
 	*b = append(*b, data)
+}
+
+// Test functions for mutable field validation
+func UpdateMyReaderCache(reader *MyReader, data map[string]interface{}) {
+	reader.cache = data // This should be allowed - cache is @mutable
 }

@@ -69,7 +69,7 @@ func CheckConstructor(
 func checkCompositeLiteral(
 	pass *analysis.Pass,
 	lit *ast.CompositeLit,
-	constructors util.TypeFuncRegistry,
+	constructors util.TypeAssociationRegistry,
 	currentFunction string,
 ) *ConstructorViolation {
 	t := pass.TypesInfo.TypeOf(lit)
@@ -105,7 +105,7 @@ func checkCompositeLiteral(
 	}
 
 	// Get list of allowed constructors for error message
-	constructorList := constructors.GetFuncs(pkgPath, typeName)
+	constructorList := constructors.GetAssociated(pkgPath, typeName)
 	reason := fmt.Sprintf("type instantiation must be in constructor (allowed: %v)", constructorList)
 
 	return &ConstructorViolation{
@@ -120,7 +120,7 @@ func checkCompositeLiteral(
 func checkNewCall(
 	pass *analysis.Pass,
 	call *ast.CallExpr,
-	constructors util.TypeFuncRegistry,
+	constructors util.TypeAssociationRegistry,
 	currentFunction string,
 ) *ConstructorViolation {
 	ident, ok := call.Fun.(*ast.Ident)
@@ -165,7 +165,7 @@ func checkNewCall(
 	}
 
 	// Get list of allowed constructors for error message
-	constructorList := constructors.GetFuncs(pkgPath, typeName)
+	constructorList := constructors.GetAssociated(pkgPath, typeName)
 	reason := fmt.Sprintf("type instantiation with new() must be in constructor (allowed: %v)", constructorList)
 
 	return &ConstructorViolation{
@@ -180,7 +180,7 @@ func checkNewCall(
 func checkVarDeclaration(
 	pass *analysis.Pass,
 	decl *ast.GenDecl,
-	constructors util.TypeFuncRegistry,
+	constructors util.TypeAssociationRegistry,
 	currentFunction string,
 ) []ConstructorViolation {
 	var violations []ConstructorViolation
@@ -237,7 +237,7 @@ func checkVarDeclaration(
 			}
 
 			// Get list of allowed constructors for error message
-			constructorList := constructors.GetFuncs(pkgPath, typeName)
+			constructorList := constructors.GetAssociated(pkgPath, typeName)
 			reason := fmt.Sprintf("zero-initialized variable declaration must be in constructor (allowed: %v)", constructorList)
 
 			violations = append(violations, ConstructorViolation{
