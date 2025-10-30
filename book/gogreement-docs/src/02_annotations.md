@@ -22,7 +22,7 @@ GoGreement supports five core annotations:
 | **[@immutable](02_02_immutable.md)** | Prevent field mutations after creation | Types |
 | **[@constructor](02_03_constructor.md)** | Restrict object creation to specific functions | Types |
 | **[@testonly](02_04_testonly.md)** | Limit usage to test files only | Types, Functions, Methods |
-| **[@ignore](02_05_ignore.md)** | Suppress specific violations | Files, Blocks, Lines |
+| **[@ignore](02_06_ignore.md)** | Suppress specific violations | Files, Blocks, Lines |
 
 ## Annotation Syntax Rules
 
@@ -92,4 +92,4 @@ Learn about each annotation in detail:
 - **[@immutable](02_02_immutable.md)** - Enforce immutability
 - **[@constructor](02_03_constructor.md)** - Control object creation
 - **[@testonly](02_04_testonly.md)** - Restrict to tests
-- **[@ignore](02_05_ignore.md)** - Suppress violations
+- **[@ignore](02_06_ignore.md)** - Suppress violations

@@ -54,10 +54,12 @@ type IgnoreResult struct {
 
 // Compile regex once
 // Matches: @ignore CODE1, CODE2 or @ignore CODE1
+// Allows optional comments/text after codes: @ignore CODE1 some reason
 var ignoreRegex = regexp.MustCompile(
-	`^\s*//\s*@ignore(?:\s+(.+?))?\s*$`,
+	`^\s*//\s*@ignore(?:\s+([A-Za-z0-9]+(?:\s*,\s*[A-Za-z0-9]+)*(?:\s*,)?))?(?:\s+.*)?$`,
 	//                            ^1
-	// 1: comma-separated error codes (optional)
+	// 1: comma-separated error codes (alphanumeric only, optional trailing comma)
+	// Trailing text after codes is ignored
 )
 
 // parseIgnoreAnnotation parses string "@ignore CODE1, CODE2" or "@ignore CODE1"
@@ -68,7 +70,7 @@ func parseIgnoreAnnotation(commentText string, startPos token.Pos, endPos token.
 		return nil
 	}
 
-	// match[1] = "CODE1, CODE2" or ""
+	// match[1] = "CODE1,CODE2" or "" (regex already filtered out non-alphanumeric)
 	codesStr := strings.TrimSpace(match[1])
 
 	// If no codes provided, return nil (user must specify codes explicitly)

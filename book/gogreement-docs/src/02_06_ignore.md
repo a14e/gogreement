@@ -24,8 +24,8 @@ The `@ignore` annotation provides fine-grained control over which violations to 
 ### Parameters
 
 - **Error Codes** (required): Comma-separated list of codes to ignore
-  - **Specific codes**: `IMM01`, `CTOR02`, `TONL03`
-  - **Categories**: `IMM`, `CTOR`, `TONL` (ignores all codes in category)
+  - **Specific codes**: `IMM01`, `CTOR02`, `TONL03`, `PKGO01`, `IMPL01`
+  - **Categories**: `IMM`, `CTOR`, `TONL`, `PKGO`, `IMPL` (ignores all codes in category)
   - **All violations**: `ALL`
 - **Case-insensitive**: `imm01`, `IMM01`, `Imm01` all work (normalized to uppercase)
 
@@ -71,9 +71,8 @@ func modify(p *Point) {
 
 1. **Hierarchical matching**: `ALL` > Category (`IMM`) > Specific code (`IMM01`)
 2. **Case-insensitive**: Codes are normalized to uppercase automatically
-3. **@implements NOT supported**: Cannot suppress `IMPL*` violations (intentional)
-4. **Only affects checking**: Doesn't affect annotation scanning phase
-5. **Module-level option**: Use `--exclude-checks` flag for project-wide exclusions
+3. **Only affects checking**: Doesn't affect annotation scanning phase
+4. **Module-level option**: Use `--exclude-checks` flag for project-wide exclusions
 
 ## Supported Annotations
 
@@ -82,7 +81,8 @@ func modify(p *Point) {
 | **@immutable** | ✅ Yes | IMM01, IMM02, IMM03, IMM04 |
 | **@constructor** | ✅ Yes | CTOR01, CTOR02, CTOR03 |
 | **@testonly** | ✅ Yes | TONL01, TONL02, TONL03 |
-| **@implements** | ❌ No | IMPL01, IMPL02, IMPL03 |
+| **@packageonly** | ✅ Yes | PKGO01, PKGO02, PKGO03 |
+| **@implements** | ✅ Yes | IMPL01, IMPL02, IMPL03 |
 
 ## Examples
 
@@ -184,20 +184,6 @@ func modify(p *Point) {
     p.X = 10  // @ignore imm01  (normalized to IMM01)
 }
 ```
-
-### ❌ Cannot Ignore @implements
-
-```go
-// @implements &io.Reader
-type Broken struct {}
-
-// @ignore IMPL03  ← Will NOT suppress the error
-func use() {
-    b := Broken{}  // ❌ ERROR: Missing Read method (cannot be suppressed)
-}
-```
-
-**Rationale**: Interface violations are under your control (you add the annotation), so they should always be fixed.
 
 ### ✅ Gradual Migration
 
@@ -325,10 +311,16 @@ GoGreement checks codes in this order:
 
 ```go
 // @ignore ALL
-// Suppresses: IMM01, IMM02, IMM03, IMM04, CTOR01, CTOR02, CTOR03, TONL01, TONL02, TONL03
+// Suppresses: IMM01, IMM02, IMM03, IMM04, CTOR01, CTOR02, CTOR03, TONL01, TONL02, TONL03, PKGO01, PKGO02, PKGO03, IMPL01, IMPL02, IMPL03
 
 // @ignore IMM
 // Suppresses: IMM01, IMM02, IMM03, IMM04
+
+// @ignore PKGO
+// Suppresses: PKGO01, PKGO02, PKGO03
+
+// @ignore IMPL
+// Suppresses: IMPL01, IMPL02, IMPL03
 
 // @ignore IMM01
 // Suppresses: IMM01 only
@@ -384,21 +376,6 @@ type PluginConfig struct {
 func resetForIntegrationTests() {
     helper := testHelper()  // Normally not allowed
 }
-```
-
-## Limitations
-
-### Cannot Suppress @implements
-
-This is intentional - if you don't want to implement an interface, remove the `@implements` annotation:
-
-```go
-// If you don't want to implement it, don't annotate it
-type NotAReader struct {}
-
-// Not:
-// @implements &io.Reader
-// @ignore IMPL03
 ```
 
 ## Related

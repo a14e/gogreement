@@ -9,6 +9,7 @@
    - [@immutable](02_02_immutable.md)
    - [@constructor](02_03_constructor.md)
    - [@testonly](02_04_testonly.md)
+   - [@packageonly](02_05_packageonly.md)
    - [@ignore](02_06_ignore.md)
 - [Error Codes](03_codes.md)
 

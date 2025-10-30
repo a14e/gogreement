@@ -6,7 +6,7 @@ GoGreement reports violations using structured error codes. Each code identifies
 
 Error codes follow the format: `[CATEGORY][NUMBER]`
 
-- **Category**: 2-4 letter prefix identifying the annotation (e.g., `IMM`, `CTOR`, `TONL`, `IMPL`)
+- **Category**: 2-4 letter prefix identifying the annotation (e.g., `IMM`, `CTOR`, `TONL`, `PKGO`, `IMPL`)
 - **Number**: Two-digit sequential number within the category (e.g., `01`, `02`)
 
 **Example**: `IMM01` = Immutable category, violation type 01
@@ -68,9 +68,27 @@ Violations of `@testonly` annotations. These can be suppressed with `@ignore`.
 
 ---
 
+### PKGO - PackageOnly Violations
+
+Violations of `@packageonly` annotations. These can be suppressed with `@ignore`.
+
+| Code | Description | Example |
+|------|-------------|---------|
+| **PKGO01** | PackageOnly type used outside allowed packages | `var helper InternalHelper` in unauthorized package |
+| **PKGO02** | PackageOnly function called outside allowed packages | `ExecuteAdminCommand()` in unauthorized package |
+| **PKGO03** | PackageOnly method called outside allowed packages | `repo.InsertTestData()` in unauthorized package |
+
+**Suppress with**:
+- `// @ignore PKGO` - All packageonly checks
+- `// @ignore PKGO01` - Specific check only
+
+**Documentation**: [@packageonly](02_05_packageonly.md)
+
+---
+
 ### IMPL - Implements Violations
 
-Violations of `@implements` annotations. **Cannot be suppressed with `@ignore`** (intentional).
+Violations of `@implements` annotations. These can be suppressed with `@ignore`.
 
 | Code | Description | Example |
 |------|-------------|---------|
@@ -78,7 +96,9 @@ Violations of `@implements` annotations. **Cannot be suppressed with `@ignore`**
 | **IMPL02** | Interface not found in package | Interface name doesn't exist or is misspelled |
 | **IMPL03** | Missing or incorrect methods | Type doesn't implement all required methods with correct signatures |
 
-**Cannot suppress**: `@implements` violations cannot be ignored because they are under your direct control. If you don't want to implement an interface, remove the annotation.
+**Suppress with**:
+- `// @ignore IMPL` - All implements checks
+- `// @ignore IMPL01` - Specific check only
 
 **Documentation**: [@implements](02_01_implements.md)
 
@@ -158,7 +178,11 @@ ALL
 │   ├── TONL01 (Type usage)
 │   ├── TONL02 (Function call)
 │   └── TONL03 (Method call)
-└── IMPL (Implements) - Cannot suppress
+├── PKGO (PackageOnly)
+│   ├── PKGO01 (Type usage)
+│   ├── PKGO02 (Function call)
+│   └── PKGO03 (Method call)
+└── IMPL (Implements)
     ├── IMPL01 (Package not found)
     ├── IMPL02 (Interface not found)
     └── IMPL03 (Missing methods)
@@ -172,12 +196,13 @@ When you suppress a code at any level, all codes below it are also suppressed:
 
 ## Quick Reference by Annotation
 
-| Annotation | Codes | Suppressible |
-|------------|-------|--------------|
-| **@immutable** | IMM01, IMM02, IMM03, IMM04 | ✅ Yes |
-| **@constructor** | CTOR01, CTOR02, CTOR03 | ✅ Yes |
-| **@testonly** | TONL01, TONL02, TONL03 | ✅ Yes |
-| **@implements** | IMPL01, IMPL02, IMPL03 | ❌ No |
+| Annotation | Description | Codes |
+|------------|-------------|-------|
+| **@immutable** | Prevents field mutations | IMM01, IMM02, IMM03, IMM04 |
+| **@constructor** | Restricts object creation | CTOR01, CTOR02, CTOR03 |
+| **@testonly** | Limits to test files | TONL01, TONL02, TONL03 |
+| **@packageonly** | Limits to specific packages | PKGO01, PKGO02, PKGO03 |
+| **@implements** | Verifies interface implementation | IMPL01, IMPL02, IMPL03 |
 
 ## Error Message Format
 
@@ -236,6 +261,6 @@ Periodically search for `@ignore` in your codebase and review whether suppressio
 
 ## See Also
 
-- **[@ignore Annotation](02_05_ignore.md)**: Detailed guide on suppressing violations
+- **[@ignore Annotation](02_06_ignore.md)**: Detailed guide on suppressing violations
 - **[Getting Started - Configuration](01_01_getting_started.md#configuration)**: Module-level exclusions
 - **[Annotations](02_annotations.md)**: Learn about all annotations

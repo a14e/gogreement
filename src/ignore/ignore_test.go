@@ -76,6 +76,42 @@ func TestParseIgnoreAnnotation(t *testing.T) {
 			expectNil:     false,
 			expectedCodes: []string{"CODE1"},
 		},
+		{
+			name:          "single code with comment after",
+			comment:       "// @ignore CODE1 some reason here",
+			expectNil:     false,
+			expectedCodes: []string{"CODE1"},
+		},
+		{
+			name:          "multiple codes with comment after",
+			comment:       "// @ignore CODE1, CODE2 this is why",
+			expectNil:     false,
+			expectedCodes: []string{"CODE1", "CODE2"},
+		},
+		{
+			name:          "codes with double slash comment",
+			comment:       "// @ignore IMM01 // performance optimization",
+			expectNil:     false,
+			expectedCodes: []string{"IMM01"},
+		},
+		{
+			name:          "multiple codes with double slash comment",
+			comment:       "// @ignore IMM01, CTOR02 // needed for legacy code",
+			expectNil:     false,
+			expectedCodes: []string{"IMM01", "CTOR02"},
+		},
+		{
+			name:          "lowercase codes with comment",
+			comment:       "// @ignore imm01, ctor02 legacy support",
+			expectNil:     false,
+			expectedCodes: []string{"IMM01", "CTOR02"},
+		},
+		{
+			name:          "mixed case codes with comment",
+			comment:       "// @ignore Imm01, CTOR02 temporary fix",
+			expectNil:     false,
+			expectedCodes: []string{"IMM01", "CTOR02"},
+		},
 	}
 
 	for _, tt := range tests {

@@ -163,7 +163,7 @@ gogreement --exclude-checks=IMM01,CTOR02,TONL03 ./...
 
 ### File and Code-Level Exclusion
 
-Use `// @ignore` comments in your code for fine-grained control. See the [@ignore annotation](02_05_ignore.md) documentation for details.
+Use `// @ignore` comments in your code for fine-grained control. See the [@ignore annotation](02_06_ignore.md) documentation for details.
 
 ## Integration with CI/CD
 

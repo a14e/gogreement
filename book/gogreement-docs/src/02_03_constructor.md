@@ -450,7 +450,7 @@ type User struct {}
 ## Related Annotations
 
 - **[@immutable](02_02_immutable.md)**: Often combined to ensure objects can't be mutated after construction
-- **[@ignore](02_05_ignore.md)**: Suppress violations when needed
+- **[@ignore](02_06_ignore.md)**: Suppress violations when needed
 
 ## See Also
 

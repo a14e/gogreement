@@ -439,7 +439,7 @@ func production() {
 
 ## Related Annotations
 
-- **[@ignore](02_05_ignore.md)**: Suppress violations when needed
+- **[@ignore](02_06_ignore.md)**: Suppress violations when needed
 - **[@implements](02_01_implements.md)**: Often used with `@testonly` for mock interfaces
 
 ## See Also

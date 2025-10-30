@@ -421,7 +421,7 @@ func (d SafeData) Items() []Item {
 ## Related Annotations
 
 - **[@constructor](02_03_constructor.md)**: Control object creation
-- **[@ignore](02_05_ignore.md)**: Suppress violations when needed
+- **[@ignore](02_06_ignore.md)**: Suppress violations when needed
 - **[@implements](02_01_implements.md)**: Often combined for immutable interfaces
 
 ## See Also
