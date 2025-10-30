@@ -19,22 +19,13 @@ type PackageOnlyViolation struct {
 	ItemPkgPath     string   // Package path where the item is defined
 	CurrentPkgPath  string   // Current package path where the violation occurred
 	AllowedPackages []string // Allowed packages for this item
-	ViolationType   string   // "type", "function", or "method"
 	ReceiverType    string   // Receiver type for methods (empty for types/functions)
+	Code            string   // Error code for this violation
 }
 
 // GetCode returns the error code for this violation
 func (v PackageOnlyViolation) GetCode() string {
-	switch v.ViolationType {
-	case "type":
-		return codes.PackageOnlyTypeUsage
-	case "function":
-		return codes.PackageOnlyFunctionCall
-	case "method":
-		return codes.PackageOnlyMethodCall
-	default:
-		return "PKGO00" // fallback, shouldn't happen
-	}
+	return v.Code
 }
 
 // GetPos returns the position of the violation
@@ -44,14 +35,14 @@ func (v PackageOnlyViolation) GetPos() token.Pos {
 
 // GetMessage returns the main error message without formatting
 func (v PackageOnlyViolation) GetMessage() string {
-	switch v.ViolationType {
-	case "method":
+	switch v.Code {
+	case codes.PackageOnlyMethodCall:
 		return fmt.Sprintf("%s.%s method is @packageonly and cannot be used from %s. Allowed packages: %s",
 			v.ReceiverType, v.ItemName, v.CurrentPkgPath, fmt.Sprintf("%v", v.AllowedPackages))
-	case "type":
+	case codes.PackageOnlyTypeUsage:
 		return fmt.Sprintf("%s type is @packageonly and cannot be used from %s. Allowed packages: %s",
 			v.ItemName, v.CurrentPkgPath, fmt.Sprintf("%v", v.AllowedPackages))
-	case "function":
+	case codes.PackageOnlyFunctionCall:
 		return fmt.Sprintf("%s function is @packageonly and cannot be used from %s. Allowed packages: %s",
 			v.ItemName, v.CurrentPkgPath, fmt.Sprintf("%v", v.AllowedPackages))
 	default:

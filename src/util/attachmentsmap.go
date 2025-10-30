@@ -483,3 +483,11 @@ func (am *AttachmentsMap) HasAnyMethodAttachments(pkgPath string, typeName strin
 	attachments, exists := typeAttachments.MethodsAttachments[methodName]
 	return exists && len(attachments) > 0
 }
+
+// Empty returns true if the AttachmentsMap contains no packages
+func (am *AttachmentsMap) Empty() bool {
+	if am == nil {
+		return true
+	}
+	return len(am.packageAttachments) == 0
+}

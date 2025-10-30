@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/a14e/gogreement/src/annotations"
+	"github.com/a14e/gogreement/src/codes"
 	"github.com/a14e/gogreement/src/config"
 	"github.com/a14e/gogreement/src/testutil/testfacts"
 
@@ -29,17 +30,17 @@ func TestCheckPackageOnly_ForbiddenUsage(t *testing.T) {
 		assert.NotEmpty(t, violations, "expected to find violations")
 	})
 
-	// Check that we have the expected violation types
-	violationTypes := make(map[string]bool)
+	// Check that we have the expected violation codes
+	violationCodes := make(map[string]bool)
 	for _, v := range violations {
-		violationTypes[v.ViolationType] = true
+		violationCodes[v.GetCode()] = true
 		t.Logf("Violation: %s", v.GetMessage())
 	}
 
-	expectedTypes := []string{"type", "function", "method"}
-	for _, expectedType := range expectedTypes {
-		if !violationTypes[expectedType] {
-			t.Errorf("Expected violation type %s not found", expectedType)
+	expectedCodes := []string{codes.PackageOnlyTypeUsage, codes.PackageOnlyFunctionCall, codes.PackageOnlyMethodCall}
+	for _, expectedCode := range expectedCodes {
+		if !violationCodes[expectedCode] {
+			t.Errorf("Expected violation code %s not found", expectedCode)
 		}
 	}
 }
@@ -65,21 +66,21 @@ func TestCheckPackageOnly_AllowedUsage(t *testing.T) {
 
 func TestPackageOnlyViolation_GetCode(t *testing.T) {
 	tests := []struct {
-		name          string
-		violationType string
-		expectedCode  string
+		name         string
+		code         string
+		expectedCode string
 	}{
-		{"Type violation", "type", "PKGO01"},
-		{"Function violation", "function", "PKGO02"},
-		{"Method violation", "method", "PKGO03"},
-		{"Unknown violation", "unknown", "PKGO00"},
+		{"Type violation", codes.PackageOnlyTypeUsage, codes.PackageOnlyTypeUsage},
+		{"Function violation", codes.PackageOnlyFunctionCall, codes.PackageOnlyFunctionCall},
+		{"Method violation", codes.PackageOnlyMethodCall, codes.PackageOnlyMethodCall},
+		{"Unknown violation", "PKGO00", "PKGO00"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			violation := PackageOnlyViolation{
-				ViolationType: tt.violationType,
-				Pos:           token.Pos(1),
+				Code: tt.code,
+				Pos:  token.Pos(1),
 			}
 
 			code := violation.GetCode()
@@ -100,9 +101,10 @@ func TestPackageOnlyViolation_GetMessage(t *testing.T) {
 			name: "Type violation",
 			violation: PackageOnlyViolation{
 				ItemName:        "MyType",
+				ItemPkgPath:     "github.com/example/source",
 				CurrentPkgPath:  "github.com/example/current",
 				AllowedPackages: []string{"github.com/example/allowed"},
-				ViolationType:   "type",
+				Code:            codes.PackageOnlyTypeUsage,
 			},
 			expectedSubstr: "MyType type is @packageonly",
 		},
@@ -110,9 +112,10 @@ func TestPackageOnlyViolation_GetMessage(t *testing.T) {
 			name: "Function violation",
 			violation: PackageOnlyViolation{
 				ItemName:        "MyFunction",
+				ItemPkgPath:     "github.com/example/source",
 				CurrentPkgPath:  "github.com/example/current",
 				AllowedPackages: []string{"github.com/example/allowed"},
-				ViolationType:   "function",
+				Code:            codes.PackageOnlyFunctionCall,
 			},
 			expectedSubstr: "MyFunction function is @packageonly",
 		},
@@ -120,10 +123,11 @@ func TestPackageOnlyViolation_GetMessage(t *testing.T) {
 			name: "Method violation",
 			violation: PackageOnlyViolation{
 				ItemName:        "MyMethod",
+				ItemPkgPath:     "github.com/example/source",
 				ReceiverType:    "MyStruct",
 				CurrentPkgPath:  "github.com/example/current",
 				AllowedPackages: []string{"github.com/example/allowed"},
-				ViolationType:   "method",
+				Code:            codes.PackageOnlyMethodCall,
 			},
 			expectedSubstr: "MyStruct.MyMethod method is @packageonly",
 		},
