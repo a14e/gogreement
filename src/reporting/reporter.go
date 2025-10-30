@@ -70,8 +70,11 @@ func (r *Reporter) formatPrettyError(violation Violation) string {
 
 	var builder strings.Builder
 
-	// Error header
+	// Error header with code in brackets
 	builder.WriteString("error: ")
+	builder.WriteString("[")
+	builder.WriteString(violation.GetCode())
+	builder.WriteString("] ")
 	builder.WriteString(violation.GetMessage())
 	builder.WriteString("\n")
 

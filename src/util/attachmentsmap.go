@@ -2,7 +2,6 @@ package util
 
 import (
 	"slices"
-	"strings"
 )
 
 // AttachmentsMap is a special data structure that allows attaching arrays of strings
@@ -483,15 +482,4 @@ func (am *AttachmentsMap) HasAnyMethodAttachments(pkgPath string, typeName strin
 
 	attachments, exists := typeAttachments.MethodsAttachments[methodName]
 	return exists && len(attachments) > 0
-}
-
-// extractPackageName extracts the package name from a full package path
-// Example: "github.com/user/project/pkg/name" -> "name"
-func extractPackageName(pkgPath string) string {
-	// Split by slash and take the last part
-	parts := strings.Split(pkgPath, "/")
-	if len(parts) == 0 {
-		return pkgPath
-	}
-	return parts[len(parts)-1]
 }

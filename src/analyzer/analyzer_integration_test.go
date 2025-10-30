@@ -99,3 +99,11 @@ func TestIgnoreReaderCrossModule(t *testing.T) {
 	// modB has 2 @ignore annotations: LINT004, LINT005+LINT006+LINT007
 	require.Equal(t, 2, modBIgnoreResult.IgnoreSet.Len(), "expected 2 ignore annotations in modB")
 }
+
+// TestPackageOnlyCheckerCrossModule tests packageonly checking across modules
+func TestPackageOnlyCheckerCrossModule(t *testing.T) {
+	defer setupTestEnv()()
+
+	testdata := testutil.GetRootTestdataPath() + "/integration"
+	analysistest.Run(t, testdata, PackageOnlyChecker, "multimodule_packageonly/modA", "multimodule_packageonly/modB")
+}

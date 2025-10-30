@@ -35,8 +35,7 @@ func (v MissingPackageReport) GetPos() token.Pos {
 // GetMessage returns the main error message without formatting
 func (v MissingPackageReport) GetMessage() string {
 	return fmt.Sprintf(
-		"[%s] package %q referenced in @implements annotation on type \"%s\" is not imported",
-		codes.ImplementsPackageNotFound,
+		"package %q referenced in @implements annotation on type \"%s\" is not imported",
 		v.PackageName,
 		v.TypeName,
 	)
@@ -68,8 +67,7 @@ func (v MissingInterfaceReport) GetMessage() string {
 		pkgPrefix = v.PackageName + "."
 	}
 	return fmt.Sprintf(
-		"[%s] interface \"%s%s\" not found for type \"%s\"",
-		codes.ImplementsInterfaceNotFound,
+		"interface \"%s%s\" not found for type \"%s\"",
 		pkgPrefix,
 		v.InterfaceName,
 		v.TypeName,
@@ -110,8 +108,7 @@ func (v MissingMethodsReport) GetMessage() string {
 	}
 
 	return fmt.Sprintf(
-		"[%s] type \"%s\" does not implement interface \"%s%s\"\nmissing methods:\n%s",
-		codes.ImplementsMissingMethods,
+		"type \"%s\" does not implement interface \"%s%s\"\nmissing methods:\n%s",
 		v.TypeName,
 		pkgPrefix,
 		v.InterfaceName,

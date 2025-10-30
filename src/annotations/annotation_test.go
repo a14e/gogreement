@@ -968,6 +968,42 @@ func TestParsePackageOnlyAnnotation(t *testing.T) {
 			receiverType: "",
 			expectNil:    true,
 		},
+		{
+			name:             "full path package",
+			comment:          "// @packageonly github.com/user/pkg",
+			objectName:       "MyType",
+			kind:             TestOnlyOnType,
+			receiverType:     "",
+			expectNil:        false,
+			expectedPackages: []string{currentPkgPath, "github.com/user/pkg"},
+		},
+		{
+			name:             "multiple full path packages",
+			comment:          "// @packageonly github.com/user/pkg, github.com/other/mod",
+			objectName:       "MyFunc",
+			kind:             TestOnlyOnFunc,
+			receiverType:     "",
+			expectNil:        false,
+			expectedPackages: []string{currentPkgPath, "github.com/user/pkg", "github.com/other/mod"},
+		},
+		{
+			name:             "mixed short and full paths",
+			comment:          "// @packageonly mypkg, github.com/user/fullpkg",
+			objectName:       "MyMethod",
+			kind:             TestOnlyOnMethod,
+			receiverType:     "MyStruct",
+			expectNil:        false,
+			expectedPackages: []string{currentPkgPath, "mypkg", "github.com/user/fullpkg"},
+		},
+		{
+			name:             "full path with dots and dashes",
+			comment:          "// @packageonly github.com/user/my-pkg.v2",
+			objectName:       "MyType",
+			kind:             TestOnlyOnType,
+			receiverType:     "",
+			expectNil:        false,
+			expectedPackages: []string{currentPkgPath, "github.com/user/my-pkg.v2"},
+		},
 	}
 
 	for _, tt := range tests {

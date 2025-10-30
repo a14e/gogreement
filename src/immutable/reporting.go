@@ -34,7 +34,7 @@ func (v ImmutableViolation) GetPos() token.Pos {
 
 // GetMessage returns the main error message without formatting
 func (v ImmutableViolation) GetMessage() string {
-	return fmt.Sprintf("[%s] immutability violation in type %q: %s", v.Code, v.TypeName, v.Reason)
+	return fmt.Sprintf("immutability violation in type %q: %s", v.TypeName, v.Reason)
 }
 
 // ReportViolations reports immutable violations using the new pretty formatter

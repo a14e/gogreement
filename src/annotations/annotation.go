@@ -320,9 +320,9 @@ var mutableRegex = regexp.MustCompile(
 )
 
 var packageOnlyRegex = regexp.MustCompile(
-	`^\s*//\s*@packageonly(?:\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*(?:\s*,)?))?(?:\s+.*)?$`,
+	`^\s*//\s*@packageonly(?:\s+([a-zA-Z0-9_/.-]+(?:\s*,\s*[a-zA-Z0-9_/.-]+)*(?:\s*,)?))?(?:\s+.*)?$`,
 	//                              ^1
-	// 1: comma-separated package names (only valid Go identifiers, optional trailing comma)
+	// 1: comma-separated package names (valid package paths with slashes, dots, optional trailing comma)
 )
 
 // parseImplementsAnnotation parses string "@implements &pkg.Interface" or "@implements Interface"

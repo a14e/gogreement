@@ -1,8 +1,9 @@
 package analyzer
 
 import (
-	config "github.com/a14e/gogreement/src/config"
 	"reflect"
+
+	config "github.com/a14e/gogreement/src/config"
 
 	"golang.org/x/tools/go/analysis"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/a14e/gogreement/src/ignore"
 	"github.com/a14e/gogreement/src/immutable"
 	"github.com/a14e/gogreement/src/implements"
+	"github.com/a14e/gogreement/src/packageonly"
 	"github.com/a14e/gogreement/src/testonly"
 	"github.com/a14e/gogreement/src/util"
 )
@@ -18,7 +20,7 @@ import (
 // AnnotationReader reads annotations from code and exports them as facts
 var AnnotationReader = &analysis.Analyzer{
 	Name: "annotationreader",
-	Doc:  "Reads @implements, @immutable, @constructor annotations from code",
+	Doc:  "Reads @implements, @immutable, @constructor, @packageonly annotations from code",
 	Run:  runAnnotationReader,
 	FactTypes: []analysis.Fact{
 		(*annotations.AnnotationReaderFact)(nil),
@@ -266,6 +268,55 @@ func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
+// PackageOnlyChecker checks @packageonly annotations
+var PackageOnlyChecker = &analysis.Analyzer{
+	Name: "packageonlychecker",
+	Doc:  "Checks that @packageonly items are only used in allowed packages",
+	Run:  runPackageOnlyChecker,
+	Requires: []*analysis.Analyzer{
+		AnnotationReader,
+		IgnoreReader,
+	},
+	FactTypes: []analysis.Fact{
+		(*annotations.PackageOnlyCheckerFact)(nil),
+	},
+}
+
+func runPackageOnlyChecker(pass *analysis.Pass) (interface{}, error) {
+	result := pass.ResultOf[AnnotationReader]
+	if result == nil {
+		return nil, nil
+	}
+	localAnnotations, ok := result.(annotations.PackageAnnotations)
+	if !ok {
+		return nil, nil
+	}
+	cfg := config.FromEnvCached()
+
+	// Export facts before isProjectPackage check so dependencies can use them
+	fact := annotations.PackageOnlyCheckerFact(localAnnotations)
+	pass.ExportPackageFact(&fact)
+
+	// Note: We still run the checker even if there are no local @packageonly annotations,
+	// because we need to check for violations of @packageonly items from imported packages
+
+	// Get ignore set from IgnoreReader
+	var ignoreSet *util.IgnoreSet
+	if ignoreResult := pass.ResultOf[IgnoreReader]; ignoreResult != nil {
+		if ir, ok := ignoreResult.(ignore.IgnoreResult); ok {
+			ignoreSet = ir.IgnoreSet
+		}
+	}
+
+	// Check packageonly violations
+	violations := packageonly.CheckPackageOnly(cfg, pass, &localAnnotations, ignoreSet)
+
+	// Report violations (filtered by ignore set)
+	packageonly.ReportViolations(pass, violations)
+
+	return nil, nil
+}
+
 // AllAnalyzers returns all available analyzers
 func AllAnalyzers() []*analysis.Analyzer {
 	return []*analysis.Analyzer{
@@ -274,6 +325,7 @@ func AllAnalyzers() []*analysis.Analyzer {
 		ImmutableChecker,
 		ConstructorChecker,
 		TestOnlyChecker,
+		PackageOnlyChecker,
 		IgnoreReader,
 	}
 }
