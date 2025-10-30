@@ -4,7 +4,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"strings"
 
 	"golang.org/x/tools/go/analysis"
 
@@ -32,15 +31,14 @@ func CheckPackageOnly(
 		return violations
 	}
 
-	currentPkgPath := pass.Pkg.Path()
-
 	// Check all files
 	filesToCheck := cfg.FilterFiles(pass)
 
 	context := packageOnlyContext{
 		pass:             pass,
 		packageOnlyIndex: packageOnlyIndex,
-		currentPkgPath:   currentPkgPath,
+		currentPkgPath:   pass.Pkg.Path(),
+		currentPkgName:   pass.Pkg.Name(),
 		ignoreSet:        ignoreSet,
 	}
 
@@ -78,6 +76,7 @@ type packageOnlyContext struct {
 	pass             *analysis.Pass
 	packageOnlyIndex *util.AttachmentsMap
 	currentPkgPath   string
+	currentPkgName   string
 	ignoreSet        *util.IgnoreSet
 	reportedTypes    *map[string]bool
 }
@@ -176,8 +175,7 @@ func findTypeViolation(
 
 	// Also check by extracting package name from path
 	if !isAllowed {
-		currentPkgName := extractPackageName(ctx.currentPkgPath)
-		isAllowed = ctx.packageOnlyIndex.HasPkgTypeAttachment(pkgPath, typeName, currentPkgName)
+		isAllowed = ctx.packageOnlyIndex.HasPkgTypeAttachment(pkgPath, typeName, ctx.currentPkgName)
 	}
 
 	if pkgPath != ctx.currentPkgPath && !isAllowed {
@@ -224,8 +222,7 @@ func findFunctionViolation(
 
 	// Also check by extracting package name from path
 	if !isAllowed {
-		currentPkgName := extractPackageName(ctx.currentPkgPath)
-		isAllowed = ctx.packageOnlyIndex.HasPkgFunctionAttachment(pkgPath, funcName, currentPkgName)
+		isAllowed = ctx.packageOnlyIndex.HasPkgFunctionAttachment(pkgPath, funcName, ctx.currentPkgName)
 	}
 
 	if pkgPath != ctx.currentPkgPath && !isAllowed {
@@ -266,8 +263,7 @@ func findMethodViolation(
 
 	// Also check by extracting package name from path
 	if !isAllowed {
-		currentPkgName := extractPackageName(ctx.currentPkgPath)
-		isAllowed = ctx.packageOnlyIndex.HasPkgTypeMethodAttachment(pkgPath, typeName, methodName, currentPkgName)
+		isAllowed = ctx.packageOnlyIndex.HasPkgTypeMethodAttachment(pkgPath, typeName, methodName, ctx.currentPkgName)
 	}
 
 	if pkgPath != ctx.currentPkgPath && !isAllowed {
@@ -288,15 +284,4 @@ func findMethodViolation(
 	}
 
 	return nil
-}
-
-// extractPackageName extracts the package name from a full package path
-// Example: "github.com/user/project/pkg/name" -> "name"
-func extractPackageName(pkgPath string) string {
-	// Split by slash and take the last part
-	parts := strings.Split(pkgPath, "/")
-	if len(parts) == 0 {
-		return pkgPath
-	}
-	return parts[len(parts)-1]
 }
