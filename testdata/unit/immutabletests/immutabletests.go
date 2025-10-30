@@ -225,3 +225,39 @@ func ModifyMapInt(c *ConfigWithMap, key, value int) {
 func DeleteFromMap(c *ConfigWithMap, key string) {
 	delete(c.settings, key) // This is a CallExpr, not checked by current implementation
 }
+
+// Test for multiple fields declared on one line (X, Y int syntax)
+
+// Point with multiple fields declared on one line
+// @immutable
+// @constructor NewPoint
+type Point struct {
+	X, Y int
+}
+
+func NewPoint(x, y int) *Point {
+	p := &Point{}
+	p.X = x // ✅ OK: in constructor
+	p.Y = y // ✅ OK: in constructor
+	return p
+}
+
+// ModifyX tries to modify X field
+func ModifyX(p *Point, x int) {
+	p.X = x // ❌ VIOLATION: field assignment
+}
+
+// ModifyY tries to modify Y field
+func ModifyY(p *Point, y int) {
+	p.Y = y // ❌ VIOLATION: field assignment
+}
+
+// IncrementX tries to increment X
+func IncrementX(p *Point) {
+	p.X++ // ❌ VIOLATION: increment
+}
+
+// AddToY tries to add to Y
+func AddToY(p *Point, delta int) {
+	p.Y += delta // ❌ VIOLATION: compound assignment
+}

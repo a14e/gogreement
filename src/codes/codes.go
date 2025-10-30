@@ -37,7 +37,6 @@ const (
 )
 
 // Error code constants for implements violations
-// Note: @ignore directives are NOT supported for implements violations
 const (
 	ImplementsPackageNotFound   = "IMPL01"
 	ImplementsInterfaceNotFound = "IMPL02"
@@ -78,6 +77,11 @@ var CodesByCategory = map[string][]Code{
 		{PackageOnlyTypeUsage, "PackageOnly type used outside allowed packages"},
 		{PackageOnlyFunctionCall, "PackageOnly function called outside allowed packages"},
 		{PackageOnlyMethodCall, "PackageOnly method called outside allowed packages"},
+	},
+	ImplementsCategoryPrefix: {
+		{ImplementsPackageNotFound, "Package not found in imports"},
+		{ImplementsInterfaceNotFound, "Interface not found in package"},
+		{ImplementsMissingMethods, "Type does not implement all required methods"},
 	},
 }
 

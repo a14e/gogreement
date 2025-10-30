@@ -442,6 +442,47 @@ func TestMutableFieldIndexBuilt(t *testing.T) {
 	assert.True(t, foundCacheMutable, "should have found @mutable annotation on MyReader.cache")
 }
 
+func TestMultipleFieldsOnOneLine(t *testing.T) {
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckImmutable(cfg, pass, &packageAnnotations)
+
+	// Test that Point type with "X, Y int" syntax is detected correctly
+	// Should catch violations for both X and Y fields
+
+	hasXAssignment := false
+	hasYAssignment := false
+	hasXIncrement := false
+	hasYCompound := false
+
+	for _, v := range violations {
+		if v.TypeName == "Point" {
+			if contains(v.Reason, "X") && contains(v.Reason, "assign") && !contains(v.Reason, "++") && !contains(v.Reason, "+=") {
+				hasXAssignment = true
+				t.Logf("Found X assignment violation: %s", v.Reason)
+			}
+			if contains(v.Reason, "Y") && contains(v.Reason, "assign") && !contains(v.Reason, "+=") {
+				hasYAssignment = true
+				t.Logf("Found Y assignment violation: %s", v.Reason)
+			}
+			if contains(v.Reason, "X") && contains(v.Reason, "++") {
+				hasXIncrement = true
+				t.Logf("Found X increment violation: %s", v.Reason)
+			}
+			if contains(v.Reason, "Y") && contains(v.Reason, "+=") {
+				hasYCompound = true
+				t.Logf("Found Y compound assignment violation: %s", v.Reason)
+			}
+		}
+	}
+
+	assert.True(t, hasXAssignment, "should detect assignment to X field (from 'X, Y int' declaration)")
+	assert.True(t, hasYAssignment, "should detect assignment to Y field (from 'X, Y int' declaration)")
+	assert.True(t, hasXIncrement, "should detect increment of X field (from 'X, Y int' declaration)")
+	assert.True(t, hasYCompound, "should detect compound assignment to Y field (from 'X, Y int' declaration)")
+}
+
 // Helper function
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) &&
