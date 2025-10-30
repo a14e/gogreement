@@ -349,3 +349,67 @@ func TestBuildMutableFieldsIndexWithImports(t *testing.T) {
 
 	assert.Greater(t, index.Len(), 0, "should have mutable fields indexed")
 }
+
+func TestBuildPackageOnlyIndex(t *testing.T) {
+	pass := testfacts.CreateTestPassWithFacts(t, "packageonlysource")
+	packageAnnotations := annotations.ReadAllAnnotations(config.Empty(), pass)
+
+	index := BuildPackageOnlyIndex[*annotations.AnnotationReaderFact](pass, &packageAnnotations)
+
+	require.NotNil(t, index)
+
+	pkgPath := pass.Pkg.Path()
+
+	// Test type attachments
+	t.Run("PackageOnlyType type attachments", func(t *testing.T) {
+		// Check allowed packages
+		assert.True(t, index.HasPkgTypeAttachment(pkgPath, "PackageOnlyType", "allowedpkg"),
+			"PackageOnlyType should allow allowedpkg package")
+		assert.True(t, index.HasPkgTypeAttachment(pkgPath, "PackageOnlyType", "packageonlyallowed"),
+			"PackageOnlyType should allow packageonlyallowed package")
+	})
+
+	// Test function attachments
+	t.Run("PackageOnlyFunction function attachments", func(t *testing.T) {
+		// Check allowed packages
+		assert.True(t, index.HasPkgFunctionAttachment(pkgPath, "PackageOnlyFunction", "allowedpkg"),
+			"PackageOnlyFunction should allow allowedpkg package")
+		assert.True(t, index.HasPkgFunctionAttachment(pkgPath, "PackageOnlyFunction", "packageonlyallowed"),
+			"PackageOnlyFunction should allow packageonlyallowed package")
+	})
+
+	// Test method attachments
+	t.Run("PackageOnlyStruct method attachments", func(t *testing.T) {
+		// PackageOnlyMethod method
+		assert.True(t, index.HasPkgTypeMethodAttachment(pkgPath, "PackageOnlyStruct", "PackageOnlyMethod", "allowedpkg"),
+			"PackageOnlyMethod should allow allowedpkg package")
+		assert.True(t, index.HasPkgTypeMethodAttachment(pkgPath, "PackageOnlyStruct", "PackageOnlyMethod", "packageonlyallowed"),
+			"PackageOnlyMethod should allow packageonlyallowed package")
+	})
+
+	// Test that non-annotated items don't have packageonly markers
+	t.Run("Non-annotated items should not have packageonly", func(t *testing.T) {
+		assert.False(t, index.HasPkgTypeAttachment(pkgPath, "RegularType", "allowedpkg"),
+			"RegularType type should not have allowedpkg attachment")
+		assert.False(t, index.HasPkgFunctionAttachment(pkgPath, "RegularFunction", "allowedpkg"),
+			"RegularFunction function should not have allowedpkg attachment")
+		assert.False(t, index.HasPkgTypeMethodAttachment(pkgPath, "RegularStruct", "RegularMethod", "allowedpkg"),
+			"RegularMethod method should not have allowedpkg attachment")
+	})
+}
+
+func TestBuildPackageOnlyIndex_EmptyAnnotations(t *testing.T) {
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests") // Package without packageonly annotations
+	packageAnnotations := annotations.ReadAllAnnotations(config.Empty(), pass)
+
+	index := BuildPackageOnlyIndex[*annotations.AnnotationReaderFact](pass, &packageAnnotations)
+
+	require.NotNil(t, index)
+
+	pkgPath := pass.Pkg.Path()
+
+	// Should not have any packageonly attachments
+	assert.False(t, index.HasAnyTypeAttachments(pkgPath, "AnyType"))
+	assert.False(t, index.HasAnyFunctionAttachments(pkgPath, "AnyFunction"))
+	assert.False(t, index.HasAnyMethodAttachments(pkgPath, "AnyType", "AnyMethod"))
+}

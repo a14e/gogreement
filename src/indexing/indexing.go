@@ -109,6 +109,38 @@ func BuildMutableFieldsIndex[T annotations.AnnotationWrapper](pass *analysis.Pas
 	return result
 }
 
+// BuildPackageOnlyIndex creates an AttachmentsMap of @packageonly annotations from current and imported packages
+func BuildPackageOnlyIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) *util.AttachmentsMap {
+	result := &util.AttachmentsMap{}
+
+	for pkg, ann := range iterOverPackages[T](pass, packageAnnotations) {
+		pkgPath := pkg.Path()
+
+		// Process package-level @packageonly annotations (functions, types)
+		for _, annot := range ann.PackageOnlyAnnotations {
+			switch annot.Kind {
+			case annotations.TestOnlyOnType:
+				// Add allowed packages directly to type
+				for _, allowedPkg := range annot.AllowedPackages {
+					result.AddPkgTypeAttachment(pkgPath, annot.ObjectName, allowedPkg)
+				}
+			case annotations.TestOnlyOnFunc:
+				// Add allowed packages directly to function
+				for _, allowedPkg := range annot.AllowedPackages {
+					result.AddPkgFunctionAttachment(pkgPath, annot.ObjectName, allowedPkg)
+				}
+			case annotations.TestOnlyOnMethod:
+				// Add allowed packages directly to method
+				for _, allowedPkg := range annot.AllowedPackages {
+					result.AddPkgTypeMethodAttachment(pkgPath, annot.ReceiverType, annot.ObjectName, allowedPkg)
+				}
+			}
+		}
+	}
+
+	return result
+}
+
 // iterOverPackages just iter over packageAnnotations + facts over imported packages
 func iterOverPackages[T annotations.AnnotationWrapper](
 	pass *analysis.Pass,

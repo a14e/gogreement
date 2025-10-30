@@ -13,10 +13,19 @@ import (
 
 // CreateTestPassWithFacts creates a test pass with ImportPackageFact support for annotations
 // @testonly
-func CreateTestPassWithFacts(t *testing.T, pkgName string) *analysis.Pass {
+func CreateTestPassWithFacts(t *testing.T, pkgName string, additionalPkgs ...string) *analysis.Pass {
 	pass := testutil.CreateTestPass(t, pkgName)
 
 	factCache := make(map[string]annotations.PackageAnnotations)
+
+	// Pre-load facts for additional packages
+	for _, additionalPkg := range additionalPkgs {
+		additionalPass := testutil.CreateTestPass(t, additionalPkg)
+		if additionalPass != nil && additionalPass.Pkg != nil {
+			additionalAnnotations := annotations.ReadAllAnnotations(config.Empty(), additionalPass)
+			factCache[additionalPass.Pkg.Path()] = additionalAnnotations
+		}
+	}
 
 	pass.ImportPackageFact = func(pkg *types.Package, fact analysis.Fact) bool {
 		// Handle all fact types
@@ -28,6 +37,8 @@ func CreateTestPassWithFacts(t *testing.T, pkgName string) *analysis.Pass {
 		case *annotations.ConstructorCheckerFact:
 			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
 		case *annotations.TestOnlyCheckerFact:
+			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
+		case *annotations.PackageOnlyCheckerFact:
 			targetAnnotations = (*annotations.PackageAnnotations)(ptr)
 		case *annotations.AnnotationReaderFact:
 			targetAnnotations = (*annotations.PackageAnnotations)(ptr)

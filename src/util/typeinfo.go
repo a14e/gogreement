@@ -45,3 +45,24 @@ func ExtractTypeInfo(t types.Type) *TypeInfo {
 		PkgPath:  pkg.Path(),
 	}
 }
+
+// ExtractTypeName extracts just the type name from a types.Type
+// Returns empty string if the type is not a named type
+func ExtractTypeName(t types.Type) string {
+	if t == nil {
+		return ""
+	}
+
+	// Remove pointer if present
+	if ptr, ok := t.(*types.Pointer); ok {
+		t = ptr.Elem()
+	}
+
+	// Get named type
+	named, ok := t.(*types.Named)
+	if !ok {
+		return ""
+	}
+
+	return named.Obj().Name()
+}

@@ -22,6 +22,7 @@ type PackageAnnotations struct {
 	ImmutableAnnotations   []ImmutableAnnotation
 	TestonlyAnnotations    []TestOnlyAnnotation
 	MutableAnnotations     []MutableAnnotation
+	PackageOnlyAnnotations []PackageOnlyAnnotation
 }
 
 func (*PackageAnnotations) AFact() {}
@@ -113,6 +114,21 @@ func (*TestOnlyCheckerFact) Empty() AnnotationWrapper {
 	return &TestOnlyCheckerFact{}
 }
 
+// PackageOnlyCheckerFact is used by PackageOnlyChecker analyzer
+// @implements &analysis.Fact
+// @implements &AnnotationWrapper
+type PackageOnlyCheckerFact PackageAnnotations
+
+func (*PackageOnlyCheckerFact) AFact() {}
+
+func (f *PackageOnlyCheckerFact) GetAnnotations() *PackageAnnotations {
+	return (*PackageAnnotations)(f)
+}
+
+func (*PackageOnlyCheckerFact) Empty() AnnotationWrapper {
+	return &PackageOnlyCheckerFact{}
+}
+
 // ImplementsAnnotation
 // parse result of "@implements MyStruct" annotation
 // @constructor parseImplementsAnnotation
@@ -191,6 +207,26 @@ type MutableAnnotation struct {
 
 	// Position of the field declaration
 	Pos token.Pos
+}
+
+// PackageOnlyAnnotation
+// @immutable
+type PackageOnlyAnnotation struct {
+	// Kind of declaration: type, func, or method
+	Kind TestOnlyKind
+
+	// Name of the object: type name, function name, or method name
+	// Examples: "MyStruct", "MyFunction", "MyMethod"
+	ObjectName string
+	Pos        token.Pos
+
+	// Receiver type (only for methods, empty otherwise)
+	// Example: "MyStruct" for method receivers
+	ReceiverType string
+
+	// Allowed packages for this item (always includes current package)
+	// Examples: ["mypackage", "github.com/user/pkg", "io"]
+	AllowedPackages []string
 }
 
 // TypeQuery represents what type we're looking for
@@ -281,6 +317,12 @@ var testonlyRegex = regexp.MustCompile(
 
 var mutableRegex = regexp.MustCompile(
 	`^\s*//\s*@mutable(?:\s+.*)?$`,
+)
+
+var packageOnlyRegex = regexp.MustCompile(
+	`^\s*//\s*@packageonly(?:\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*(?:\s*,)?))?(?:\s+.*)?$`,
+	//                              ^1
+	// 1: comma-separated package names (only valid Go identifiers, optional trailing comma)
 )
 
 // parseImplementsAnnotation parses string "@implements &pkg.Interface" or "@implements Interface"
@@ -405,6 +447,39 @@ func parseMutableAnnotation(commentText string, typeName string, fieldName strin
 	}
 }
 
+// parsePackageOnlyAnnotation parses string "@packageonly pkg1, pkg2" or "@packageonly"
+func parsePackageOnlyAnnotation(commentText string, objectName string, pos token.Pos, kind TestOnlyKind, receiverType string, currentPkgPath string) *PackageOnlyAnnotation {
+	match := packageOnlyRegex.FindStringSubmatch(commentText)
+	if match == nil {
+		return nil
+	}
+
+	// match[1] = "pkg1,pkg2" or "" (optional)
+	packagesStr := strings.TrimSpace(match[1])
+
+	// Always include current package
+	allowedPackages := []string{currentPkgPath}
+
+	// Add specified packages if any
+	if packagesStr != "" {
+		parts := strings.Split(packagesStr, ",")
+		for _, part := range parts {
+			pkg := strings.TrimSpace(part)
+			if pkg != "" {
+				allowedPackages = append(allowedPackages, pkg)
+			}
+		}
+	}
+
+	return &PackageOnlyAnnotation{
+		Kind:            kind,
+		ObjectName:      objectName,
+		Pos:             pos,
+		ReceiverType:    receiverType,
+		AllowedPackages: allowedPackages,
+	}
+}
+
 // getFuncKindAndReceiver determines if a function declaration is a method or function
 // Returns: (kind, receiverType)
 // - For methods: (TestOnlyOnMethod, "MyStruct")
@@ -442,6 +517,7 @@ var matcher = ahocorasick.NewStringMatcher([]string{
 	"@testonly",
 	"@mutable",
 	"@usein",
+	"@packageonly",
 })
 
 func ReadAllAnnotations(
@@ -453,6 +529,7 @@ func ReadAllAnnotations(
 	var immutables []ImmutableAnnotation
 	var testonly []TestOnlyAnnotation
 	var mutables []MutableAnnotation
+	var packageonly []PackageOnlyAnnotation
 
 	currentPkgPath := pass.Pkg.Path()
 
@@ -538,11 +615,19 @@ func ReadAllAnnotations(
 							testonly = append(testonly, *annotation)
 						}
 					}
+
+					// Parse @packageonly
+					if strings.Contains(text, "@packageonly") {
+						annotation := parsePackageOnlyAnnotation(text, typeName, pos, TestOnlyOnType, "", currentPkgPath)
+						if annotation != nil {
+							packageonly = append(packageonly, *annotation)
+						}
+					}
 				}
 			}
 		}
 
-		// Process function and method declarations for @testonly
+		// Process function and method declarations for @testonly and @packageonly
 		for _, n := range file.Decls {
 			funcDecl, ok := n.(*ast.FuncDecl)
 			if !ok {
@@ -574,6 +659,14 @@ func ReadAllAnnotations(
 						testonly = append(testonly, *annotation)
 					}
 				}
+
+				// Parse @packageonly
+				if strings.Contains(text, "@packageonly") {
+					annotation := parsePackageOnlyAnnotation(text, funcName, pos, kind, receiverType, currentPkgPath)
+					if annotation != nil {
+						packageonly = append(packageonly, *annotation)
+					}
+				}
 			}
 		}
 
@@ -585,6 +678,7 @@ func ReadAllAnnotations(
 		ImmutableAnnotations:   immutables,
 		TestonlyAnnotations:    testonly,
 		MutableAnnotations:     mutables,
+		PackageOnlyAnnotations: packageonly,
 	}
 }
 

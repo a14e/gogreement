@@ -45,6 +45,14 @@ const (
 	ImplementsCategoryPrefix    = "IMPL"
 )
 
+// Error code constants for package-only violations
+const (
+	PackageOnlyTypeUsage      = "PKGO01"
+	PackageOnlyFunctionCall   = "PKGO02"
+	PackageOnlyMethodCall     = "PKGO03"
+	PackageOnlyCategoryPrefix = "PKGO"
+)
+
 // CodesByCategory contains all error codes grouped by their category prefix.
 // This structure is easy to read, format, and validate in tests.
 // Key: category prefix (e.g., "IMM")
@@ -65,6 +73,11 @@ var CodesByCategory = map[string][]Code{
 		{TestOnlyTypeUsage, "TestOnly type used outside test context"},
 		{TestOnlyFunctionCall, "TestOnly function called outside test context"},
 		{TestOnlyMethodCall, "TestOnly method called outside test context"},
+	},
+	PackageOnlyCategoryPrefix: {
+		{PackageOnlyTypeUsage, "PackageOnly type used outside allowed packages"},
+		{PackageOnlyFunctionCall, "PackageOnly function called outside allowed packages"},
+		{PackageOnlyMethodCall, "PackageOnly method called outside allowed packages"},
 	},
 }
 
@@ -132,6 +145,8 @@ func GetDocumentationURL(code string) string {
 		return baseURL + "02_03_constructor.html"
 	case strings.HasPrefix(code, "TONL"):
 		return baseURL + "02_04_testonly.html"
+	case strings.HasPrefix(code, "PKGO"):
+		return baseURL + "02_05_packageonly.html"
 	case strings.HasPrefix(code, "IMPL"):
 		return baseURL + "02_01_implements.html"
 	default:

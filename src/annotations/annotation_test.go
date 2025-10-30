@@ -853,3 +853,214 @@ func TestReadMutableAnnotations(t *testing.T) {
 		})
 	})
 }
+
+func TestParsePackageOnlyAnnotation(t *testing.T) {
+	currentPkgPath := "mypackage/path"
+
+	tests := []struct {
+		name             string
+		comment          string
+		objectName       string
+		kind             TestOnlyKind
+		receiverType     string
+		expectNil        bool
+		expectedPackages []string
+	}{
+		{
+			name:             "empty packageonly",
+			comment:          "// @packageonly",
+			objectName:       "MyType",
+			kind:             TestOnlyOnType,
+			receiverType:     "",
+			expectNil:        false,
+			expectedPackages: []string{currentPkgPath},
+		},
+		{
+			name:             "single package",
+			comment:          "// @packageonly pkg1",
+			objectName:       "MyFunc",
+			kind:             TestOnlyOnFunc,
+			receiverType:     "",
+			expectNil:        false,
+			expectedPackages: []string{currentPkgPath, "pkg1"},
+		},
+		{
+			name:             "multiple packages",
+			comment:          "// @packageonly pkg1, pkg2, pkg3",
+			objectName:       "MyMethod",
+			kind:             TestOnlyOnMethod,
+			receiverType:     "MyReceiver",
+			expectNil:        false,
+			expectedPackages: []string{currentPkgPath, "pkg1", "pkg2", "pkg3"},
+		},
+		{
+			name:             "packages with spaces",
+			comment:          "//   @packageonly   pkg1 ,  pkg2  , pkg3   ",
+			objectName:       "MyType",
+			kind:             TestOnlyOnType,
+			receiverType:     "",
+			expectNil:        false,
+			expectedPackages: []string{currentPkgPath, "pkg1", "pkg2", "pkg3"},
+		},
+		{
+			name:             "empty with spaces",
+			comment:          "//   @packageonly   ",
+			objectName:       "MyFunc",
+			kind:             TestOnlyOnFunc,
+			receiverType:     "",
+			expectNil:        false,
+			expectedPackages: []string{currentPkgPath},
+		},
+		{
+			name:             "with extra text after",
+			comment:          "// @packageonly pkg1, pkg2 text after",
+			objectName:       "MyType",
+			kind:             TestOnlyOnType,
+			receiverType:     "",
+			expectNil:        false,
+			expectedPackages: []string{currentPkgPath, "pkg1", "pkg2"},
+		},
+		{
+			name:         "extra text before - should fail",
+			comment:      "// text before @packageonly",
+			objectName:   "MyType",
+			kind:         TestOnlyOnType,
+			receiverType: "",
+			expectNil:    true,
+		},
+		{
+			name:         "not an annotation",
+			comment:      "// This is a regular comment",
+			objectName:   "MyType",
+			kind:         TestOnlyOnType,
+			receiverType: "",
+			expectNil:    true,
+		},
+		{
+			name:         "wrong annotation",
+			comment:      "// @testonly",
+			objectName:   "MyType",
+			kind:         TestOnlyOnType,
+			receiverType: "",
+			expectNil:    true,
+		},
+		{
+			name:         "wrong annotation - immutable",
+			comment:      "// @immutable",
+			objectName:   "MyType",
+			kind:         TestOnlyOnType,
+			receiverType: "",
+			expectNil:    true,
+		},
+		{
+			name:         "partial match - packageonlymode",
+			comment:      "// @packageonlymode",
+			objectName:   "MyType",
+			kind:         TestOnlyOnType,
+			receiverType: "",
+			expectNil:    true,
+		},
+		{
+			name:         "empty comment",
+			comment:      "//",
+			objectName:   "MyType",
+			kind:         TestOnlyOnType,
+			receiverType: "",
+			expectNil:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parsePackageOnlyAnnotation(tt.comment, tt.objectName, 0, tt.kind, tt.receiverType, currentPkgPath)
+
+			if tt.expectNil {
+				assert.Nil(t, result)
+			} else {
+				require.NotNil(t, result)
+				assert.Equal(t, tt.kind, result.Kind)
+				assert.Equal(t, tt.objectName, result.ObjectName)
+				assert.Equal(t, tt.receiverType, result.ReceiverType)
+				assert.Equal(t, tt.expectedPackages, result.AllowedPackages)
+			}
+		})
+	}
+}
+
+func TestReadPackageOnlyAnnotations(t *testing.T) {
+	pass := testutil.CreateTestPass(t, "packageonlysource")
+
+	cfg := config.Empty()
+	annotations := ReadAllAnnotations(cfg, pass)
+
+	// Helper to find packageonly annotation
+	findPackageOnly := func(objectName string, kind TestOnlyKind) *PackageOnlyAnnotation {
+		for _, a := range annotations.PackageOnlyAnnotations {
+			if a.ObjectName == objectName && a.Kind == kind {
+				return &a
+			}
+		}
+		return nil
+	}
+
+	t.Run("PackageOnlyAnnotations slice exists", func(t *testing.T) {
+		assert.NotNil(t, annotations.PackageOnlyAnnotations, "PackageOnlyAnnotations slice should exist")
+	})
+
+	t.Run("PackageOnlyType type has @packageonly", func(t *testing.T) {
+		annot := findPackageOnly("PackageOnlyType", TestOnlyOnType)
+		require.NotNil(t, annot, "@packageonly annotation not found on PackageOnlyType type")
+		assert.Equal(t, TestOnlyOnType, annot.Kind)
+		assert.Equal(t, "PackageOnlyType", annot.ObjectName)
+		assert.Equal(t, "", annot.ReceiverType)
+		// Should always include current package
+		assert.Contains(t, annot.AllowedPackages, "github.com/a14e/gogreement/testdata/unit/packageonlysource")
+		// And the specified packages
+		assert.Contains(t, annot.AllowedPackages, "allowedpkg")
+		assert.Contains(t, annot.AllowedPackages, "packageonlyallowed")
+	})
+
+	t.Run("PackageOnlyFunction function has @packageonly", func(t *testing.T) {
+		annot := findPackageOnly("PackageOnlyFunction", TestOnlyOnFunc)
+		require.NotNil(t, annot, "@packageonly annotation not found on PackageOnlyFunction function")
+		assert.Equal(t, TestOnlyOnFunc, annot.Kind)
+		assert.Equal(t, "PackageOnlyFunction", annot.ObjectName)
+		assert.Equal(t, "", annot.ReceiverType)
+		// Should always include current package
+		assert.Contains(t, annot.AllowedPackages, "github.com/a14e/gogreement/testdata/unit/packageonlysource")
+		// And the specified packages
+		assert.Contains(t, annot.AllowedPackages, "allowedpkg")
+		assert.Contains(t, annot.AllowedPackages, "packageonlyallowed")
+	})
+
+	t.Run("PackageOnlyStruct method has @packageonly", func(t *testing.T) {
+		annot := findPackageOnly("PackageOnlyMethod", TestOnlyOnMethod)
+		require.NotNil(t, annot, "@packageonly annotation not found on PackageOnlyMethod method")
+		assert.Equal(t, TestOnlyOnMethod, annot.Kind)
+		assert.Equal(t, "PackageOnlyMethod", annot.ObjectName)
+		assert.Equal(t, "PackageOnlyStruct", annot.ReceiverType)
+		// Should always include current package
+		assert.Contains(t, annot.AllowedPackages, "github.com/a14e/gogreement/testdata/unit/packageonlysource")
+		// And the specified packages
+		assert.Contains(t, annot.AllowedPackages, "allowedpkg")
+		assert.Contains(t, annot.AllowedPackages, "packageonlyallowed")
+	})
+
+	t.Run("Regular items should not have @packageonly", func(t *testing.T) {
+		// RegularType type should not have annotation
+		typeAnnot := findPackageOnly("RegularType", TestOnlyOnType)
+		assert.Nil(t, typeAnnot, "RegularType type should not have @packageonly annotation")
+
+		// RegularFunction function should not have annotation
+		funcAnnot := findPackageOnly("RegularFunction", TestOnlyOnFunc)
+		assert.Nil(t, funcAnnot, "RegularFunction function should not have @packageonly annotation")
+
+		// RegularStruct method should not have annotation
+		methodAnnot := findPackageOnly("RegularMethod", TestOnlyOnMethod)
+		assert.Nil(t, methodAnnot, "RegularMethod method should not have @packageonly annotation")
+	})
+
+	t.Run("Total count of @packageonly annotations", func(t *testing.T) {
+		assert.Equal(t, 4, len(annotations.PackageOnlyAnnotations), "should have exactly 4 @packageonly annotations")
+	})
+}
