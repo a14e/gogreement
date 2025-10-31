@@ -23,7 +23,7 @@ func main() {
 ## Installation
 
 ```bash
-go install github.com/a14e/gogreement@latest
+go install github.com/a14e/gogreement/cmd/gogreement@latest
 ```
 
 Run on your project:

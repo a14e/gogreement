@@ -161,7 +161,9 @@ func iterOverPackages[T annotations.AnnotationWrapper](
 			for _, imp := range pass.Pkg.Imports() {
 				fact := zero.Empty()
 				if pass.ImportPackageFact(imp, fact) {
-					yield(imp, fact.GetAnnotations())
+					if !yield(imp, fact.GetAnnotations()) {
+						return
+					}
 				}
 			}
 		}

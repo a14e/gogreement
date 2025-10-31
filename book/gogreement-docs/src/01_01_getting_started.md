@@ -4,9 +4,21 @@ This guide will help you install and start using GoGreement in your Go projects.
 
 ## Installation
 
-### From Source
+### Recommended: Binary Installation
 
-Clone the repository and build from source:
+The easiest way to install GoGreement is using `go install`:
+
+```bash
+go install github.com/a14e/gogreement/cmd/gogreement@latest
+```
+
+This will download and install the latest release of GoGreement to your `$GOPATH/bin` (or `$HOME/go/bin` if you're using Go modules).
+
+**Important**: Make sure your `$GOPATH/bin` (or `$HOME/go/bin`) is in your `PATH` to run `gogreement` from anywhere.
+
+### From Source (for developers)
+
+If you prefer to build from source or want to contribute:
 
 ```bash
 git clone https://github.com/a14e/gogreement
@@ -15,16 +27,6 @@ make build
 ```
 
 This will create a `gogreement` (or `gogreement.exe` on Windows) binary in the project directory.
-
-### Installing the Binary
-
-After building, you can install the binary to your `$GOPATH/bin`:
-
-```bash
-go install github.com/a14e/gogreement/cmd/gogreement@latest
-```
-
-Ensure `$GOPATH/bin` is in your `PATH` to run `gogreement` from anywhere.
 
 ## Usage
 
