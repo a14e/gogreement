@@ -67,12 +67,34 @@ type Point struct {
 }
 ```
 
+## Annotation Scope
+
+Annotations are only recognized on **top-level declarations**:
+
+```go
+// ✅ Top-level declaration - annotation works
+// @immutable
+type Config struct {
+    Host string
+}
+
+func Example() {
+    // ❌ Not a top-level declaration - annotation ignored
+    // @immutable
+    type LocalConfig struct {
+        Host string
+    }
+}
+```
+
+Annotations on nested types, local functions, or any declarations inside functions are ignored by GoGreement.
+
 ## Annotation Processing
 
 GoGreement uses a two-phase approach:
 
 1. **Reading Phase** (`AnnotationReader` analyzer)
-   - Scans all files for annotations
+   - Scans all files for annotations on top-level declarations
    - Parses and validates syntax
    - Exports annotations as package facts
 

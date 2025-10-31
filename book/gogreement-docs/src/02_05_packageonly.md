@@ -48,6 +48,7 @@ GoGreement detects usage of `@packageonly` items outside allowed packages:
 4. **Catches all usage**: Type assertions, composite literals, variable declarations
 5. **Can be suppressed**: Use `@ignore` to allow usage in specific places
 6. **Cross-package enforcement**: Works even if `@packageonly` was declared in an external module
+7. **Multiple annotations supported**: Multiple `@packageonly` annotations on the same declaration combine their package lists - all specified packages are allowed
 
 ## Can Be Declared On
 
@@ -203,6 +204,31 @@ func debugFunction() {
     cache := InternalCache{}  // ✅ Suppressed
 }
 ```
+
+### ✅ Multiple Annotations (Merged)
+
+Multiple `@packageonly` annotations on the same declaration are merged together:
+
+```go
+package helpers
+
+// @packageonly services
+// @packageonly handlers, controllers
+type SharedHelper struct {
+    data string
+}
+```
+
+This is equivalent to:
+
+```go
+// @packageonly services, handlers, controllers
+type SharedHelper struct {
+    data string
+}
+```
+
+All packages from all `@packageonly` annotations are combined into a single allowed list. This is useful when annotations are added incrementally or by different developers.
 
 ### ✅ Cross-Package Enforcement
 
