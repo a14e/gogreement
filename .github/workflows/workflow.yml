@@ -36,7 +36,7 @@ jobs:
         run: make install
 
       - name: Run tests with coverage
-        run: make test TEST_ARGS="-coverprofile=coverage.txt"
+        run: make test TEST_ARGS="-covermode=atomic -coverpkg=./... -coverprofile=coverage.txt"
 
       - name: Run project CI (without tests to avoid duplication)
         run: make pre-build && make build
