@@ -1,5 +1,12 @@
 .PHONY: build install lint pre-build fmt test
 
+# TEST_ARGS allows passing additional arguments to go test
+# Examples:
+#   make test                           # Run tests with default settings
+#   make test TEST_ARGS="-v"           # Run tests with verbose output
+#   make test TEST_ARGS="-coverprofile=coverage.txt"  # Generate coverage profile
+#   make test TEST_ARGS="-race -cover" # Run tests with race detection and coverage
+
 build: pre-build
 	go build ./cmd/gogreement
 
@@ -18,7 +25,7 @@ fmt:
 	go fmt ./...
 
 test:
-	go test  ./...
+	go test $(if $(TEST_ARGS),$(TEST_ARGS),) ./...
 
 pre-build: tidy fmt lint test
 

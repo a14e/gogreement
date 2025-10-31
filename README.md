@@ -1,5 +1,12 @@
 # GoGreement
 
+[![CI](https://github.com/a14e/gogreement/workflows/CI/badge.svg)](https://github.com/a14e/gogreement/actions)
+[![codecov](https://codecov.io/github/a14e/gogreement/graph/badge.svg?token=CZWXY3URMF)](https://codecov.io/github/a14e/gogreement)
+[![Documentation](https://img.shields.io/badge/mdBook-docs-blue.svg)](https://a14e.github.io/gogreement)
+[![Go Reference](https://pkg.go.dev/badge/github.com/a14e/gogreement.svg)](https://pkg.go.dev/github.com/a14e/gogreement)
+[![Go Report Card](https://goreportcard.com/badge/github.com/a14e/gogreement)](https://goreportcard.com/report/github.com/a14e/gogreement)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A static analyzer for Go that enforces developer agreements through code annotations.
 
 ## What is it?
@@ -23,7 +30,7 @@ func main() {
 ## Installation
 
 ```bash
-go install github.com/a14e/gogreement/cmd/gogreement@latest
+go install github.com/a14e/gаogreement/cmd/gogreement@latest
 ```
 
 Run on your project:
