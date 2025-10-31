@@ -86,10 +86,25 @@ func ParseFlagsFromFlagSet(fs *flag.FlagSet) *Config {
 		return FromEnv()
 	}
 
-	// Get flag values
-	scanTests := fs.Lookup("scan-tests").Value.(flag.Getter).Get().(bool)
-	excludePathsStr := fs.Lookup("exclude-paths").Value.String()
-	excludeChecksStr := fs.Lookup("exclude-checks").Value.String()
+	// Get flag values with nil checks
+	scanTestsFlag := fs.Lookup("scan-tests")
+	excludePathsFlag := fs.Lookup("exclude-paths")
+	excludeChecksFlag := fs.Lookup("exclude-checks")
+
+	var scanTests bool
+	var excludePathsStr, excludeChecksStr string
+
+	if scanTestsFlag != nil {
+		scanTests = scanTestsFlag.Value.(flag.Getter).Get().(bool)
+	}
+
+	if excludePathsFlag != nil {
+		excludePathsStr = excludePathsFlag.Value.String()
+	}
+
+	if excludeChecksFlag != nil {
+		excludeChecksStr = excludeChecksFlag.Value.String()
+	}
 
 	// Parse flag values
 	finalExcludePaths := parseStringList(excludePathsStr, false)
@@ -142,11 +157,6 @@ func parseEnvValue(key string, toUpper bool, defaultValue []string) []string {
 		return parseStringList(envVal, toUpper)
 	}
 	return defaultValue
-}
-
-// parseFlagValue parses a command line flag value
-func parseFlagValue(value string, toUpper bool) []string {
-	return parseStringList(value, toUpper)
 }
 
 // WithScanTests returns a new Config with ScanTests set to the specified value
