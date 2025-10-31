@@ -8,11 +8,17 @@ This guide will help you install and start using GoGreement in your Go projects.
 
 The easiest way to install GoGreement is using `go install`:
 
+#### For stable version (recommended):
+```bash
+go install github.com/a14e/gogreement/cmd/gogreement@v0.0.1
+```
+
+#### For latest version:
 ```bash
 go install github.com/a14e/gogreement/cmd/gogreement@latest
 ```
 
-This will download and install the latest release of GoGreement to your `$GOPATH/bin` (or `$HOME/go/bin` if you're using Go modules).
+This will download and install GoGreement to your `$GOPATH/bin` (or `$HOME/go/bin` if you're using Go modules).
 
 **Important**: Make sure your `$GOPATH/bin` (or `$HOME/go/bin`) is in your `PATH` to run `gogreement` from anywhere.
 
@@ -188,7 +194,7 @@ jobs:
           go-version: '1.22'
 
       - name: Install GoGreement
-        run: go install github.com/a14e/gogreement/cmd/gogreement@latest
+        run: go install github.com/a14e/gogreement/cmd/gogreement@v0.0.1
 
       - name: Run GoGreement
         run: gogreement ./...

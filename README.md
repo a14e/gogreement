@@ -29,8 +29,14 @@ func main() {
 
 ## Installation
 
+### For stable version (recommended):
 ```bash
-go install github.com/a14e/gаogreement/cmd/gogreement@latest
+go install github.com/a14e/gogreement/cmd/gogreement@v0.0.1
+```
+
+### For latest version:
+```bash
+go install github.com/a14e/gogreement/cmd/gogreement@latest
 ```
 
 Run on your project:
