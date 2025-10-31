@@ -11,7 +11,7 @@ import (
 )
 
 func TestPackageAnnotationsGobSerialization(t *testing.T) {
-	t.Run("Empty PackageAnnotations", func(t *testing.T) {
+	t.Run("CreateEmpty PackageAnnotations", func(t *testing.T) {
 		original := PackageAnnotations{}
 
 		var buf bytes.Buffer

@@ -2,7 +2,7 @@ package util
 
 import (
 	"go/token"
-	"strings"
+	"slices"
 
 	"github.com/a14e/gogreement/src/codes"
 )
@@ -32,6 +32,8 @@ type IgnoreSet struct {
 
 	// Index: code -> list of marker indices that contain this code
 	CodeIndex map[string][]int
+
+	moduleIgnores []string
 
 	// Min and max positions for quick range check
 	MinPos token.Pos
@@ -102,6 +104,14 @@ func (s *IgnoreSet) Contains(code string, pos token.Pos) bool {
 		return false
 	}
 
+	if len(s.moduleIgnores) != 0 {
+		for checkCode := range codes.GetCodesForCheck(code) {
+			if s.moduleIgnores != nil && slices.Contains(s.moduleIgnores, checkCode) {
+				return true
+			}
+		}
+	}
+
 	// Quick range check: if pos is outside all markers, return false
 	if s.MinPos == token.NoPos || pos < s.MinPos || pos > s.MaxPos {
 		return false
@@ -109,6 +119,7 @@ func (s *IgnoreSet) Contains(code string, pos token.Pos) bool {
 
 	// Check all codes in the hierarchy: ALL, category, specific code
 	for checkCode := range codes.GetCodesForCheck(code) {
+
 		indices, exists := s.CodeIndex[checkCode]
 		if exists {
 			for _, idx := range indices {
@@ -136,41 +147,7 @@ func (s *IgnoreSet) Len() int {
 // This will ignore all violations for the specified codes everywhere
 func (s *IgnoreSet) AddModuleIgnore(codes []string) {
 	s.ensureInitialized()
-	if s == nil {
-		return
-	}
-
-	// Convert codes to uppercase
-	upperCodes := make([]string, len(codes))
-	for i, code := range codes {
-		upperCodes[i] = strings.ToUpper(code)
-	}
-
-	// Create marker that covers entire range (0 to max int)
-	marker := IgnoreMarker{
-		Codes:    upperCodes,
-		StartPos: 0,
-		EndPos:   token.Pos(^uint(0) >> 1), // Max int for token.Pos
-	}
-
-	// Add to markers list
-	index := len(s.Markers)
-	s.Markers = append(s.Markers, marker)
-
-	// Update code index
-	for _, code := range marker.Codes {
-		s.CodeIndex[code] = append(s.CodeIndex[code], index)
-	}
-
-	// Update min/max positions
-	// Since this covers entire range, set extremes
-	if s.MinPos == token.NoPos || 0 < s.MinPos {
-		s.MinPos = 0
-	}
-	maxPos := token.Pos(^uint(0) >> 1)
-	if s.MaxPos == token.NoPos || maxPos > s.MaxPos {
-		s.MaxPos = maxPos
-	}
+	s.moduleIgnores = append(s.moduleIgnores, codes...)
 }
 
 // Empty returns true if the set contains no markers

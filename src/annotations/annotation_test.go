@@ -1,10 +1,11 @@
 package annotations
 
 import (
-	"github.com/a14e/gogreement/src/config"
-	"github.com/a14e/gogreement/src/testutil"
 	"go/ast"
 	"testing"
+
+	"github.com/a14e/gogreement/src/config"
+	"github.com/a14e/gogreement/src/testutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

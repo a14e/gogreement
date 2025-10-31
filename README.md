@@ -112,14 +112,14 @@ Control behavior with environment variables or command flags:
 
 ```bash
 # Skip test files
-gogreement --scan-tests=false ./...
+gogreement --config.scan-tests=false ./...
 
 # Exclude specific paths
 export GOGREEMENT_EXCLUDE_PATHS="vendor,generated"
 gogreement ./...
 
 # Disable specific checks
-gogreement --exclude-checks=IMM,CTOR ./...
+gogreement --config.exclude-checks=IMM,CTOR ./...
 ```
 
 ## Why use it?

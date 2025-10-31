@@ -32,7 +32,7 @@ func (*PackageAnnotations) AFact() {}
 type AnnotationWrapper interface {
 	analysis.Fact
 	GetAnnotations() *PackageAnnotations
-	Empty() AnnotationWrapper
+	CreateEmpty() AnnotationWrapper
 }
 
 // Unique fact types for each analyzer to enable cross-package fact sharing
@@ -50,7 +50,7 @@ func (f *AnnotationReaderFact) GetAnnotations() *PackageAnnotations {
 	return (*PackageAnnotations)(f)
 }
 
-func (*AnnotationReaderFact) Empty() AnnotationWrapper {
+func (*AnnotationReaderFact) CreateEmpty() AnnotationWrapper {
 	return &AnnotationReaderFact{}
 }
 
@@ -65,7 +65,7 @@ func (f *ImplementsCheckerFact) GetAnnotations() *PackageAnnotations {
 	return (*PackageAnnotations)(f)
 }
 
-func (*ImplementsCheckerFact) Empty() AnnotationWrapper {
+func (*ImplementsCheckerFact) CreateEmpty() AnnotationWrapper {
 	return &ImplementsCheckerFact{}
 }
 
@@ -80,7 +80,7 @@ func (f *ImmutableCheckerFact) GetAnnotations() *PackageAnnotations {
 	return (*PackageAnnotations)(f)
 }
 
-func (*ImmutableCheckerFact) Empty() AnnotationWrapper {
+func (*ImmutableCheckerFact) CreateEmpty() AnnotationWrapper {
 	return &ImmutableCheckerFact{}
 }
 
@@ -95,7 +95,7 @@ func (f *ConstructorCheckerFact) GetAnnotations() *PackageAnnotations {
 	return (*PackageAnnotations)(f)
 }
 
-func (*ConstructorCheckerFact) Empty() AnnotationWrapper {
+func (*ConstructorCheckerFact) CreateEmpty() AnnotationWrapper {
 	return &ConstructorCheckerFact{}
 }
 
@@ -110,7 +110,7 @@ func (f *TestOnlyCheckerFact) GetAnnotations() *PackageAnnotations {
 	return (*PackageAnnotations)(f)
 }
 
-func (*TestOnlyCheckerFact) Empty() AnnotationWrapper {
+func (*TestOnlyCheckerFact) CreateEmpty() AnnotationWrapper {
 	return &TestOnlyCheckerFact{}
 }
 
@@ -125,7 +125,7 @@ func (f *PackageOnlyCheckerFact) GetAnnotations() *PackageAnnotations {
 	return (*PackageAnnotations)(f)
 }
 
-func (*PackageOnlyCheckerFact) Empty() AnnotationWrapper {
+func (*PackageOnlyCheckerFact) CreateEmpty() AnnotationWrapper {
 	return &PackageOnlyCheckerFact{}
 }
 
@@ -516,7 +516,6 @@ var matcher = ahocorasick.NewStringMatcher([]string{
 	"@immutable",
 	"@testonly",
 	"@mutable",
-	"@usein",
 	"@packageonly",
 })
 

@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"reflect"
+	"sync"
 
 	config "github.com/a14e/gogreement/src/config"
 
@@ -14,14 +15,47 @@ import (
 	"github.com/a14e/gogreement/src/implements"
 	"github.com/a14e/gogreement/src/packageonly"
 	"github.com/a14e/gogreement/src/testonly"
-	"github.com/a14e/gogreement/src/util"
 )
+
+// ConfigReader cache to avoid recreating config multiple times
+var (
+	cachedConfig = config.Empty()
+	configOnce   sync.Once
+)
+
+// runConfig reads configuration from environment variables and command line flags
+func runConfig(pass *analysis.Pass) (interface{}, error) {
+	// Use sync.Once to ensure config is created only once
+	configOnce.Do(func() {
+		// Use the analyzer's flags that were parsed by multichecker
+		// Note: multichecker automatically adds "config." prefix to all flag names
+		// (e.g., "scan-tests" becomes "config.scan-tests" in command line)
+		cachedConfig = config.ParseFlagsFromFlagSet(&pass.Analyzer.Flags)
+	})
+
+	return cachedConfig, nil
+}
+
+// ConfigReader reads configuration from environment variables and command line flags
+// This analyzer must run first to provide configuration to other analyzers
+// IMPORTANT: Name "config" is required for proper flag prefixing by multichecker
+// Do not change the analyzer name as it affects command-line flag names
+var ConfigReader = &analysis.Analyzer{
+	Name:       "config",
+	Doc:        "Reads configuration from environment variables and command line flags",
+	Run:        runConfig,
+	ResultType: reflect.TypeOf(config.Empty()),
+	Flags:      *config.CreateFlagSet(),
+}
 
 // AnnotationReader reads annotations from code and exports them as facts
 var AnnotationReader = &analysis.Analyzer{
 	Name: "annotationreader",
 	Doc:  "Reads @implements, @immutable, @constructor, @packageonly annotations from code",
 	Run:  runAnnotationReader,
+	Requires: []*analysis.Analyzer{
+		ConfigReader,
+	},
 	FactTypes: []analysis.Fact{
 		(*annotations.AnnotationReaderFact)(nil),
 	},
@@ -29,7 +63,7 @@ var AnnotationReader = &analysis.Analyzer{
 }
 
 func runAnnotationReader(pass *analysis.Pass) (interface{}, error) {
-	cfg := config.FromEnvCached()
+	cfg := pass.ResultOf[ConfigReader].(*config.Config)
 	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
 
 	// Export facts before isProjectPackage check so dependencies can use them
@@ -41,14 +75,17 @@ func runAnnotationReader(pass *analysis.Pass) (interface{}, error) {
 
 // IgnoreReader reads @ignore annotations from code
 var IgnoreReader = &analysis.Analyzer{
-	Name:       "ignorereader",
-	Doc:        "Reads @ignore CODE1, CODE2 annotations from code",
-	Run:        runIgnoreReader,
+	Name: "ignorereader",
+	Doc:  "Reads @ignore CODE1, CODE2 annotations from code",
+	Run:  runIgnoreReader,
+	Requires: []*analysis.Analyzer{
+		ConfigReader,
+	},
 	ResultType: reflect.TypeOf(ignore.IgnoreResult{}),
 }
 
 func runIgnoreReader(pass *analysis.Pass) (interface{}, error) {
-	cfg := config.FromEnvCached()
+	cfg := pass.ResultOf[ConfigReader].(*config.Config)
 	ignoreSet := ignore.ReadIgnoreAnnotations(cfg, pass)
 
 	return ignore.IgnoreResult{
@@ -62,6 +99,7 @@ var ImplementsChecker = &analysis.Analyzer{
 	Doc:  "Checks that types implement interfaces as declared by @implements",
 	Run:  runImplementsChecker,
 	Requires: []*analysis.Analyzer{
+		ConfigReader,
 		AnnotationReader,
 		IgnoreReader,
 	},
@@ -91,12 +129,7 @@ func runImplementsChecker(pass *analysis.Pass) (interface{}, error) {
 	}
 
 	// Get ignore set from IgnoreReader
-	var ignoreSet *util.IgnoreSet
-	if ignoreResult := pass.ResultOf[IgnoreReader]; ignoreResult != nil {
-		if ir, ok := ignoreResult.(ignore.IgnoreResult); ok {
-			ignoreSet = ir.IgnoreSet
-		}
-	}
+	ignoreSet := pass.ResultOf[IgnoreReader].(ignore.IgnoreResult).IgnoreSet
 
 	// Load interfaces and types
 	interfaceQueries := localAnnotations.ToInterfaceQuery()
@@ -122,6 +155,7 @@ var ImmutableChecker = &analysis.Analyzer{
 	Doc:  "Checks that types marked as @immutable follow immutability rules",
 	Run:  runImmutableChecker,
 	Requires: []*analysis.Analyzer{
+		ConfigReader,
 		AnnotationReader,
 		IgnoreReader,
 	},
@@ -139,7 +173,7 @@ func runImmutableChecker(pass *analysis.Pass) (interface{}, error) {
 	if !ok {
 		return nil, nil
 	}
-	cfg := config.FromEnvCached()
+	cfg := pass.ResultOf[ConfigReader].(*config.Config)
 
 	// Export facts before isProjectPackage check so dependencies can use them
 	fact := annotations.ImmutableCheckerFact(localAnnotations)
@@ -149,12 +183,7 @@ func runImmutableChecker(pass *analysis.Pass) (interface{}, error) {
 	// because we need to check for violations of @immutable types from imported packages
 
 	// Get ignore set from IgnoreReader
-	var ignoreSet *util.IgnoreSet
-	if ignoreResult := pass.ResultOf[IgnoreReader]; ignoreResult != nil {
-		if ir, ok := ignoreResult.(ignore.IgnoreResult); ok {
-			ignoreSet = ir.IgnoreSet
-		}
-	}
+	ignoreSet := pass.ResultOf[IgnoreReader].(ignore.IgnoreResult).IgnoreSet
 
 	// Check immutability violations
 	violations := immutable.CheckImmutable(cfg, pass, &localAnnotations)
@@ -171,6 +200,7 @@ var ConstructorChecker = &analysis.Analyzer{
 	Doc:  "Checks that types with @constructor are only instantiated in declared constructors",
 	Run:  runConstructorChecker,
 	Requires: []*analysis.Analyzer{
+		ConfigReader,
 		AnnotationReader,
 		IgnoreReader,
 	},
@@ -188,7 +218,7 @@ func runConstructorChecker(pass *analysis.Pass) (interface{}, error) {
 	if !ok {
 		return nil, nil
 	}
-	cfg := config.FromEnvCached()
+	cfg := pass.ResultOf[ConfigReader].(*config.Config)
 
 	// Export facts before isProjectPackage check so dependencies can use them
 	fact := annotations.ConstructorCheckerFact(localAnnotations)
@@ -198,12 +228,7 @@ func runConstructorChecker(pass *analysis.Pass) (interface{}, error) {
 	// because we need to check for violations of @constructor types from imported packages
 
 	// Get ignore set from IgnoreReader
-	var ignoreSet *util.IgnoreSet
-	if ignoreResult := pass.ResultOf[IgnoreReader]; ignoreResult != nil {
-		if ir, ok := ignoreResult.(ignore.IgnoreResult); ok {
-			ignoreSet = ir.IgnoreSet
-		}
-	}
+	ignoreSet := pass.ResultOf[IgnoreReader].(ignore.IgnoreResult).IgnoreSet
 
 	// Check constructor violations
 	violations := constructor.CheckConstructor(cfg, pass, &localAnnotations)
@@ -220,6 +245,7 @@ var TestOnlyChecker = &analysis.Analyzer{
 	Doc:  "Checks that @testonly items are only used in test files",
 	Run:  runTestOnlyChecker,
 	Requires: []*analysis.Analyzer{
+		ConfigReader,
 		AnnotationReader,
 		IgnoreReader,
 	},
@@ -237,7 +263,7 @@ func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 	if !ok {
 		return nil, nil
 	}
-	cfg := config.FromEnvCached()
+	cfg := pass.ResultOf[ConfigReader].(*config.Config)
 
 	// Export facts before isProjectPackage check so dependencies can use them
 	fact := annotations.TestOnlyCheckerFact(localAnnotations)
@@ -247,12 +273,7 @@ func runTestOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 	// because we need to check for violations of @testonly items from imported packages
 
 	// Get ignore set from IgnoreReader
-	var ignoreSet *util.IgnoreSet
-	if ignoreResult := pass.ResultOf[IgnoreReader]; ignoreResult != nil {
-		if ir, ok := ignoreResult.(ignore.IgnoreResult); ok {
-			ignoreSet = ir.IgnoreSet
-		}
-	}
+	ignoreSet := pass.ResultOf[IgnoreReader].(ignore.IgnoreResult).IgnoreSet
 
 	// Check testonly violations
 	// NOTE: ignoreSet is passed to CheckTestOnly for early filtering
@@ -274,6 +295,7 @@ var PackageOnlyChecker = &analysis.Analyzer{
 	Doc:  "Checks that @packageonly items are only used in allowed packages",
 	Run:  runPackageOnlyChecker,
 	Requires: []*analysis.Analyzer{
+		ConfigReader,
 		AnnotationReader,
 		IgnoreReader,
 	},
@@ -291,7 +313,7 @@ func runPackageOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 	if !ok {
 		return nil, nil
 	}
-	cfg := config.FromEnvCached()
+	cfg := pass.ResultOf[ConfigReader].(*config.Config)
 
 	// Export facts before isProjectPackage check so dependencies can use them
 	fact := annotations.PackageOnlyCheckerFact(localAnnotations)
@@ -301,12 +323,7 @@ func runPackageOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 	// because we need to check for violations of @packageonly items from imported packages
 
 	// Get ignore set from IgnoreReader
-	var ignoreSet *util.IgnoreSet
-	if ignoreResult := pass.ResultOf[IgnoreReader]; ignoreResult != nil {
-		if ir, ok := ignoreResult.(ignore.IgnoreResult); ok {
-			ignoreSet = ir.IgnoreSet
-		}
-	}
+	ignoreSet := pass.ResultOf[IgnoreReader].(ignore.IgnoreResult).IgnoreSet
 
 	// Check packageonly violations
 	violations := packageonly.CheckPackageOnly(cfg, pass, &localAnnotations, ignoreSet)
@@ -320,12 +337,13 @@ func runPackageOnlyChecker(pass *analysis.Pass) (interface{}, error) {
 // AllAnalyzers returns all available analyzers
 func AllAnalyzers() []*analysis.Analyzer {
 	return []*analysis.Analyzer{
+		ConfigReader,
 		AnnotationReader,
+		IgnoreReader,
 		ImplementsChecker,
 		ImmutableChecker,
 		ConstructorChecker,
 		TestOnlyChecker,
 		PackageOnlyChecker,
-		IgnoreReader,
 	}
 }

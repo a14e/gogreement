@@ -17,10 +17,13 @@ import (
 func setupTestEnv() func() {
 	oldScanTests, setScanTests := os.LookupEnv("GOGREEMENT_SCAN_TESTS")
 	oldExcludePaths, setExcludePaths := os.LookupEnv("GOGREEMENT_EXCLUDE_PATHS")
+	oldEnvOnly, setEnvOnly := os.LookupEnv("GOGREEMENT_ENV_ONLY")
 
 	// Set exclude paths to empty string to disable exclusions (including testdata)
 	_ = os.Setenv("GOGREEMENT_EXCLUDE_PATHS", "")
 	_ = os.Unsetenv("GOGREEMENT_SCAN_TESTS")
+	// Enable env-only mode for testing (force reload environment variables)
+	_ = os.Setenv("GOGREEMENT_ENV_ONLY", "1")
 
 	return func() {
 		if setScanTests {
@@ -32,6 +35,11 @@ func setupTestEnv() func() {
 			_ = os.Setenv("GOGREEMENT_EXCLUDE_PATHS", oldExcludePaths)
 		} else {
 			_ = os.Unsetenv("GOGREEMENT_EXCLUDE_PATHS")
+		}
+		if setEnvOnly {
+			_ = os.Setenv("GOGREEMENT_ENV_ONLY", oldEnvOnly)
+		} else {
+			_ = os.Unsetenv("GOGREEMENT_ENV_ONLY")
 		}
 	}
 }

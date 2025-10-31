@@ -1,6 +1,8 @@
 package config
 
 import (
+	"bytes"
+	"encoding/gob"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -103,96 +105,96 @@ func TestFromEnv(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				t.Setenv("GOGREEMENT_SCAN_TESTS", tt.envValue)
 
-				cfg := fromEnvForTesting()
+				cfg := FromEnv()
 				assert.Equal(t, tt.expected, cfg.ScanTests, "env value %q should result in ScanTests=%v", tt.envValue, tt.expected)
 			})
 		}
 	})
 
 	t.Run("ExcludePaths defaults to testdata when not set", func(t *testing.T) {
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.Equal(t, []string{"testdata"}, cfg.ExcludePaths)
 	})
 
 	t.Run("ExcludePaths empty string means no exclusions", func(t *testing.T) {
 		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", "")
 
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.Equal(t, []string{}, cfg.ExcludePaths, "empty string should result in no exclusions")
 	})
 
 	t.Run("ExcludePaths single path", func(t *testing.T) {
 		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", "vendor")
 
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.Equal(t, []string{"vendor"}, cfg.ExcludePaths)
 	})
 
 	t.Run("ExcludePaths multiple paths", func(t *testing.T) {
 		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", "vendor,node_modules,tmp")
 
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.Equal(t, []string{"vendor", "node_modules", "tmp"}, cfg.ExcludePaths)
 	})
 
 	t.Run("ExcludePaths with spaces", func(t *testing.T) {
 		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", " vendor , node_modules , tmp ")
 
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.Equal(t, []string{"vendor", "node_modules", "tmp"}, cfg.ExcludePaths)
 	})
 
 	t.Run("ExcludePaths with empty items", func(t *testing.T) {
 		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", "vendor,,node_modules")
 
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.Equal(t, []string{"vendor", "node_modules"}, cfg.ExcludePaths, "empty items should be filtered out")
 	})
 
 	t.Run("ExcludePaths with only spaces and commas", func(t *testing.T) {
 		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", " , , ")
 
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.Equal(t, []string{}, cfg.ExcludePaths, "only spaces should result in empty array")
 	})
 
 	t.Run("ExcludeChecks defaults to empty when not set", func(t *testing.T) {
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.Equal(t, []string{}, cfg.ExcludeChecks, "default ExcludeChecks should be empty")
 	})
 
 	t.Run("ExcludeChecks empty string means no exclusions", func(t *testing.T) {
 		t.Setenv("GOGREEMENT_EXCLUDE_CHECKS", "")
 
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.Equal(t, []string{}, cfg.ExcludeChecks, "empty string should result in no exclusions")
 	})
 
 	t.Run("ExcludeChecks single code", func(t *testing.T) {
 		t.Setenv("GOGREEMENT_EXCLUDE_CHECKS", "imm01")
 
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.Equal(t, []string{"IMM01"}, cfg.ExcludeChecks, "code should be converted to uppercase")
 	})
 
 	t.Run("ExcludeChecks multiple codes", func(t *testing.T) {
 		t.Setenv("GOGREEMENT_EXCLUDE_CHECKS", "imm01,ctor,tonl")
 
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.Equal(t, []string{"IMM01", "CTOR", "TONL"}, cfg.ExcludeChecks, "codes should be converted to uppercase")
 	})
 
 	t.Run("ExcludeChecks with spaces", func(t *testing.T) {
 		t.Setenv("GOGREEMENT_EXCLUDE_CHECKS", " imm01 , ctor , tonl ")
 
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.Equal(t, []string{"IMM01", "CTOR", "TONL"}, cfg.ExcludeChecks, "codes should be trimmed and converted to uppercase")
 	})
 
 	t.Run("ExcludeChecks with empty items", func(t *testing.T) {
 		t.Setenv("GOGREEMENT_EXCLUDE_CHECKS", "imm01,,ctor")
 
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.Equal(t, []string{"IMM01", "CTOR"}, cfg.ExcludeChecks, "empty items should be filtered out")
 	})
 }
@@ -234,32 +236,11 @@ func TestParseBool(t *testing.T) {
 	}
 }
 
-func TestFromEnvCached(t *testing.T) {
-	t.Run("returns cached config on subsequent calls", func(t *testing.T) {
-		defer resetCache() // Reset cache before test
-		t.Setenv("GOGREEMENT_SCAN_TESTS", "true")
-		t.Setenv("GOGREEMENT_EXCLUDE_PATHS", "vendor,node_modules")
-		t.Setenv("GOGREEMENT_EXCLUDE_CHECKS", "imm01,ctor")
-
-		// First call
-		cfg1 := FromEnvCached()
-		assert.True(t, cfg1.ScanTests)
-		assert.Equal(t, []string{"vendor", "node_modules"}, cfg1.ExcludePaths)
-		assert.Equal(t, []string{"IMM01", "CTOR"}, cfg1.ExcludeChecks)
-
-		// Second call should return same cached instance
-		cfg2 := FromEnvCached()
-		assert.Same(t, cfg1, cfg2, "FromEnvCached should return the same cached instance")
-		assert.Equal(t, cfg1.ScanTests, cfg2.ScanTests)
-		assert.Equal(t, cfg1.ExcludePaths, cfg2.ExcludePaths)
-		assert.Equal(t, cfg1.ExcludeChecks, cfg2.ExcludeChecks)
-	})
-
+func TestFromEnvDefaults(t *testing.T) {
 	t.Run("works with default environment", func(t *testing.T) {
-		defer resetCache() // Reset cache before test
 		// Don't set env vars, let them be unset to test defaults
 
-		cfg := fromEnvForTesting()
+		cfg := FromEnv()
 		assert.False(t, cfg.ScanTests, "default ScanTests should be false")
 		assert.Equal(t, []string{"testdata"}, cfg.ExcludePaths, "default ExcludePaths should be [testdata]")
 	})
@@ -280,5 +261,77 @@ func TestConfigImmutability(t *testing.T) {
 		assert.NotSame(t, cfg1, cfg2, "cfg1 and cfg2 should be different instances")
 		assert.NotSame(t, cfg2, cfg3, "cfg2 and cfg3 should be different instances")
 		assert.NotSame(t, cfg1, cfg3, "cfg1 and cfg3 should be different instances even with same values")
+	})
+}
+
+func TestConfigGobSerialization(t *testing.T) {
+	t.Run("config can be serialized and deserialized with gob", func(t *testing.T) {
+		// Create a test config with various values
+		original := New(true, []string{"vendor", "node_modules", "testdata"}, []string{"IMM01", "CTOR", "TONL"})
+
+		// Serialize to gob
+		var buf bytes.Buffer
+		encoder := gob.NewEncoder(&buf)
+
+		err := encoder.Encode(original)
+		assert.NoError(t, err, "Config should be gob-encodable")
+
+		// Deserialize from gob
+		decoder := gob.NewDecoder(&buf)
+		var deserialized Config
+
+		err = decoder.Decode(&deserialized)
+		assert.NoError(t, err, "Config should be gob-decodable")
+
+		// Verify all fields match
+		assert.Equal(t, original.ScanTests, deserialized.ScanTests, "ScanTests should match after gob serialization")
+		assert.Equal(t, original.ExcludePaths, deserialized.ExcludePaths, "ExcludePaths should match after gob serialization")
+		assert.Equal(t, original.ExcludeChecks, deserialized.ExcludeChecks, "ExcludeChecks should match after gob serialization")
+	})
+
+	t.Run("empty config can be serialized and deserialized", func(t *testing.T) {
+		original := Empty()
+
+		// Serialize to gob
+		var buf bytes.Buffer
+		encoder := gob.NewEncoder(&buf)
+
+		err := encoder.Encode(original)
+		assert.NoError(t, err, "Empty config should be gob-encodable")
+
+		// Deserialize from gob
+		decoder := gob.NewDecoder(&buf)
+		var deserialized Config
+
+		err = decoder.Decode(&deserialized)
+		assert.NoError(t, err, "Empty config should be gob-decodable")
+
+		// Verify all fields match (note: gob converts empty slices to nil)
+		assert.Equal(t, original.ScanTests, deserialized.ScanTests)
+		assert.Equal(t, []string(nil), deserialized.ExcludePaths)  // gob converts empty slice to nil
+		assert.Equal(t, []string(nil), deserialized.ExcludeChecks) // gob converts empty slice to nil
+	})
+
+	t.Run("default config can be serialized and deserialized", func(t *testing.T) {
+		original := Default()
+
+		// Serialize to gob
+		var buf bytes.Buffer
+		encoder := gob.NewEncoder(&buf)
+
+		err := encoder.Encode(original)
+		assert.NoError(t, err, "Default config should be gob-encodable")
+
+		// Deserialize from gob
+		decoder := gob.NewDecoder(&buf)
+		var deserialized Config
+
+		err = decoder.Decode(&deserialized)
+		assert.NoError(t, err, "Default config should be gob-decodable")
+
+		// Verify all fields match (Default has ["testdata"] in ExcludePaths, so it's preserved)
+		assert.Equal(t, original.ScanTests, deserialized.ScanTests)
+		assert.Equal(t, original.ExcludePaths, deserialized.ExcludePaths)
+		assert.Equal(t, []string(nil), deserialized.ExcludeChecks) // gob converts empty slice to nil
 	})
 }

@@ -88,9 +88,9 @@ GoGreement can be configured using environment variables or command-line flags. 
 
 | Option | Environment Variable | Command-Line Flag | Default | Description |
 |--------|---------------------|-------------------|---------|-------------|
-| **Scan Tests** | `GOGREEMENT_SCAN_TESTS` | `--scan-tests` | `false` | Whether to analyze test files (`*_test.go`). By default, test files are excluded. |
-| **Exclude Paths** | `GOGREEMENT_EXCLUDE_PATHS` | `--exclude-paths` | `testdata` | Comma-separated list of path patterns to exclude. Paths are matched as substrings. |
-| **Exclude Checks** | `GOGREEMENT_EXCLUDE_CHECKS` | `--exclude-checks` | _(empty)_ | Comma-separated list of check codes to exclude globally. Supports individual codes (`IMM01`), categories (`IMM`), or `ALL`. |
+| **Scan Tests** | `GOGREEMENT_SCAN_TESTS` | `--config.scan-tests` | `false` | Whether to analyze test files (`*_test.go`). By default, test files are excluded. |
+| **Exclude Paths** | `GOGREEMENT_EXCLUDE_PATHS` | `--config.exclude-paths` | `testdata` | Comma-separated list of path patterns to exclude. Paths are matched as substrings. |
+| **Exclude Checks** | `GOGREEMENT_EXCLUDE_CHECKS` | `--config.exclude-checks` | _(empty)_ | Comma-separated list of check codes to exclude globally. Supports individual codes (`IMM01`), categories (`IMM`), or `ALL`. |
 
 ### Configuration Examples
 
@@ -120,19 +120,19 @@ gogreement ./...
 
 ```bash
 # Enable test file scanning
-gogreement --scan-tests=true ./...
+gogreement --config.scan-tests=true ./...
 
 # Exclude paths
-gogreement --exclude-paths=testdata,vendor ./...
+gogreement --config.exclude-paths=testdata,vendor ./...
 
 # Exclude specific error codes
-gogreement --exclude-checks=IMM01,CTOR02 ./...
+gogreement --config.exclude-checks=IMM01,CTOR02 ./...
 
 # Exclude entire category of checks
-gogreement --exclude-checks=IMM ./...
+gogreement --config.exclude-checks=IMM ./...
 
 # Combined flags
-gogreement --scan-tests=true --exclude-paths=vendor --exclude-checks=TONL ./...
+gogreement --config.scan-tests=true --config.exclude-paths=vendor --config.exclude-checks=TONL ./...
 ```
 
 ### Boolean Value Formats
@@ -159,14 +159,14 @@ export GOGREEMENT_EXCLUDE_CHECKS=imm01,ctor  # Becomes IMM01,CTOR
 
 ### Module-Level Exclusion
 
-Use `--exclude-checks` or `GOGREEMENT_EXCLUDE_CHECKS` to exclude checks across your entire project:
+Use `--config.exclude-checks` or `GOGREEMENT_EXCLUDE_CHECKS` to exclude checks across your entire project:
 
 ```bash
 # Exclude all immutability checks
-gogreement --exclude-checks=IMM ./...
+gogreement --config.exclude-checks=IMM ./...
 
 # Exclude specific codes
-gogreement --exclude-checks=IMM01,CTOR02,TONL03 ./...
+gogreement --config.exclude-checks=IMM01,CTOR02,TONL03 ./...
 ```
 
 ### File and Code-Level Exclusion

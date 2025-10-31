@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 
 	"golang.org/x/tools/go/analysis"
 )
@@ -55,16 +54,53 @@ func New(scanTests bool, excludePaths []string, excludeChecks []string) *Config 
 	}
 }
 
-// FromEnv creates a new Config from environment variables and command line flags.
-// Command line flags take priority over environment variables.
-func FromEnv() *Config {
-	return fromEnvWithFlags(true)
+// CreateFlagSet creates and returns a flagset with gogreement-specific flags.
+// This allows the flags to be registered in the analyzer and appear in help.
+// IMPORTANT: Flag names are automatically prefixed with "config" by multichecker framework
+// when used in the config analyzer. Do not modify flag names as it affects CLI.
+func CreateFlagSet() *flag.FlagSet {
+	fs := flag.NewFlagSet("gogreement", flag.ExitOnError)
+
+	// Get defaults from environment to avoid duplicating logic
+	defaultConfig := FromEnv()
+
+	// Setup flags with env values as defaults from FromEnv()
+	fs.Bool("scan-tests", defaultConfig.ScanTests, "Enable analysis of test files")
+	fs.String("exclude-paths", strings.Join(defaultConfig.ExcludePaths, ","), "Comma-separated list of paths to exclude from analysis")
+	fs.String("exclude-checks", strings.Join(defaultConfig.ExcludeChecks, ","), "Comma-separated list of check codes to exclude from analysis")
+
+	return fs
 }
 
-// fromEnvWithFlags creates a new Config from environment variables and optionally command line flags.
-// If parseFlags is false, only environment variables are used (for testing).
-func fromEnvWithFlags(parseFlags bool) *Config {
-	// Get environment values first
+// ParseFlagsFromFlagSet parses configuration from a FlagSet and environment variables.
+// Command line flags from the FlagSet take priority over environment variables.
+// If GOGREEMENT_ENV_ONLY is set, will use only environment variables (for testing).
+func ParseFlagsFromFlagSet(fs *flag.FlagSet) *Config {
+	if fs == nil {
+		return Empty()
+	}
+
+	// Check for env-only mode (for testing)
+	if os.Getenv("GOGREEMENT_ENV_ONLY") != "" {
+		// In test mode, ignore flag values and use only environment variables
+		return FromEnv()
+	}
+
+	// Get flag values
+	scanTests := fs.Lookup("scan-tests").Value.(flag.Getter).Get().(bool)
+	excludePathsStr := fs.Lookup("exclude-paths").Value.String()
+	excludeChecksStr := fs.Lookup("exclude-checks").Value.String()
+
+	// Parse flag values
+	finalExcludePaths := parseStringList(excludePathsStr, false)
+	finalExcludeChecks := parseStringList(excludeChecksStr, true)
+
+	return New(scanTests, finalExcludePaths, finalExcludeChecks)
+}
+
+// FromEnv creates a new Config from environment variables.
+func FromEnv() *Config {
+	// Get environment values
 	scanTests := false
 	excludePaths := []string{"testdata"} // Default
 	excludeChecks := []string{}          // Default - no exclusions
@@ -76,32 +112,8 @@ func fromEnvWithFlags(parseFlags bool) *Config {
 	excludePaths = parseEnvValue("GOGREEMENT_EXCLUDE_PATHS", false, excludePaths)
 	excludeChecks = parseEnvValue("GOGREEMENT_EXCLUDE_CHECKS", true, excludeChecks)
 
-	if parseFlags {
-		// Setup flags with env values as defaults
-		scanTestsFlag := flag.Bool("scan-tests", scanTests, "Enable analysis of test files")
-		excludePathsFlag := flag.String("exclude-paths", strings.Join(excludePaths, ","),
-			"Comma-separated list of paths to exclude from analysis")
-		excludeChecksFlag := flag.String("exclude-checks", strings.Join(excludeChecks, ","),
-			"Comma-separated list of check codes to exclude from analysis")
-
-		flag.Parse()
-
-		// Parse flag values (flags take priority)
-		finalExcludePaths := parseFlagValue(*excludePathsFlag, false)
-		finalExcludeChecks := parseFlagValue(*excludeChecksFlag, true)
-
-		return New(*scanTestsFlag, finalExcludePaths, finalExcludeChecks)
-	}
-
-	// Return config from environment variables only
 	return New(scanTests, excludePaths, excludeChecks)
 }
-
-// cache for FromEnvCached to avoid reallocations
-var (
-	envCache     *Config = Empty()
-	envCacheOnce sync.Once
-)
 
 // parseStringList parses a comma-separated string into a slice of strings
 // Converts to uppercase if specified
@@ -135,29 +147,6 @@ func parseEnvValue(key string, toUpper bool, defaultValue []string) []string {
 // parseFlagValue parses a command line flag value
 func parseFlagValue(value string, toUpper bool) []string {
 	return parseStringList(value, toUpper)
-}
-
-// FromEnvCached creates a new Config from environment variables with caching.
-// The first call will parse environment variables and cache the result.
-// Subsequent calls will return the cached config without allocation.
-func FromEnvCached() *Config {
-	envCacheOnce.Do(func() {
-		envCache = FromEnv()
-	})
-	return envCache
-}
-
-// resetCache resets the cached config for testing purposes
-// @testonly
-func resetCache() {
-	envCache = Empty()
-	envCacheOnce = sync.Once{}
-}
-
-// fromEnvForTesting creates a new Config from environment variables only (no flags)
-// @testonly
-func fromEnvForTesting() *Config {
-	return fromEnvWithFlags(false)
 }
 
 // WithScanTests returns a new Config with ScanTests set to the specified value

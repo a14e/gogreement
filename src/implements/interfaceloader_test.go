@@ -1,9 +1,10 @@
 package implements
 
 import (
+	"testing"
+
 	"github.com/a14e/gogreement/src/annotations"
 	"github.com/a14e/gogreement/src/testutil"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

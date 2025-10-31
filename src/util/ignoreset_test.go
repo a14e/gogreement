@@ -133,6 +133,35 @@ func TestIgnoreSet_Markers(t *testing.T) {
 	assert.Equal(t, token.Pos(40), set.Markers[1].EndPos)
 }
 
+func TestIgnoreSet_AddModuleIgnore(t *testing.T) {
+	set := &IgnoreSet{}
+
+	// Add module ignore for IMM01 and IMM02
+	set.AddModuleIgnore([]string{"IMM01", "IMM02"})
+
+	// Test that module ignores work regardless of position
+	assert.True(t, set.Contains("IMM01", token.Pos(100)))   // Should be ignored
+	assert.True(t, set.Contains("IMM02", token.Pos(200)))   // Should be ignored
+	assert.False(t, set.Contains("IMM03", token.Pos(300)))  // Should not be ignored
+	assert.False(t, set.Contains("CTOR01", token.Pos(400))) // Should not be ignored
+
+	// Test hierarchical checking - IMM should match IMM01
+	assert.True(t, set.Contains("IMM01", token.Pos(500))) // Should be ignored (direct match)
+
+	// Add regular annotation and ensure both work
+	ann := &mockAnnotation{
+		codes:    []string{"CTOR01"},
+		startPos: token.Pos(1000),
+		endPos:   token.Pos(2000),
+	}
+	set.Add(ann)
+
+	// Both module and regular ignores should work
+	assert.True(t, set.Contains("IMM01", token.Pos(1500)))   // Module ignore
+	assert.True(t, set.Contains("CTOR01", token.Pos(1500)))  // Regular ignore
+	assert.False(t, set.Contains("CTOR02", token.Pos(1500))) // No ignore
+}
+
 func TestIgnoreSet_MinMaxPositions(t *testing.T) {
 	set := &IgnoreSet{}
 

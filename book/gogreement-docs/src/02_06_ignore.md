@@ -72,7 +72,7 @@ func modify(p *Point) {
 1. **Hierarchical matching**: `ALL` > Category (`IMM`) > Specific code (`IMM01`)
 2. **Case-insensitive**: Codes are normalized to uppercase automatically
 3. **Only affects checking**: Doesn't affect annotation scanning phase
-4. **Module-level option**: Use `--exclude-checks` flag for project-wide exclusions
+4. **Module-level option**: Use `--config.exclude-checks` flag for project-wide exclusions
 
 ## Supported Annotations
 
@@ -332,10 +332,10 @@ For project-wide exclusions, use command-line flags instead of `@ignore`:
 
 ```bash
 # Exclude all immutability checks project-wide
-gogreement --exclude-checks=IMM ./...
+gogreement --config.exclude-checks=IMM ./...
 
 # Exclude specific codes
-gogreement --exclude-checks=IMM01,CTOR02 ./...
+gogreement --config.exclude-checks=IMM01,CTOR02 ./...
 ```
 
 Or set environment variable:
