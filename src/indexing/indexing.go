@@ -10,12 +10,10 @@ import (
 	"github.com/a14e/gogreement/src/util"
 )
 
-// We have to use an ugly solution here. This is because in the analysis framework facts are only passed
-// within a single analyzer
-// therefore we have to declare a new type for each analyzer. But this is just a named type over PackageAnnotations
-// that's why we use generics here
-// because of this it's important to ensure that the generic type matches the type used for facts in the specific
-// analyzer, otherwise it won't work
+// We have to use this ugly solution here.
+// Generics are not normally needed, but since facts cannot be reused between analyzers,
+// we need to find workarounds like this.
+// By index here we mean a specially prepared table with annotated data from the current and imported packages.
 
 // BuildImmutableTypesIndex creates an index of immutable types from current and imported packages
 func BuildImmutableTypesIndex[T annotations.AnnotationWrapper](pass *analysis.Pass, packageAnnotations *annotations.PackageAnnotations) util.TypesMap {

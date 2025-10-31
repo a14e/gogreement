@@ -36,6 +36,8 @@ jobs:
         run: make install
 
       - name: Run tests with coverage
+        # Pass TEST_ARGS to properly calculate coverage excluding testdata directories.
+        # tr and sed convert go list output from newline-separated to comma-separated format required by -coverpkg
         run: make test TEST_ARGS="-covermode=atomic -coverpkg=$(go list ./... | grep -v testdata | tr '\n' ',' | sed 's/,$//') -coverprofile=coverage.txt"
 
       - name: Run project CI (without tests to avoid duplication)
