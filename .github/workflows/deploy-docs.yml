@@ -6,6 +6,14 @@ on:
       - master
     paths:
       - 'book/**'
+      - 'Makefile'
+      - '.github/workflows/deploy-docs.yml'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'book/**'
+      - 'Makefile'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 
@@ -21,6 +29,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Always build the book (on PRs too) so rendering errors are caught before merge.
   build:
     runs-on: ubuntu-latest
     steps:
@@ -33,16 +42,18 @@ jobs:
           mdbook-version: 'latest'
 
       - name: Build book
-        run: |
-          cd book/gogreement-docs
-          mdbook build
+        run: make docs
 
       - name: Upload artifact
+        # Only the deploy path needs the artifact; PRs just validate the build.
+        if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./book/gogreement-docs/book
 
   deploy:
+    # Deploy only from master pushes, not from pull requests.
+    if: github.event_name == 'push'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

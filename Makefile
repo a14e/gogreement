@@ -1,4 +1,4 @@
-.PHONY: build install lint pre-build fmt test
+.PHONY: build install lint pre-build fmt test docs
 
 # TEST_ARGS allows passing additional arguments to go test
 # Examples:
@@ -23,6 +23,10 @@ lint:
 
 fmt:
 	go fmt ./...
+
+# Build the mdBook documentation. Requires mdbook (cargo install mdbook).
+docs:
+	cd book/gogreement-docs && mdbook build
 
 test:
 	go test $(if $(TEST_ARGS),$(TEST_ARGS),) ./...

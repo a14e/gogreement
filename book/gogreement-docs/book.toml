@@ -6,4 +6,4 @@ title = "GoGreement - Go Linter for Enforcing Code Agreements"
 
 [output.html]
 git-repository-url = "https://github.com/a14e/gogreement"
-git-repository-icon = "fa-github"
+git-repository-icon = "fab-github"
