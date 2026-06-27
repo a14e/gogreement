@@ -42,13 +42,14 @@ GoGreement detects usage of `@packageonly` items outside allowed packages:
 
 ## Key Behaviors
 
-1. **Current package always allowed**: The declaring package is automatically included
-2. **No generics support**: Cannot be used with generic declarations
-3. **Per-file deduplication**: Only one error per type per file (avoids spam)
-4. **Catches all usage**: Type assertions, composite literals, variable declarations
+1. **Current package always allowed**: The declaring package is automatically allowed (it is not shown in the "Allowed packages" list of an error message)
+2. **Generics supported**: Works on generic types and on methods declared on generic types
+3. **Dot imports enforced**: Symbols pulled in via `import . "pkg"` appear as bare identifiers but are still checked
+4. **Per-file deduplication**: Only one error per type per file (avoids spam)
 5. **Can be suppressed**: Use `@ignore` to allow usage in specific places
 6. **Cross-package enforcement**: Works even if `@packageonly` was declared in an external module
 7. **Multiple annotations supported**: Multiple `@packageonly` annotations on the same declaration combine their package lists - all specified packages are allowed
+8. **Interface dispatch is not tracked**: Calling a `@packageonly` method through an interface value is not detected, because the concrete type is not known statically
 
 ## Can Be Declared On
 
@@ -132,10 +133,10 @@ package main
 import "myapp/helpers"
 
 func main() {
-    // ❌ [PKGO01] type InternalHelper is marked @packageonly and can only be used in packages: [services, handlers, helpers]
+    // ❌ [PKGO01] InternalHelper type is @packageonly and cannot be used from main. Allowed packages: [services handlers helpers]
     h := helpers.InternalHelper{}
 
-    // ❌ [PKGO02] function ProcessInternal is marked @packageonly and can only be called in packages: [services, helpers]
+    // ❌ [PKGO02] ProcessInternal function is @packageonly and cannot be used from main. Allowed packages: [services helpers]
     helpers.ProcessInternal("data")
 }
 ```
@@ -186,7 +187,7 @@ import "myapp/repository"
 
 func HandleRequest(repo *repository.UserRepository) {
     user, _ := repo.GetUser(1)  // ✅ Allowed - public method
-    // ❌ [PKGO03] method InsertTestData on UserRepository is marked @packageonly and can only be called in packages: [testing, repository]
+    // ❌ [PKGO03] UserRepository.InsertTestData method is @packageonly and cannot be used from main. Allowed packages: [testing repository]
     repo.InsertTestData(nil)
 }
 ```
@@ -251,7 +252,7 @@ package main
 import "external/lib"
 
 func main() {
-    // ❌ [PKGO01] type InternalAPI is marked @packageonly and can only be used in packages: [myapp/internal/core, lib]
+    // ❌ [PKGO01] InternalAPI type is @packageonly and cannot be used from main. Allowed packages: [myapp/internal/core lib]
     api := lib.InternalAPI{}
 }
 ```

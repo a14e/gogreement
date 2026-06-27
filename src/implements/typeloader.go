@@ -19,10 +19,14 @@ type TypeModel struct {
 // TypeMethod represents a method of a type
 // @immutable
 type TypeMethod struct {
-	Name              string
-	Inputs            []MethodType
-	Outputs           []MethodType
-	ReceiverIsPointer bool // true if receiver is *T, false if T
+	Name string
+	// Id is the method's qualified identifier (the bare name for exported
+	// methods, "pkgpath.name" for unexported ones). Used for matching so an
+	// unexported interface method is only satisfied by a same-package method.
+	Id         string
+	Inputs     []MethodType
+	Outputs    []MethodType
+	InValueSet bool // true if the method is in the value method set of T (not only *T)
 }
 
 // MethodType represents a type in method signature
@@ -33,6 +37,10 @@ type MethodType struct {
 	TypePackage string
 	IsPointer   bool
 	IsVariadic  bool
+	// Canonical is the full go/types string of the type. It captures generic
+	// type arguments (List[int] vs List[string]) and pointer depth (*T vs **T)
+	// that the coarse fields above lose.
+	Canonical string
 }
 
 // LoadTypes loads specified named types from the current package
@@ -102,6 +110,9 @@ func findTypesInPackage(
 
 // getUnderlyingTypeName returns a string representation of the underlying type
 func getUnderlyingTypeName(t types.Type) string {
+	if t == nil {
+		return ""
+	}
 	switch ut := t.(type) {
 	case *types.Struct:
 		return "struct"
@@ -126,11 +137,21 @@ func getUnderlyingTypeName(t types.Type) string {
 	}
 }
 
-// extractMethodsFromNamedType extracts all methods (value + pointer receivers)
+// extractMethodsFromNamedType extracts all methods (value + pointer receivers).
+// InValueSet records whether a method belongs to the value method set of T,
+// computed from the real method set so promotion through embedded pointer
+// fields is handled correctly (rather than inferred from the receiver kind).
 func extractMethodsFromNamedType(named *types.Named) []TypeMethod {
 	var methods []TypeMethod
 
-	// Get method set for *T (includes both T and *T receivers)
+	// Method set of the value T (used to determine value-set membership).
+	valueSet := make(map[string]bool)
+	vSet := types.NewMethodSet(named)
+	for i := 0; i < vSet.Len(); i++ {
+		valueSet[vSet.At(i).Obj().(*types.Func).Id()] = true
+	}
+
+	// Method set for *T includes both T and *T receivers.
 	ptrType := types.NewPointer(named)
 	methodSet := types.NewMethodSet(ptrType)
 
@@ -139,24 +160,16 @@ func extractMethodsFromNamedType(named *types.Named) []TypeMethod {
 		method := selection.Obj().(*types.Func)
 		sig := method.Type().(*types.Signature)
 
-		// Determine if receiver is pointer
-		recvIsPointer := isPointerReceiver(sig.Recv().Type())
-
 		methods = append(methods, TypeMethod{
-			Name:              method.Name(),
-			Inputs:            extractMethodTypesFromTuple(sig.Params(), sig.Variadic()),
-			Outputs:           extractMethodTypesFromTuple(sig.Results(), false),
-			ReceiverIsPointer: recvIsPointer,
+			Name:       method.Name(),
+			Id:         method.Id(),
+			Inputs:     extractMethodTypesFromTuple(sig.Params(), sig.Variadic()),
+			Outputs:    extractMethodTypesFromTuple(sig.Results(), false),
+			InValueSet: valueSet[method.Id()],
 		})
 	}
 
 	return methods
-}
-
-// isPointerReceiver checks if receiver type is a pointer
-func isPointerReceiver(t types.Type) bool {
-	_, ok := t.(*types.Pointer)
-	return ok
 }
 
 // extractMethodTypesFromTuple converts types.Tuple to MethodType slice
@@ -192,6 +205,7 @@ func convertTypesToMethodType(t types.Type) MethodType {
 	if ptr, ok := t.(*types.Pointer); ok {
 		inner := convertTypesToMethodType(ptr.Elem())
 		inner.IsPointer = true
+		inner.Canonical = t.String() // full *T / **T string
 		return inner
 	}
 
@@ -209,6 +223,7 @@ func convertTypesToMethodType(t types.Type) MethodType {
 			TypePackage: pkgPath,
 			IsPointer:   false,
 			IsVariadic:  false,
+			Canonical:   t.String(),
 		}
 	}
 
@@ -219,6 +234,7 @@ func convertTypesToMethodType(t types.Type) MethodType {
 			TypePackage: "",
 			IsPointer:   false,
 			IsVariadic:  false,
+			Canonical:   t.String(),
 		}
 	}
 
@@ -227,5 +243,6 @@ func convertTypesToMethodType(t types.Type) MethodType {
 		TypeName:   t.String(),
 		IsPointer:  false,
 		IsVariadic: false,
+		Canonical:  t.String(),
 	}
 }

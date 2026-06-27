@@ -76,8 +76,10 @@ gogreement -json ./...
 # Show analyzer documentation
 gogreement -help
 
-# Run specific analyzers only (if you extend GoGreement)
-gogreement -analyzers=ImmutableChecker ./...
+# Run a single analyzer only: the multichecker registers one boolean flag per
+# analyzer named after it (there is no -analyzers flag). Analyzer names are
+# lowercase, e.g. immutabilitychecker, constructorchecker, testonlychecker.
+gogreement -immutabilitychecker ./...
 ```
 
 ## Configuration
@@ -89,7 +91,7 @@ GoGreement can be configured using environment variables or command-line flags. 
 | Option | Environment Variable | Command-Line Flag | Default | Description |
 |--------|---------------------|-------------------|---------|-------------|
 | **Scan Tests** | `GOGREEMENT_SCAN_TESTS` | `--config.scan-tests` | `false` | Whether to analyze test files (`*_test.go`). By default, test files are excluded. |
-| **Exclude Paths** | `GOGREEMENT_EXCLUDE_PATHS` | `--config.exclude-paths` | `testdata` | Comma-separated list of path patterns to exclude. Paths are matched as substrings. |
+| **Exclude Paths** | `GOGREEMENT_EXCLUDE_PATHS` | `--config.exclude-paths` | `testdata` | Comma-separated list of path patterns to exclude. A pattern matches when it appears as a contiguous run of whole path segments (so `testdata` matches `.../testdata/...` but not `latest.go`). |
 | **Exclude Checks** | `GOGREEMENT_EXCLUDE_CHECKS` | `--config.exclude-checks` | _(empty)_ | Comma-separated list of check codes to exclude globally. Supports individual codes (`IMM01`), categories (`IMM`), or `ALL`. |
 
 ### Configuration Examples

@@ -373,6 +373,123 @@ func TestPrimitiveTypeAliasReassignment(t *testing.T) {
 	assert.True(t, hasImmutableStringViolation, "should detect ImmutableString receiver reassignment")
 }
 
+func TestParenthesizedReceiverIncDec(t *testing.T) {
+
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckImmutable(cfg, pass, &packageAnnotations)
+
+	// Should catch: (*i)-- in ImmutableInt.DecrementParen (parenthesized dereference)
+	found := false
+	for _, v := range violations {
+		if v.TypeName == "ImmutableInt" && contains(v.Reason, "--") && contains(v.Reason, "receiver") {
+			found = true
+			t.Logf("Found parenthesized receiver decrement violation: %s", v.Reason)
+		}
+	}
+
+	assert.True(t, found, "should detect (*i)-- parenthesized receiver decrement")
+}
+
+func TestIndexedCompoundAndIncDec(t *testing.T) {
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckImmutable(cfg, pass, &packageAnnotations)
+
+	// PlainScore (=), CompoundScore (+=), IncScore (++), DecScore (--) each
+	// modify an element of the immutable Scores.values field -> IMM04.
+	count := 0
+	for _, v := range violations {
+		if v.TypeName == "Scores" && v.Code == "IMM04" {
+			count++
+			t.Logf("Scores IMM04: %s", v.Reason)
+		}
+	}
+
+	assert.GreaterOrEqual(t, count, 4,
+		"should detect index assignment, compound assignment and inc/dec on indexed immutable field")
+}
+
+func TestEmbeddedFieldPathViolation(t *testing.T) {
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckImmutable(cfg, pass, &packageAnnotations)
+
+	// Both the promoted form (o.Field) and the explicit embedded path
+	// (o.EmbeddedInner.Field) mutate the immutable Outer -> IMM01.
+	count := 0
+	for _, v := range violations {
+		if v.TypeName == "Outer" && v.Code == "IMM01" {
+			count++
+			t.Logf("Outer IMM01: %s", v.Reason)
+		}
+	}
+
+	assert.GreaterOrEqual(t, count, 2,
+		"should detect mutation through both the promoted and explicit embedded paths")
+}
+
+func TestReceiverShadowingNoFalsePositive(t *testing.T) {
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckImmutable(cfg, pass, &packageAnnotations)
+
+	// Shadower.NoFalsePositive reassigns a shadowing local, not the receiver.
+	for _, v := range violations {
+		assert.NotEqual(t, "Shadower", v.TypeName,
+			"should not report a violation when the receiver name is shadowed by a local")
+	}
+}
+
+func TestPackageLevelFuncLiteralChecked(t *testing.T) {
+	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+
+	// Must not panic on a mutation inside a package-level func literal, and the
+	// mutation must be flagged (it is outside any constructor).
+	var violations []ImmutableViolation
+	assert.NotPanics(t, func() {
+		violations = CheckImmutable(cfg, pass, &packageAnnotations)
+	})
+
+	nameViolations := 0
+	for _, v := range violations {
+		if v.TypeName == "Person" && contains(v.Reason, "Name") {
+			nameViolations++
+		}
+	}
+
+	// UpdateName plus the package-level func literal both assign Person.Name.
+	assert.GreaterOrEqual(t, nameViolations, 2,
+		"package-level func literal mutation of an immutable field should be checked and flagged")
+}
+
+func TestImmutableTransitiveImport(t *testing.T) {
+	// transitivetop imports only transitivemid; the @immutable Thing lives in
+	// transitivesrc (a transitive dependency). The violation is only detected
+	// if facts are loaded from the full transitive import closure.
+	pass := testfacts.CreateTestPassWithFacts(t, "transitivetop")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckImmutable(cfg, pass, &packageAnnotations)
+
+	found := false
+	for _, v := range violations {
+		if v.TypeName == "Thing" && contains(v.Reason, "Field") {
+			found = true
+			t.Logf("transitive violation: %s", v.Reason)
+		}
+	}
+
+	assert.True(t, found,
+		"mutation of an @immutable type reached via a transitive import should be detected")
+}
+
 func TestMapFieldModification(t *testing.T) {
 
 	pass := testfacts.CreateTestPassWithFacts(t, "immutabletests")

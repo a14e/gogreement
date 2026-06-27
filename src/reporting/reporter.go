@@ -97,7 +97,7 @@ func (r *Reporter) formatPrettyError(violation Violation) string {
 		for i, line := range lines.content {
 			lineNum := lines.lineNumbers[i]
 			truncatedLine := truncateString(line, MaxLineLength, position.Column)
-			builder.WriteString(fmt.Sprintf("%*d | ", lineNumWidth, lineNum))
+			fmt.Fprintf(&builder, "%*d | ", lineNumWidth, lineNum)
 			builder.WriteString(truncatedLine)
 			builder.WriteString("\n")
 
@@ -151,6 +151,10 @@ func (r *Reporter) getFileLines(filename string) []string {
 
 	var lines []string
 	scanner := bufio.NewScanner(strings.NewReader(string(content)))
+	// Enlarge the token buffer beyond the default 64KB so source files with very
+	// long lines (generated code, embedded data) are not silently truncated,
+	// which would drop the source snippet/help link for any later violation.
+	scanner.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}

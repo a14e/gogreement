@@ -236,6 +236,122 @@ func TestVarDeclarationInConstructors(t *testing.T) {
 	}
 }
 
+func TestConversionViolation(t *testing.T) {
+
+	pass := testfacts.CreateTestPassWithFacts(t, "constructortests")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckConstructor(cfg, pass, &packageAnnotations)
+
+	hasConversionViolation := false
+	for _, v := range violations {
+		if v.TypeName == "Email" && v.Code == "CTOR04" {
+			funcName := getFunctionNameFromPosition(pass, v.Pos)
+			assert.Equal(t, "MakeEmailWrong", funcName, "conversion violation should be in MakeEmailWrong")
+			hasConversionViolation = true
+			t.Logf("Found conversion violation: %s (%s)", v.Reason, v.Code)
+		}
+	}
+
+	assert.True(t, hasConversionViolation, "should detect Email type conversion outside constructor (CTOR04)")
+}
+
+func TestConversionInConstructorAllowed(t *testing.T) {
+
+	pass := testfacts.CreateTestPassWithFacts(t, "constructortests")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckConstructor(cfg, pass, &packageAnnotations)
+
+	for _, v := range violations {
+		if v.TypeName == "Email" {
+			funcName := getFunctionNameFromPosition(pass, v.Pos)
+			assert.NotEqual(t, "NewEmail", funcName, "conversion inside NewEmail should be allowed")
+		}
+	}
+}
+
+func TestMethodNameCollisionNotExempt(t *testing.T) {
+
+	pass := testfacts.CreateTestPassWithFacts(t, "constructortests")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckConstructor(cfg, pass, &packageAnnotations)
+
+	// Widget{} appears in the real constructor NewWidget (allowed) and in the
+	// method Factory.NewWidget (must be flagged: a method is not the declared
+	// constructor even though its name collides).
+	widgetViolations := 0
+	for _, v := range violations {
+		if v.TypeName == "Widget" {
+			widgetViolations++
+			assert.Equal(t, "CTOR01", v.Code)
+			t.Logf("Widget violation: %s", v.Reason)
+		}
+	}
+
+	assert.Equal(t, 1, widgetViolations,
+		"a method whose name collides with a constructor must not exempt the literal")
+}
+
+func TestNewPointerNotFlagged(t *testing.T) {
+
+	pass := testfacts.CreateTestPassWithFacts(t, "constructortests")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckConstructor(cfg, pass, &packageAnnotations)
+
+	for _, v := range violations {
+		funcName := getFunctionNameFromPosition(pass, v.Pos)
+		assert.NotEqual(t, "MakeUserPtrPtr", funcName,
+			"new(*User) must not be flagged (it does not instantiate a User)")
+	}
+}
+
+func TestPackageLevelInstantiationFlagged(t *testing.T) {
+
+	pass := testfacts.CreateTestPassWithFacts(t, "constructortests")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckConstructor(cfg, pass, &packageAnnotations)
+
+	// The package-level `var packageGadget = Gadget{...}` sits right after the
+	// NewGadget constructor; with a context leak it would be wrongly exempted.
+	found := false
+	for _, v := range violations {
+		if v.TypeName == "Gadget" && getFunctionNameFromPosition(pass, v.Pos) == "" {
+			found = true
+			assert.Equal(t, "CTOR01", v.Code)
+			t.Logf("Package-level Gadget violation: %s", v.Reason)
+		}
+	}
+
+	assert.True(t, found,
+		"package-level instantiation must be flagged (enclosing-function context must not leak)")
+}
+
+func TestCrossPackageConstructorNotExempt(t *testing.T) {
+
+	// ctorconsumer defines a function named NewWidget (colliding with the name
+	// of ctorsource.Widget's constructor), but it is a different package, so the
+	// cross-package instantiation must still be flagged.
+	pass := testfacts.CreateTestPassWithFacts(t, "ctorconsumer", "ctorsource")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+	violations := CheckConstructor(cfg, pass, &packageAnnotations)
+
+	found := false
+	for _, v := range violations {
+		if v.TypeName == "Widget" {
+			found = true
+			t.Logf("cross-package violation: %s (%s)", v.Reason, v.Code)
+		}
+	}
+
+	assert.True(t, found,
+		"cross-package instantiation of an @constructor type must be flagged despite a same-named function in the consumer package")
+}
+
 func getFunctionNameFromPosition(pass *analysis.Pass, pos token.Pos) string {
 	for _, file := range pass.Files {
 		for _, decl := range file.Decls {

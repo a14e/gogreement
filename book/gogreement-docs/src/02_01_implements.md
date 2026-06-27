@@ -38,14 +38,15 @@ The `@implements` annotation fills this gap by providing a **clear, explicit dec
 
 ### Key Behaviors
 
-1. **No generics support**: Cannot be used with generic types or interfaces
+1. **Annotated generic types not supported**: `@implements` on a generic type *declaration* is not supported. However, generic type **arguments** that appear in method signatures are compared precisely — `Box[int]` and `Box[string]` are treated as different types.
 2. **No comparable constraint support**: Cannot verify `comparable` constraint - only explicit method signatures are checked
 3. **Imports required**: External interfaces must be imported (even with `import _ "package"` if not used)
 4. **Pointer vs value**: `@implements Interface` and `@implements &Interface` are different contracts
-5. **Signature matching**: Validation is based on method signature comparison
+5. **Signature matching**: Validation is based on method signature comparison (pointer depth is significant, so `*T` and `**T` differ)
 6. **No multi-interface syntax**: Use separate lines for multiple interfaces
 7. **Strict parsing**: Extra characters before the annotation will cause it to be ignored
-8. **Receiver compatibility**: Pointer receiver methods can satisfy value receiver requirements (following Go's standard method set rules), but value receiver methods cannot satisfy pointer receiver requirements
+8. **Receiver compatibility**: Following Go's method-set rules, value-receiver methods satisfy a pointer requirement (`@implements &Interface`), because the method set of `*T` includes `T`'s methods; pointer-receiver methods do **not** satisfy a value requirement (`@implements Interface`). Methods promoted through an embedded pointer field are included in the value method set, as Go specifies.
+9. **Unexported interface methods**: An unexported interface method is only satisfied by a method declared in the interface's own package (matched by qualified identifier, not bare name)
 
 ## Can Be Declared On
 
@@ -176,7 +177,7 @@ func (rw *BrokenRW) Read(p []byte) (n int, err error) {
     return 0, nil
 }
 
-// [IMPL03] type "BrokenRW" does not implement interface "&io.ReadWriter"
+// [IMPL03] type "BrokenRW" does not implement interface "io.ReadWriter"
 // missing methods:
 //   Write([]byte) (int, error)
 ```
@@ -187,7 +188,7 @@ func (rw *BrokenRW) Read(p []byte) (n int, err error) {
 // @implements &io.Reader
 type BadReader struct {}
 
-// [IMPL03] type "BadReader" does not implement interface "&io.Reader"
+// [IMPL03] type "BadReader" does not implement interface "io.Reader"
 // missing methods:
 //   Read([]byte) (int, error)
 func (r *BadReader) Read(p []byte) int {

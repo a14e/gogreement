@@ -8,6 +8,29 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestPathContainsSegments(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+		exclude  string
+		want     bool
+	}{
+		{"testdata segment", "/home/u/proj/testdata/x.go", "testdata", true},
+		{"testdata mid path", "/proj/testdata/pkg/x.go", "testdata", true},
+		{"partial component not matched", "/proj/pkg/latest.go", "test", false},
+		{"parent dir substring not matched", "/home/testdata-corp/app/main.go", "testdata", false},
+		{"multi-segment contiguous", "/proj/internal/gen/x.go", "internal/gen", true},
+		{"multi-segment not contiguous", "/proj/internal/a/gen/x.go", "internal/gen", false},
+		{"empty exclude", "/proj/x.go", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, pathContainsSegments(tt.filename, tt.exclude))
+		})
+	}
+}
+
 func TestDefault(t *testing.T) {
 	cfg := Default()
 

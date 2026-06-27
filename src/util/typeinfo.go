@@ -23,9 +23,11 @@ func ExtractTypeInfo(t types.Type) *TypeInfo {
 		return nil
 	}
 
-	// Remove pointer if present
+	// Resolve type aliases (materialized as *types.Alias since Go 1.22+),
+	// then remove a pointer, then resolve again in case it was *Alias.
+	t = types.Unalias(t)
 	if ptr, ok := t.(*types.Pointer); ok {
-		t = ptr.Elem()
+		t = types.Unalias(ptr.Elem())
 	}
 
 	// Get named type
@@ -53,9 +55,10 @@ func ExtractTypeName(t types.Type) string {
 		return ""
 	}
 
-	// Remove pointer if present
+	// Resolve type aliases, then remove a pointer, then resolve again.
+	t = types.Unalias(t)
 	if ptr, ok := t.(*types.Pointer); ok {
-		t = ptr.Elem()
+		t = types.Unalias(ptr.Elem())
 	}
 
 	// Get named type

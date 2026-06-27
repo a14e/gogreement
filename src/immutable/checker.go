@@ -35,48 +35,50 @@ func CheckImmutable(
 	filesToCheck := cfg.FilterFiles(pass)
 
 	ctx := &checkerContext{
-		pass:            pass,
-		immutableTypes:  immutableTypes,
-		constructors:    constructors,
-		mutableFields:   mutableFields,
-		currentFunction: nil,
+		pass:           pass,
+		immutableTypes: immutableTypes,
+		constructors:   constructors,
+		mutableFields:  mutableFields,
+	}
+
+	// inspectNode handles assignment / inc-dec nodes. It reads the enclosing
+	// function from ctx, which is set per top-level declaration below.
+	// Compound assignments (+=, -=, ...) are processed separately from plain
+	// assignments so the same node is never reported twice.
+	inspectNode := func(n ast.Node) bool {
+		switch node := n.(type) {
+		case *ast.AssignStmt:
+			if node.Tok != token.ASSIGN {
+				violations = append(violations, checkCompoundAssignment(ctx, node)...)
+				return true
+			}
+			violations = append(violations, checkAssignment(ctx, node)...)
+			return true
+
+		case *ast.IncDecStmt:
+			violations = append(violations, checkIncDec(ctx, node)...)
+			return true
+		}
+		return true
 	}
 
 	for file := range filesToCheck {
-
-		// First pass: check simple assignments and inc/dec operations
-		// We skip compound assignments (+=, -=, etc.) here to avoid duplicates
-		ast.Inspect(file, func(n ast.Node) bool {
-			switch node := n.(type) {
-			case *ast.FuncDecl:
-				ctx.currentFunction = &node.Name.Name
-
-				// Track receiver information for methods
-				ctx.currentReceiver = extractReceiverInfo(ctx.pass, node)
-				return true
-
-			case *ast.AssignStmt:
-				// Only process compound assignments here
-				// Check: x.field += value, x.field *= value, etc.
-				if node.Tok != token.ASSIGN {
-					v := checkCompoundAssignment(ctx, node)
-					violations = append(violations, v...)
-					return true
-				}
-
-				// Check: x.field = value, x.items[0] = value
-				v := checkAssignment(ctx, node)
-				violations = append(violations, v...)
-				return true
-
-			case *ast.IncDecStmt:
-				// Check: x.field++, x.field--
-				v := checkIncDec(ctx, node)
-				violations = append(violations, v...)
-				return true
+		for _, decl := range file.Decls {
+			// Establish the enclosing-function context per top-level declaration
+			// so it never leaks across siblings and is never unset (a mutation
+			// inside a package-level func literal must not deref a nil function).
+			// Mutations inside a named function (including its nested func
+			// literals) are evaluated against that function; package-level
+			// declarations are not inside any constructor.
+			if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+				ctx.currentFunction = funcDecl.Name.Name
+				ctx.currentReceiver = extractReceiverInfo(ctx.pass, funcDecl)
+			} else {
+				ctx.currentFunction = ""
+				ctx.currentReceiver = nil
 			}
-			return true
-		})
+			ast.Inspect(decl, inspectNode)
+		}
 	}
 
 	return violations
@@ -87,16 +89,18 @@ type checkerContext struct {
 	immutableTypes  util.TypesMap
 	constructors    util.TypeAssociationRegistry
 	mutableFields   util.TypeAssociationRegistry
-	currentFunction *string
+	currentFunction string
 	currentReceiver *receiverInfo
 }
 
 // receiverInfo contains information about a method's receiver
 // @immutable
 type receiverInfo struct {
-	name     string
 	typeName string
 	pkgPath  string
+	// obj is the receiver variable's object, used to confirm an identifier
+	// actually refers to the receiver (not a shadowing local of the same name).
+	obj types.Object
 }
 
 // extractReceiverInfo extracts receiver information from a method declaration
@@ -110,7 +114,7 @@ func extractReceiverInfo(pass *analysis.Pass, funcDecl *ast.FuncDecl) *receiverI
 		return nil
 	}
 
-	recvName := recvField.Names[0].Name
+	recvIdent := recvField.Names[0]
 	recvType := pass.TypesInfo.TypeOf(recvField.Type)
 	if recvType == nil {
 		return nil
@@ -122,9 +126,9 @@ func extractReceiverInfo(pass *analysis.Pass, funcDecl *ast.FuncDecl) *receiverI
 	}
 
 	return &receiverInfo{
-		name:     recvName,
 		typeName: typeInfo.TypeName,
 		pkgPath:  typeInfo.PkgPath,
+		obj:      pass.TypesInfo.Defs[recvIdent],
 	}
 }
 
@@ -167,34 +171,12 @@ func checkFieldAssignment(
 	stmt *ast.AssignStmt,
 	selector *ast.SelectorExpr,
 ) *ImmutableViolation {
-	// Get type of the receiver (t in t.field)
-	receiverType := ctx.pass.TypesInfo.TypeOf(selector.X)
-	if receiverType == nil {
-		return nil
-	}
-
-	if ptr, ok := receiverType.(*types.Pointer); ok {
-		receiverType = ptr.Elem()
-	}
-
-	named, ok := receiverType.(*types.Named)
+	typeName, pkgPath, ok := immutableReceiverOfField(ctx, selector)
 	if !ok {
 		return nil
 	}
 
-	typeName := named.Obj().Name()
-	pkg := named.Obj().Pkg()
-	if pkg == nil {
-		return nil
-	}
-
-	pkgPath := pkg.Path()
-
-	if !ctx.immutableTypes.Contains(pkgPath, typeName) {
-		return nil
-	}
-
-	if ctx.constructors.Match(pkgPath, *ctx.currentFunction, typeName) {
+	if ctx.constructors.Match(pkgPath, ctx.currentFunction, typeName) {
 		return nil
 	}
 
@@ -212,10 +194,85 @@ func checkFieldAssignment(
 	}
 }
 
+// immutableReceiverOfField resolves the immutable type whose field is written by
+// selector. It first checks the immediately-selected receiver (t.field), then,
+// if that type is not immutable, walks an explicit embedded-field access path
+// (o.Inner.field) so a write through the embedded path is treated the same as
+// the promoted form (o.field) that field promotion would expose.
+func immutableReceiverOfField(ctx *checkerContext, selector *ast.SelectorExpr) (string, string, bool) {
+	receiverType := ctx.pass.TypesInfo.TypeOf(selector.X)
+	if receiverType == nil {
+		return "", "", false
+	}
+
+	if ptr, ok := receiverType.(*types.Pointer); ok {
+		receiverType = ptr.Elem()
+	}
+
+	if named, ok := receiverType.(*types.Named); ok && named.Obj().Pkg() != nil {
+		typeName := named.Obj().Name()
+		pkgPath := named.Obj().Pkg().Path()
+		if ctx.immutableTypes.Contains(pkgPath, typeName) {
+			return typeName, pkgPath, true
+		}
+	}
+
+	return immutableViaEmbedded(ctx, selector.X)
+}
+
+// immutableViaEmbedded reports the immutable type reachable from expr through one
+// or more embedded-field hops (o.Inner, o.Inner.Deeper, ...). Only embedded
+// (anonymous) fields are followed, matching Go's field promotion; a named field
+// hop stops the walk so shallow immutability is preserved for named fields.
+func immutableViaEmbedded(ctx *checkerContext, expr ast.Expr) (string, string, bool) {
+	sel, ok := expr.(*ast.SelectorExpr)
+	if !ok {
+		return "", "", false
+	}
+
+	selection := ctx.pass.TypesInfo.Selections[sel]
+	if selection == nil || selection.Kind() != types.FieldVal {
+		return "", "", false
+	}
+	field, ok := selection.Obj().(*types.Var)
+	if !ok || !field.Embedded() {
+		return "", "", false
+	}
+
+	baseType := ctx.pass.TypesInfo.TypeOf(sel.X)
+	if baseType != nil {
+		if ptr, ok := baseType.(*types.Pointer); ok {
+			baseType = ptr.Elem()
+		}
+		if named, ok := baseType.(*types.Named); ok && named.Obj().Pkg() != nil {
+			typeName := named.Obj().Name()
+			pkgPath := named.Obj().Pkg().Path()
+			if ctx.immutableTypes.Contains(pkgPath, typeName) {
+				return typeName, pkgPath, true
+			}
+		}
+	}
+
+	// The base may itself be an embedded access on an immutable type.
+	return immutableViaEmbedded(ctx, sel.X)
+}
+
 func checkIndexAssignment(
 	ctx *checkerContext,
 	stmt *ast.AssignStmt,
 	index *ast.IndexExpr,
+) *ImmutableViolation {
+	return checkImmutableIndex(ctx, index, stmt)
+}
+
+// checkImmutableIndex reports IMM04 when an element of an immutable type's field
+// is modified through an index expression, e.g. x.items[0] = v, x.items[0] += v,
+// or x.items[0]++. Shared by the plain-assignment, compound-assignment, and
+// inc/dec paths so the same gap is closed for all of them.
+func checkImmutableIndex(
+	ctx *checkerContext,
+	index *ast.IndexExpr,
+	node ast.Node,
 ) *ImmutableViolation {
 	selector, ok := index.X.(*ast.SelectorExpr)
 	if !ok {
@@ -248,7 +305,7 @@ func checkIndexAssignment(
 		return nil
 	}
 
-	if ctx.constructors.Match(pkgPath, *ctx.currentFunction, typeName) {
+	if ctx.constructors.Match(pkgPath, ctx.currentFunction, typeName) {
 		return nil
 	}
 
@@ -262,7 +319,7 @@ func checkIndexAssignment(
 		Code:     codes.ImmutableIndexAssignment,
 		Pos:      index.Pos(),
 		Reason:   fmt.Sprintf("cannot modify element of field %q of immutable type", selector.Sel.Name),
-		Node:     stmt,
+		Node:     node,
 	}
 }
 
@@ -272,8 +329,12 @@ func checkIncDec(
 ) []ImmutableViolation {
 	var violations []ImmutableViolation
 
+	// Unwrap parentheses so forms like (*c)-- and (x.field)++ are handled
+	// the same as their unparenthesized counterparts.
+	target := ast.Unparen(node.X)
+
 	// Check for field increment/decrement: x.field++
-	if selector, ok := node.X.(*ast.SelectorExpr); ok {
+	if selector, ok := target.(*ast.SelectorExpr); ok {
 		violation := checkFieldIncDec(ctx, node, selector)
 		if violation != nil {
 			violations = append(violations, *violation)
@@ -281,8 +342,16 @@ func checkIncDec(
 		return violations
 	}
 
+	// Check for indexed element increment/decrement: x.items[0]++
+	if index, ok := target.(*ast.IndexExpr); ok {
+		if violation := checkImmutableIndex(ctx, index, node); violation != nil {
+			violations = append(violations, *violation)
+		}
+		return violations
+	}
+
 	// Check for receiver increment/decrement: *receiver++
-	if star, ok := node.X.(*ast.StarExpr); ok {
+	if star, ok := target.(*ast.StarExpr); ok {
 		violation := checkReceiverIncDec(ctx, node, star)
 		if violation != nil {
 			violations = append(violations, *violation)
@@ -324,7 +393,7 @@ func checkFieldIncDec(
 		return nil
 	}
 
-	if ctx.constructors.Match(pkgPath, *ctx.currentFunction, typeName) {
+	if ctx.constructors.Match(pkgPath, ctx.currentFunction, typeName) {
 		return nil
 	}
 
@@ -363,8 +432,9 @@ func checkReceiverIncDec(
 		return nil
 	}
 
-	// Check if the identifier is the receiver
-	if ident.Name != ctx.currentReceiver.name {
+	// Confirm the identifier actually refers to the receiver and not a
+	// shadowing local variable of the same name.
+	if ctx.currentReceiver.obj == nil || ctx.pass.TypesInfo.ObjectOf(ident) != ctx.currentReceiver.obj {
 		return nil
 	}
 
@@ -374,7 +444,7 @@ func checkReceiverIncDec(
 	}
 
 	// Allow in constructors
-	if ctx.constructors.Match(ctx.currentReceiver.pkgPath, *ctx.currentFunction, ctx.currentReceiver.typeName) {
+	if ctx.constructors.Match(ctx.currentReceiver.pkgPath, ctx.currentFunction, ctx.currentReceiver.typeName) {
 		return nil
 	}
 
@@ -414,6 +484,14 @@ func checkCompoundLHS(
 	expr ast.Expr,
 	tok token.Token,
 ) *ImmutableViolation {
+	// Unwrap parentheses so (x.field) += v and (x.items[0]) += v are handled.
+	expr = ast.Unparen(expr)
+
+	// Compound assignment to an indexed element: x.items[0] += v
+	if index, ok := expr.(*ast.IndexExpr); ok {
+		return checkImmutableIndex(ctx, index, stmt)
+	}
+
 	selector, ok := expr.(*ast.SelectorExpr)
 	if !ok {
 		return nil
@@ -445,7 +523,7 @@ func checkCompoundLHS(
 		return nil
 	}
 
-	if ctx.constructors.Match(pkgPath, *ctx.currentFunction, typeName) {
+	if ctx.constructors.Match(pkgPath, ctx.currentFunction, typeName) {
 		return nil
 	}
 
@@ -482,8 +560,9 @@ func checkReceiverReassignment(
 		return nil
 	}
 
-	// Check if the identifier is the receiver
-	if ident.Name != ctx.currentReceiver.name {
+	// Confirm the identifier actually refers to the receiver and not a
+	// shadowing local variable of the same name.
+	if ctx.currentReceiver.obj == nil || ctx.pass.TypesInfo.ObjectOf(ident) != ctx.currentReceiver.obj {
 		return nil
 	}
 
@@ -493,7 +572,7 @@ func checkReceiverReassignment(
 	}
 
 	// Allow reassignment in constructors
-	if ctx.constructors.Match(ctx.currentReceiver.pkgPath, *ctx.currentFunction, ctx.currentReceiver.typeName) {
+	if ctx.constructors.Match(ctx.currentReceiver.pkgPath, ctx.currentFunction, ctx.currentReceiver.typeName) {
 		return nil
 	}
 

@@ -57,15 +57,36 @@ func CheckTestOnly(
 			continue // Test files can use @testonly items
 		}
 
-		// Track reported type violations per file to avoid spam
-		// NOTE: We check ignoreSet BEFORE adding to reportedTypes to ensure that
-		// ignored violations don't prevent subsequent non-ignored violations of the
-		// same type from being detected. See case statements below for implementation.
+		// Track reported type violations per file to avoid spam. The key is the
+		// package-qualified type identity so equally named @testonly types from
+		// different packages do not collide. ignoreSet is checked BEFORE marking
+		// a type reported so an ignored violation does not suppress a later one.
 		reportedTypes := make(map[string]bool)
+
+		// Receiver fields of method declarations: declaring a method on a
+		// @testonly type is legitimate and must not be reported as type usage.
+		receiverFields := make(map[*ast.Field]bool)
+
+		// reportTypeUsage applies the ignore filter and per-file dedup for
+		// type-usage (TONL01) violations.
+		reportTypeUsage := func(v *TestOnlyViolation) {
+			if v == nil || ignoreSet.Contains(v.Code, v.Pos) || reportedTypes[v.TypeKey] {
+				return
+			}
+			violations = append(violations, *v)
+			reportedTypes[v.TypeKey] = true
+		}
 
 		ast.Inspect(file, func(n ast.Node) bool {
 			switch node := n.(type) {
 			case *ast.FuncDecl:
+				// Record receiver fields so a method declared on a @testonly type
+				// is not mistaken for escaping type usage.
+				if node.Recv != nil {
+					for _, f := range node.Recv.List {
+						receiverFields[f] = true
+					}
+				}
 				// Check if this function is @testonly - if so, skip checking its body
 				if isInTestOnlyContext(&context, node) {
 					return false // Don't inspect the body of @testonly functions
@@ -73,48 +94,36 @@ func CheckTestOnly(
 				return true
 
 			case *ast.CallExpr:
-				// Check function and method calls
+				// Function and method calls (TONL02/TONL03), reported per occurrence.
 				if v := findFunctionCallViolation(&context, node); v != nil {
-					// Check if this violation should be ignored
 					if !ignoreSet.Contains(v.Code, v.Pos) {
 						violations = append(violations, *v)
 					}
 				}
+				// Type construction via conversion T(x), new(T) or make([]T, ...)
+				// is type usage (TONL01) and is deduplicated.
+				reportTypeUsage(findTypeConstructionViolation(&context, node))
 
 			case *ast.CompositeLit:
-				// Check type instantiation: TestHelper{...}
-				if v := findTypeLiteralViolation(&context, node); v != nil {
-					// Check if this violation should be ignored before marking type as reported
-					if !ignoreSet.Contains(v.Code, v.Pos) {
-						if !reportedTypes[v.TestOnlyObj] {
-							violations = append(violations, *v)
-							reportedTypes[v.TestOnlyObj] = true
-						}
-					}
-				}
+				// Type instantiation: TestHelper{...}, []TestHelper{...}
+				reportTypeUsage(findTypeLiteralViolation(&context, node))
 
 			case *ast.ValueSpec:
-				// Check variable declarations: var x TestHelper
-				if v := findTypeUsageViolation(&context, node.Type, node.Pos()); v != nil {
-					// Check if this violation should be ignored before marking type as reported
-					if !ignoreSet.Contains(v.Code, v.Pos) {
-						if !reportedTypes[v.TestOnlyObj] {
-							violations = append(violations, *v)
-							reportedTypes[v.TestOnlyObj] = true
-						}
-					}
-				}
+				// Variable declarations: var x TestHelper
+				reportTypeUsage(findTypeUsageViolation(&context, node.Type, node.Pos()))
 
 			case *ast.Field:
-				// Check struct fields and function parameters
-				if v := findTypeUsageViolation(&context, node.Type, node.Pos()); v != nil {
-					// Check if this violation should be ignored before marking type as reported
-					if !ignoreSet.Contains(v.Code, v.Pos) {
-						if !reportedTypes[v.TestOnlyObj] {
-							violations = append(violations, *v)
-							reportedTypes[v.TestOnlyObj] = true
-						}
-					}
+				// Struct fields and function parameters (but not method receivers).
+				if receiverFields[node] {
+					return true
+				}
+				reportTypeUsage(findTypeUsageViolation(&context, node.Type, node.Pos()))
+
+			case *ast.TypeAssertExpr:
+				// Type assertions: x.(MockHelper) / x.(*MockHelper).
+				// The x.(type) form used in type switches has a nil Type and is skipped.
+				if node.Type != nil {
+					reportTypeUsage(findTypeUsageViolation(&context, node.Type, node.Type.Pos()))
 				}
 			}
 			return true
@@ -166,15 +175,20 @@ func findFunctionCallViolation(
 ) *TestOnlyViolation {
 	switch fun := call.Fun.(type) {
 	case *ast.Ident:
-		// Direct function call: CreateMockData()
-		funcName := fun.Name
-		if ctx.testOnlyFuncs.Match(*ctx.currentPkgPath, funcName, funcName) {
+		// Direct function call: CreateMockData(). Resolve the identifier to its
+		// object so a local variable shadowing a @testonly function name (and a
+		// type conversion T(x), whose Fun is a type) is not treated as the call.
+		fn, ok := ctx.pass.TypesInfo.Uses[fun].(*types.Func)
+		if !ok || fn.Pkg() == nil {
+			return nil
+		}
+		if ctx.testOnlyFuncs.Match(fn.Pkg().Path(), fn.Name(), fn.Name()) {
 			return &TestOnlyViolation{
 				Pos:         call.Pos(),
-				TestOnlyObj: funcName,
+				TestOnlyObj: fn.Name(),
 				Kind:        annotations.TestOnlyOnFunc,
 				UsedInFile:  *ctx.fileName,
-				Reason:      fmt.Sprintf("function %s is marked @testonly and can only be called in test files", funcName),
+				Reason:      fmt.Sprintf("function %s is marked @testonly and can only be called in test files", fn.Name()),
 				Code:        codes.TestOnlyFunctionCall,
 			}
 		}
@@ -223,32 +237,17 @@ func findFunctionCallViolation(
 	return nil
 }
 
-// findTypeLiteralViolation checks composite literals for @testonly types
-// Returns violation or nil
+// findTypeLiteralViolation checks composite literals for @testonly types,
+// including slice/array/map element types (e.g. []TestHelper{...}).
 func findTypeLiteralViolation(
 	ctx *testOnlyContext,
 	node *ast.CompositeLit,
 ) *TestOnlyViolation {
-	typeInfo := util.ExtractTypeInfo(ctx.pass.TypesInfo.TypeOf(node))
-	if typeInfo == nil {
-		return nil
-	}
-
-	if ctx.testOnlyTypes.Contains(typeInfo.PkgPath, typeInfo.TypeName) {
-		return &TestOnlyViolation{
-			Pos:         node.Pos(),
-			TestOnlyObj: typeInfo.TypeName,
-			Kind:        annotations.TestOnlyOnType,
-			UsedInFile:  *ctx.fileName,
-			Reason:      fmt.Sprintf("type %s is marked @testonly and can only be used in test files", typeInfo.TypeName),
-			Code:        codes.TestOnlyTypeUsage,
-		}
-	}
-	return nil
+	return ctx.typeViolation(ctx.pass.TypesInfo.TypeOf(node), node.Pos())
 }
 
-// findTypeUsageViolation checks if a type expression uses @testonly type
-// Returns violation or nil
+// findTypeUsageViolation checks if a type expression uses a @testonly type,
+// unwrapping pointer/slice/array/map/chan layers.
 func findTypeUsageViolation(
 	ctx *testOnlyContext,
 	typeExpr ast.Expr,
@@ -257,20 +256,77 @@ func findTypeUsageViolation(
 	if typeExpr == nil {
 		return nil
 	}
+	return ctx.typeViolation(ctx.pass.TypesInfo.TypeOf(typeExpr), pos)
+}
 
-	typeInfo := util.ExtractTypeInfo(ctx.pass.TypesInfo.TypeOf(typeExpr))
-	if typeInfo == nil {
-		return nil
+// findTypeConstructionViolation detects @testonly type usage inside a call
+// expression: a type conversion T(x), or the builtins new(T) / make([]T, ...).
+func findTypeConstructionViolation(
+	ctx *testOnlyContext,
+	call *ast.CallExpr,
+) *TestOnlyViolation {
+	// Type conversion T(x): the function position denotes a type, not a value.
+	if tv, ok := ctx.pass.TypesInfo.Types[call.Fun]; ok && tv.IsType() {
+		return ctx.typeViolation(tv.Type, call.Pos())
 	}
 
-	if ctx.testOnlyTypes.Contains(typeInfo.PkgPath, typeInfo.TypeName) {
-		return &TestOnlyViolation{
-			Pos:         pos,
-			TestOnlyObj: typeInfo.TypeName,
-			Kind:        annotations.TestOnlyOnType,
-			UsedInFile:  *ctx.fileName,
-			Reason:      fmt.Sprintf("type %s is marked @testonly and can only be used in test files", typeInfo.TypeName),
-			Code:        codes.TestOnlyTypeUsage,
+	// Builtins new(T) and make(T, ...): the first argument is a type expression.
+	if ident, ok := call.Fun.(*ast.Ident); ok && (ident.Name == "new" || ident.Name == "make") {
+		if len(call.Args) > 0 {
+			return ctx.typeViolation(ctx.pass.TypesInfo.TypeOf(call.Args[0]), call.Args[0].Pos())
+		}
+	}
+	return nil
+}
+
+// typeViolation builds a TONL01 violation if t references a @testonly type
+// (after unwrapping pointer/slice/array/map/chan layers).
+func (ctx *testOnlyContext) typeViolation(t types.Type, pos token.Pos) *TestOnlyViolation {
+	if t == nil {
+		return nil
+	}
+	info := ctx.firstTestOnlyType(t, make(map[types.Type]bool))
+	if info == nil {
+		return nil
+	}
+	return &TestOnlyViolation{
+		Pos:         pos,
+		TestOnlyObj: info.TypeName,
+		TypeKey:     info.PkgPath + "." + info.TypeName,
+		Kind:        annotations.TestOnlyOnType,
+		UsedInFile:  *ctx.fileName,
+		Reason:      fmt.Sprintf("type %s is marked @testonly and can only be used in test files", info.TypeName),
+		Code:        codes.TestOnlyTypeUsage,
+	}
+}
+
+// firstTestOnlyType unwraps pointer/slice/array/map/chan layers and returns the
+// info of the first @testonly named type found, or nil. The seen set guards
+// against cycles in recursive type definitions.
+func (ctx *testOnlyContext) firstTestOnlyType(t types.Type, seen map[types.Type]bool) *util.TypeInfo {
+	if t == nil || seen[t] {
+		return nil
+	}
+	seen[t] = true
+
+	switch tt := t.(type) {
+	case *types.Pointer:
+		return ctx.firstTestOnlyType(tt.Elem(), seen)
+	case *types.Slice:
+		return ctx.firstTestOnlyType(tt.Elem(), seen)
+	case *types.Array:
+		return ctx.firstTestOnlyType(tt.Elem(), seen)
+	case *types.Chan:
+		return ctx.firstTestOnlyType(tt.Elem(), seen)
+	case *types.Map:
+		if info := ctx.firstTestOnlyType(tt.Key(), seen); info != nil {
+			return info
+		}
+		return ctx.firstTestOnlyType(tt.Elem(), seen)
+	case *types.Named:
+		if info := util.ExtractTypeInfo(tt); info != nil &&
+			ctx.testOnlyTypes.Contains(info.PkgPath, info.TypeName) {
+			return info
 		}
 	}
 	return nil

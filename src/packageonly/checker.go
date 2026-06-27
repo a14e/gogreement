@@ -50,16 +50,29 @@ func CheckPackageOnly(
 		reportedTypes := make(map[string]bool)
 		context.reportedTypes = &reportedTypes
 
+		// Identifiers that are part of a selector (pkg.X / recv.M) are handled by
+		// the selector case; track them so the bare-identifier case does not
+		// double-report the same usage.
+		selectorIdents := make(map[*ast.Ident]bool)
+
 		ast.Inspect(file, func(n ast.Node) bool {
 			switch node := n.(type) {
 			case *ast.SelectorExpr:
+				selectorIdents[node.Sel] = true
+				if x, ok := node.X.(*ast.Ident); ok {
+					selectorIdents[x] = true
+				}
 				// Check selector expressions like "pkg.Type" or "pkg.Function"
 				if v := findSelectorExprViolation(&context, node); v != nil {
 					violations = append(violations, *v)
 				}
 
 			case *ast.Ident:
-				// Check identifier usage for local package objects
+				// Bare identifiers cover dot-imported (`import . "pkg"`) symbols,
+				// which do not appear as selectors.
+				if selectorIdents[node] {
+					return true
+				}
 				if v := findIdentViolation(&context, node); v != nil {
 					violations = append(violations, *v)
 				}
@@ -130,28 +143,28 @@ func findIdentViolation(
 	ident *ast.Ident,
 ) *PackageOnlyViolation {
 	obj := ctx.pass.TypesInfo.ObjectOf(ident)
-	if obj == nil {
+	if obj == nil || obj.Pkg() == nil {
 		return nil
 	}
 
-	// Only check local package objects (imports are handled by selector expressions)
-	if obj.Pkg() == nil || obj.Pkg().Path() != ctx.currentPkgPath {
-		return nil
-	}
+	// Use the object's actual package so dot-imported @packageonly symbols
+	// (which appear as bare identifiers, not selectors) are evaluated. For
+	// same-package objects the find* helpers return nil, since a package may
+	// always use its own symbols.
+	pkgPath := obj.Pkg().Path()
 
 	switch obj := obj.(type) {
 	case *types.TypeName:
-		return findTypeViolation(ctx, ctx.currentPkgPath, obj.Name(), ident.Pos())
+		return findTypeViolation(ctx, pkgPath, obj.Name(), ident.Pos())
 
 	case *types.Func:
 		if obj.Type() != nil && obj.Type().(*types.Signature).Recv() != nil {
 			// Method
 			recvType := util.ExtractTypeName(obj.Type().(*types.Signature).Recv().Type())
-			return findMethodViolation(ctx, ctx.currentPkgPath, recvType, obj.Name(), ident.Pos())
-		} else {
-			// Function
-			return findFunctionViolation(ctx, ctx.currentPkgPath, obj.Name(), ident.Pos())
+			return findMethodViolation(ctx, pkgPath, recvType, obj.Name(), ident.Pos())
 		}
+		// Function
+		return findFunctionViolation(ctx, pkgPath, obj.Name(), ident.Pos())
 	}
 
 	return nil
@@ -189,7 +202,7 @@ func findTypeViolation(
 			(*ctx.reportedTypes)[key] = true
 
 			// Get all allowed packages for error message
-			allowedPackages := ctx.packageOnlyIndex.GetAttachmentsForType(pkgPath, typeName)
+			allowedPackages := ctx.packageOnlyIndex.GetAttachmentsForType(pkgPath, typeName, pkgPath)
 			return &PackageOnlyViolation{
 				ItemName:        typeName,
 				ItemPkgPath:     pkgPath,
@@ -229,7 +242,7 @@ func findFunctionViolation(
 		// Check if this violation should be ignored (no deduplication for functions)
 		if !ctx.ignoreSet.Contains(codes.PackageOnlyFunctionCall, pos) {
 			// Get all allowed packages for error message
-			allowedPackages := ctx.packageOnlyIndex.GetAttachmentsForFunction(pkgPath, funcName)
+			allowedPackages := ctx.packageOnlyIndex.GetAttachmentsForFunction(pkgPath, funcName, pkgPath)
 			return &PackageOnlyViolation{
 				ItemName:        funcName,
 				ItemPkgPath:     pkgPath,
@@ -270,7 +283,7 @@ func findMethodViolation(
 		// Check if this violation should be ignored (no deduplication for methods)
 		if !ctx.ignoreSet.Contains(codes.PackageOnlyMethodCall, pos) {
 			// Get all allowed packages for error message
-			allowedPackages := ctx.packageOnlyIndex.GetAttachmentsForMethod(pkgPath, typeName, methodName)
+			allowedPackages := ctx.packageOnlyIndex.GetAttachmentsForMethod(pkgPath, typeName, methodName, pkgPath)
 			return &PackageOnlyViolation{
 				ItemName:        methodName,
 				ItemPkgPath:     pkgPath,

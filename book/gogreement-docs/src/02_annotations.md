@@ -3,8 +3,10 @@
 All enforcement mechanisms in GoGreement are based on **annotations**. Annotations are special comments that start with `@` and follow a specific format:
 
 ```go
-// @annotation param1 param2
+// @annotation arg1, arg2
 ```
+
+Annotations that take multiple arguments (e.g. `@constructor`, `@packageonly`) separate them with **commas**, not spaces.
 
 ## How Annotations Work
 
@@ -14,7 +16,7 @@ All enforcement mechanisms in GoGreement are based on **annotations**. Annotatio
 
 ## Available Annotations
 
-GoGreement supports five core annotations:
+GoGreement supports six core annotations:
 
 | Annotation | Purpose | Applied To |
 |------------|---------|-----------|
@@ -22,6 +24,7 @@ GoGreement supports five core annotations:
 | **[@immutable](02_02_immutable.md)** | Prevent field mutations after creation | Types |
 | **[@constructor](02_03_constructor.md)** | Restrict object creation to specific functions | Types |
 | **[@testonly](02_04_testonly.md)** | Limit usage to test files only | Types, Functions, Methods |
+| **[@packageonly](02_05_packageonly.md)** | Restrict usage to specific packages | Types, Functions, Methods |
 | **[@ignore](02_06_ignore.md)** | Suppress specific violations | Files, Blocks, Lines |
 
 ## Annotation Syntax Rules
@@ -114,4 +117,5 @@ Learn about each annotation in detail:
 - **[@immutable](02_02_immutable.md)** - Enforce immutability
 - **[@constructor](02_03_constructor.md)** - Control object creation
 - **[@testonly](02_04_testonly.md)** - Restrict to tests
+- **[@packageonly](02_05_packageonly.md)** - Restrict usage to specific packages
 - **[@ignore](02_06_ignore.md)** - Suppress violations

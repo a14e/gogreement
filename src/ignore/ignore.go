@@ -124,7 +124,9 @@ func ReadIgnoreAnnotations(cfg *config.Config, pass *analysis.Pass) *util.Ignore
 		// Scan all comment groups in the file
 		for _, commentGroup := range file.Comments {
 			for _, comment := range commentGroup.List {
-				text := comment.Text
+				// Normalize so single-line block comments (/* @ignore CODE */)
+				// are recognized the same as line comments.
+				text := util.NormalizeCommentText(comment.Text)
 
 				// Micro-optimization: skip comments without @ignore
 				if !ignoreMatcher.Contains([]byte(text)) {
@@ -194,8 +196,11 @@ func findInlineNode(file *ast.File, comment *ast.Comment, fset *token.FileSet) (
 		return 0, 0, false
 	}
 
-	// Comment is inside declaration - check if there's code on same line before comment
+	// Comment is inside declaration - check if there's code on same line before
+	// comment, and remember where that statement starts (it may begin on an
+	// earlier line for a multi-line statement).
 	var hasCodeOnLine bool
+	var stmtStart token.Pos
 
 	ast.Inspect(decl, func(n ast.Node) bool {
 		if n == nil {
@@ -212,7 +217,8 @@ func findInlineNode(file *ast.File, comment *ast.Comment, fset *token.FileSet) (
 		// Check if this node ends on the same line as the comment
 		if nodeEndLine == commentLine {
 			hasCodeOnLine = true
-			return false // Found code, can stop
+			stmtStart = n.Pos() // first match in pre-order is the outermost statement
+			return false        // Found code, can stop
 		}
 
 		return true
@@ -223,14 +229,20 @@ func findInlineNode(file *ast.File, comment *ast.Comment, fset *token.FileSet) (
 		return 0, 0, false
 	}
 
-	// Return positions covering entire line (from line start to comment end)
+	// Cover from the start of the statement through the comment end. For a
+	// single-line statement this is the line start; for a multi-line statement
+	// whose @ignore is on the last line, it extends back to the statement's
+	// start so the violation (reported at the statement start) is suppressed.
 	fileContent := fset.File(commentPos)
 	if fileContent == nil {
 		return 0, 0, false
 	}
 
-	lineStart := fileContent.LineStart(commentLine)
-	return lineStart, comment.End(), true
+	start = fileContent.LineStart(commentLine)
+	if stmtStart != token.NoPos && stmtStart < start {
+		start = stmtStart
+	}
+	return start, comment.End(), true
 }
 
 // findNextNodeAfterComment finds the end position of the scope affected by @ignore comment.
@@ -256,8 +268,13 @@ func findNextNodeAfterComment(file *ast.File, commentPos token.Pos) token.Pos {
 		return decl.End()
 	}
 
-	// Comment is inside this declaration - find the next node after comment
+	// Comment is inside this declaration - find the next statement after the
+	// comment and cover it entirely. Using its End() (not its Pos()) ensures a
+	// multi-line or nested statement (if/for/switch/block) is fully suppressed,
+	// since violations inside it are reported at positions past the statement's
+	// start token.
 	var nextPos = token.NoPos
+	var nextEnd = token.NoPos
 
 	ast.Inspect(decl, func(n ast.Node) bool {
 		if n == nil {
@@ -269,15 +286,15 @@ func findNextNodeAfterComment(file *ast.File, commentPos token.Pos) token.Pos {
 			return true
 		}
 
-		// Found a node after comment
+		// Record the first (smallest-position) node after the comment and cover
+		// it entirely via its End(). Returning false skips its children, but
+		// ast.Inspect still visits siblings, so the Pos guard keeps the first.
 		if nextPos == token.NoPos || n.Pos() < nextPos {
 			nextPos = n.Pos()
-			// Stop searching once we found the first node
-			return false
+			nextEnd = n.End()
 		}
-
-		return true
+		return false
 	})
 
-	return nextPos
+	return nextEnd
 }

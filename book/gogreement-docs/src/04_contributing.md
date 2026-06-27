@@ -25,8 +25,10 @@ When contributing code, please ensure:
 - `src/immutable/` - Immutability checker
 - `src/implements/` - Interface implementation checker
 - `src/testonly/` - Test-only checker
+- `src/packageonly/` - Package-only checker
 - `src/ignore/` - Ignore directive parsing
 - `src/indexing/` - Cross-package fact indexing
+- `src/reporting/` - Violation reporting and pretty formatting
 - `src/util/` - Shared utilities
 - `src/testutil/` - Testing helpers
 
@@ -195,7 +197,7 @@ Follow these steps when adding a new violation type:
 
 2. **Update checker** to use the new code:
    ```go
-   import "github.com/a14e/github.com/a14e/gogreement/src/codes"
+   import "github.com/a14e/gogreement/src/codes"
 
    violation := Violation{
        Code: codes.NewCode03,

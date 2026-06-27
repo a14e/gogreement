@@ -290,8 +290,7 @@ func TestFindMissingMethods(t *testing.T) {
 					Name: "MyReader",
 					Methods: []TypeMethod{
 						{
-							Name:              "Read",
-							ReceiverIsPointer: true,
+							Name: "Read",
 							Inputs: []MethodType{
 								{TypeName: "[]byte"},
 							},
@@ -346,8 +345,7 @@ func TestFindMissingMethods(t *testing.T) {
 					Name: "MyReader",
 					Methods: []TypeMethod{
 						{
-							Name:              "Read",
-							ReceiverIsPointer: true,
+							Name: "Read",
 							Inputs: []MethodType{
 								{TypeName: "[]byte"},
 							},
@@ -411,8 +409,7 @@ func TestFindMissingMethods(t *testing.T) {
 					Name: "MyReader",
 					Methods: []TypeMethod{
 						{
-							Name:              "Read",
-							ReceiverIsPointer: true,
+							Name: "Read",
 							Inputs: []MethodType{
 								{TypeName: "string"}, // Wrong type!
 							},
@@ -481,8 +478,7 @@ func TestFindMissingMethods(t *testing.T) {
 					Name: "MyReader",
 					Methods: []TypeMethod{
 						{
-							Name:              "Read",
-							ReceiverIsPointer: true,
+							Name: "Read",
 							Inputs: []MethodType{
 								{TypeName: "[]byte"},
 							},

@@ -563,6 +563,104 @@ func TestFunction() {
 		"INLINE should NOT cover z := 3")
 }
 
+func TestReadIgnoreAnnotations_BlockCoversNestedStatement(t *testing.T) {
+	testCode := `package testpkg
+
+func F(u *User) {
+	// @ignore IMM01
+	if true {
+		u.Name = "x"
+	}
+}
+`
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "test.go", testCode, parser.ParseComments)
+	require.NoError(t, err)
+
+	pass := &analysis.Pass{
+		Fset:  fset,
+		Files: []*ast.File{file},
+		Pkg:   types.NewPackage("testpkg", "testpkg"),
+	}
+
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
+
+	funcDecl := file.Decls[0].(*ast.FuncDecl)
+	ifStmt := funcDecl.Body.List[0].(*ast.IfStmt)
+	assign := ifStmt.Body.List[0].(*ast.AssignStmt)
+	sel := assign.Lhs[0].(*ast.SelectorExpr)
+
+	// The violation is reported at the selector position, deep inside the if
+	// body — a block @ignore on its own line above the if must still cover it.
+	assert.True(t, ignoreSet.Contains("IMM01", sel.Pos()),
+		"block @ignore should cover a nested/multi-line statement")
+}
+
+func TestReadIgnoreAnnotations_InlineMultiLineStatement(t *testing.T) {
+	testCode := `package testpkg
+
+func F(u *User) {
+	u.Field = compute(a,
+		b) // @ignore IMM01
+	_ = u
+}
+`
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "test.go", testCode, parser.ParseComments)
+	require.NoError(t, err)
+
+	pass := &analysis.Pass{
+		Fset:  fset,
+		Files: []*ast.File{file},
+		Pkg:   types.NewPackage("testpkg", "testpkg"),
+	}
+
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
+
+	funcDecl := file.Decls[0].(*ast.FuncDecl)
+	assign := funcDecl.Body.List[0].(*ast.AssignStmt)
+	sel := assign.Lhs[0].(*ast.SelectorExpr)
+
+	// The statement starts on an earlier line than the inline @ignore comment;
+	// the violation (reported at the statement start) must still be suppressed.
+	assert.True(t, ignoreSet.Contains("IMM01", sel.Pos()),
+		"inline @ignore on the last line of a multi-line statement should cover its start")
+}
+
+func TestReadIgnoreAnnotations_BlockComment(t *testing.T) {
+	testCode := `package testpkg
+
+func F() {
+	/* @ignore CODE1 */
+	x := 1
+	_ = x
+}
+`
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "test.go", testCode, parser.ParseComments)
+	require.NoError(t, err)
+
+	pass := &analysis.Pass{
+		Fset:  fset,
+		Files: []*ast.File{file},
+		Pkg:   types.NewPackage("testpkg", "testpkg"),
+	}
+
+	cfg := config.Empty()
+	ignoreSet := ReadIgnoreAnnotations(cfg, pass)
+
+	funcDecl := file.Decls[0].(*ast.FuncDecl)
+	assign := funcDecl.Body.List[0].(*ast.AssignStmt)
+
+	assert.True(t, ignoreSet.Contains("CODE1", assign.Pos()),
+		"@ignore inside a /* */ block comment should be parsed and applied")
+}
+
 func TestReadIgnoreAnnotations_InlineOnAssignment(t *testing.T) {
 	testCode := `package testpkg
 

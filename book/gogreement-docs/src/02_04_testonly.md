@@ -31,17 +31,17 @@ No parameters required - simply add `// @testonly` above the declaration.
 
 GoGreement detects usage of `@testonly` items outside test files:
 
-1. **Type usage**: Variable declarations, composite literals, type assertions
-2. **Function calls**: Direct calls to `@testonly` functions
-3. **Method calls**: Calls to `@testonly` methods
+1. **Type usage**: Variable declarations, composite literals, type assertions, type conversions (`TestType(x)`), `new(TestType)`, `make([]TestType, ...)`, and slice/array/map/chan element types — struct fields and function parameters included
+2. **Function calls**: Direct calls to `@testonly` functions (resolved by object, so a shadowing local of the same name is not flagged)
+3. **Method calls**: Calls to `@testonly` methods (including methods on generic types)
 
 ## Key Behaviors
 
 1. **Test files only**: Only `*_test.go` files can use `@testonly` items
-2. **No generics support**: Cannot be used with generic declarations
+2. **Generics supported**: Works on generic types and on methods declared on generic types (e.g. `@testonly` on `func (c *Container[T]) Debug()`)
 3. **Nested @testonly allowed**: `@testonly` code can call other `@testonly` code
-4. **Per-file deduplication**: Only one error per type per file (avoids spam)
-5. **Catches all usage**: Type assertions, composite literals, variable declarations
+4. **Per-file deduplication**: Only one error per type per file (keyed by the package-qualified type identity, so equally named types from different packages do not collide)
+5. **Declaring is allowed**: Declaring a method on a `@testonly` type is fine — only *using* the type outside test files is reported
 6. **Can be suppressed**: Use `@ignore` to allow usage in specific places
 
 ## Can Be Declared On

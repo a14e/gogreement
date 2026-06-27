@@ -123,23 +123,17 @@ func checkImplementation(
 	// Create index of type's methods
 	typeMethods := make(map[string]TypeMethod)
 	for _, method := range typeModel.Methods {
-		// Filter methods based on pointer requirement
-		if requirePointer {
-			// For &Interface, we need pointer receiver methods
-			// (but value receiver methods are also OK per Go spec:
-			// method set of *T includes methods with receiver T or *T)
-			typeMethods[method.Name] = method
-		} else {
-			// For Interface (no &), we need value receiver methods only
-			if !method.ReceiverIsPointer {
-				typeMethods[method.Name] = method
-			}
+		// For &Interface (requirePointer) the method set of *T applies, which
+		// includes every method. For Interface (value form) only the value
+		// method set applies, computed precisely by the loader (InValueSet).
+		if requirePointer || method.InValueSet {
+			typeMethods[methodKey(method.Id, method.Name)] = method
 		}
 	}
 
 	// Check each interface method
 	for _, ifaceMethod := range iface.Methods {
-		typeMethod, exists := typeMethods[ifaceMethod.Name]
+		typeMethod, exists := typeMethods[methodKey(ifaceMethod.Id, ifaceMethod.Name)]
 		if !exists {
 			missing = append(missing, ifaceMethod)
 			continue
@@ -183,9 +177,23 @@ func signaturesMatch(typeMethod TypeMethod, ifaceMethod InterfaceMethod) bool {
 	return true
 }
 
-// typesMatch checks if two types are the same
+// methodKey returns the qualified method id when available (so unexported
+// methods are matched per-package), falling back to the bare name for
+// hand-built models that do not populate Id.
+func methodKey(id, name string) string {
+	if id != "" {
+		return id
+	}
+	return name
+}
+
+// typesMatch checks if two types are the same. The canonical go/types string
+// is the precise comparison (it captures generic type arguments and pointer
+// depth); the coarse fields are kept for hand-built models that leave the
+// canonical string empty.
 func typesMatch(t1 *MethodType, t2 *InterfaceType) bool {
-	return t1.TypeName == t2.TypeName &&
+	return t1.Canonical == t2.Canonical &&
+		t1.TypeName == t2.TypeName &&
 		t1.TypePackage == t2.TypePackage &&
 		t1.IsPointer == t2.IsPointer &&
 		t1.IsVariadic == t2.IsVariadic

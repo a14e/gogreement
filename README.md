@@ -11,7 +11,7 @@ A static analyzer for Go that enforces developer agreements through code annotat
 
 ## What is it?
 
-GoGreement lets you document and enforce contracts directly in your code using annotations. Mark types as immutable, enforce constructor usage, restrict code to tests, or verify interface implementations—the linter will catch violations at build time.
+GoGreement lets you document and enforce contracts directly in your code using annotations. Mark types as immutable, enforce constructor usage, restrict code to tests, restrict usage to specific packages, or verify interface implementations—the linter reports violations when you run it (for example, in CI). You can suppress a violation with `// @ignore CODE`.
 
 ```go
 // Mark a type as immutable - prevent field modifications
@@ -72,7 +72,7 @@ func NewUser(name string) *User {
     return &User{id: generateID(), name: name}
 }
 
-// This won't compile:
+// gogreement reports:
 u := User{name: "John"}  // [CTOR01] type instantiation must be in constructor (allowed: [NewUser])
 ```
 
@@ -106,6 +106,25 @@ func (r *BufferedReader) Read(p []byte) (n int, err error) {
 //   Read([]byte) (int, error)
 ```
 
+### Restrict usage to packages with `@packageonly`
+
+```go
+// @packageonly internal/api
+type InternalClient struct{}
+
+// From a package outside internal/api:
+c := InternalClient{}  // [PKGO01] InternalClient type is @packageonly and cannot be used from <pkg>. Allowed packages: [internal/api]
+```
+
+### Suppress a violation with `@ignore`
+
+```go
+// @ignore IMM01
+p.X = 10  // suppressed
+```
+
+`@ignore` supports a hierarchy: `ALL` > category (e.g. `IMM`) > specific code (e.g. `IMM01`).
+
 ## Configuration
 
 Control behavior with environment variables or command flags:
@@ -125,7 +144,7 @@ gogreement --config.exclude-checks=IMM,CTOR ./...
 ## Why use it?
 
 - **Documentation that's enforced**: Annotations serve as both documentation and contracts
-- **Catch bugs early**: Violations are caught at build time, not in production
+- **Catch bugs early**: Violations are caught during static analysis (e.g. in CI), not in production
 - **Team coordination**: Formalize agreements about how code should be used
 - **No runtime overhead**: Pure static analysis
 

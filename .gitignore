@@ -10,3 +10,4 @@ CLAUDE.md
 /testdata/pkg
 /testdata/integration/pkg
 /book/gogreement-docs/book
+.DS_Store

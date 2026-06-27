@@ -36,14 +36,16 @@ GoGreement detects the following violations outside constructor functions:
 1. **Composite literals**: `TypeName{}`
 2. **new() calls**: `new(TypeName)`
 3. **Var declarations**: `var x TypeName`
+4. **Type conversions**: `TypeName(value)`
 
 ## Key Behaviors
 
 1. **No generics support**: Cannot be used with generic types
-2. **Same package only**: Constructor functions must be in the same package as the type
+2. **Same package only**: Constructor functions must be free (receiverless) functions in the same package as the type. A method whose name happens to match a constructor name does **not** exempt instantiations inside it.
 3. **Non-existent constructors OK**: No error if a named constructor doesn't exist
 4. **Can be suppressed**: Use `@ignore` to allow creation in specific places
-5. **Cross-package enforcement**: Works even if `@constructor` was declared in an external module
+5. **Cross-package enforcement**: Works even if `@constructor` was declared in an external module. Because constructors live in the type's own package, instantiating an external `@constructor` type with a composite literal/`new`/conversion is always reported (use the exported constructor instead).
+6. **Pointer `new` is not construction**: `new(*T)` allocates a `**T` and never creates a `T`, so it is not flagged — only `new(T)` is (CTOR02).
 
 ## Can Be Declared On
 
@@ -79,6 +81,7 @@ type Status int
 | **CTOR01** | Composite literal outside constructor | `db := Database{}` |
 | **CTOR02** | new() call outside constructor | `db := new(Database)` |
 | **CTOR03** | Var declaration creates zero-initialized instance | `var db Database` |
+| **CTOR04** | Type conversion outside constructor | `email := Email(input)` |
 
 ## Examples
 
@@ -220,11 +223,15 @@ package main
 import "myapp/db"
 
 func main() {
-    // ❌ ERROR: CTOR01 - Connection requires constructor
-    conn := db.Connection{dsn: "localhost"}
+    // ❌ ERROR: CTOR01 - Connection must be built via its constructor
+    // (dsn is unexported, so an external composite literal can only be empty;
+    // either form is still a cross-package CTOR01 violation)
+    bad := db.Connection{}
+    _ = bad
 
-    // ✅ Correct: Use constructor
-    conn, err := db.Open("localhost")
+    // ✅ Correct: use the constructor
+    good, err := db.Open("localhost")
+    _, _ = good, err
 }
 ```
 
@@ -242,7 +249,7 @@ func NewEmail(s string) (Email, error) {
 }
 
 func validate(input string) {
-    // ❌ ERROR: CTOR01
+    // ❌ [CTOR04] type conversion must be in constructor (allowed: [NewEmail])
     email := Email(input)  // Bypass validation!
 
     // ✅ Correct: Use constructor

@@ -30,37 +30,44 @@ func CheckConstructor(
 	filesToCheck := config.FilterFiles(pass)
 
 	for file := range filesToCheck {
-		currentFunction := ""
-
-		ast.Inspect(file, func(n ast.Node) bool {
-			switch node := n.(type) {
-			case *ast.FuncDecl:
-				currentFunction = node.Name.Name
-				return true
-
-			case *ast.CompositeLit:
-				v := checkCompositeLiteral(pass, node, constructors, currentFunction)
-				if v != nil {
-					violations = append(violations, *v)
-				}
-				return true
-
-			case *ast.CallExpr:
-				v := checkNewCall(pass, node, constructors, currentFunction)
-				if v != nil {
-					violations = append(violations, *v)
-				}
-				return true
-
-			case *ast.GenDecl:
-				if node.Tok == token.VAR {
-					vs := checkVarDeclaration(pass, node, constructors, currentFunction)
-					violations = append(violations, vs...)
-				}
-				return true
+		for _, decl := range file.Decls {
+			// Determine the enclosing function per top-level declaration so the
+			// value never leaks across siblings. Only a receiverless (free)
+			// function can be a constructor; methods and package-level
+			// declarations are evaluated with an empty function name so they are
+			// never wrongly exempted.
+			currentFunction := ""
+			if fn, ok := decl.(*ast.FuncDecl); ok && fn.Recv == nil {
+				currentFunction = fn.Name.Name
 			}
-			return true
-		})
+
+			ast.Inspect(decl, func(n ast.Node) bool {
+				switch node := n.(type) {
+				case *ast.CompositeLit:
+					v := checkCompositeLiteral(pass, node, constructors, currentFunction)
+					if v != nil {
+						violations = append(violations, *v)
+					}
+					return true
+
+				case *ast.CallExpr:
+					if v := checkNewCall(pass, node, constructors, currentFunction); v != nil {
+						violations = append(violations, *v)
+					} else if v := checkConversionCall(pass, node, constructors, currentFunction); v != nil {
+						violations = append(violations, *v)
+					}
+					return true
+
+				case *ast.GenDecl:
+					if node.Tok == token.VAR {
+						vs := checkVarDeclaration(pass, node, constructors, currentFunction)
+						violations = append(violations, vs...)
+					}
+					return true
+				}
+				return true
+			})
+		}
 	}
 
 	return violations
@@ -99,8 +106,10 @@ func checkCompositeLiteral(
 		return nil
 	}
 
-	// Check if we're in one of the allowed constructors
-	if constructors.Match(pkgPath, currentFunction, typeName) {
+	// Constructors live in the type's own package; only exempt when the type is
+	// declared in the package being analyzed and the enclosing function is one
+	// of its declared constructors.
+	if pass.Pkg.Path() == pkgPath && constructors.Match(pkgPath, currentFunction, typeName) {
 		return nil
 	}
 
@@ -137,10 +146,8 @@ func checkNewCall(
 		return nil
 	}
 
-	if ptr, ok := t.(*types.Pointer); ok {
-		t = ptr.Elem()
-	}
-
+	// Do not strip a pointer here: new(*T) allocates a **T pointing at a nil
+	// *T and never instantiates a T, so it must not be flagged.
 	named, ok := t.(*types.Named)
 	if !ok {
 		return nil
@@ -159,8 +166,10 @@ func checkNewCall(
 		return nil
 	}
 
-	// Check if we're in one of the allowed constructors
-	if constructors.Match(pkgPath, currentFunction, typeName) {
+	// Constructors live in the type's own package; only exempt when the type is
+	// declared in the package being analyzed and the enclosing function is one
+	// of its declared constructors.
+	if pass.Pkg.Path() == pkgPath && constructors.Match(pkgPath, currentFunction, typeName) {
 		return nil
 	}
 
@@ -171,6 +180,67 @@ func checkNewCall(
 	return &ConstructorViolation{
 		TypeName: typeName,
 		Code:     codes.ConstructorNewCall,
+		Pos:      call.Pos(),
+		Reason:   reason,
+		Node:     call,
+	}
+}
+
+// checkConversionCall reports a violation when a value is built via a type
+// conversion (e.g. Email(input)) of a @constructor type outside its allowed
+// constructors. A call expression is a conversion when its function position
+// denotes a type rather than a value.
+func checkConversionCall(
+	pass *analysis.Pass,
+	call *ast.CallExpr,
+	constructors util.TypeAssociationRegistry,
+	currentFunction string,
+) *ConstructorViolation {
+	if len(call.Args) != 1 {
+		return nil
+	}
+
+	// Distinguish a conversion T(x) from a regular call f(x): in a conversion
+	// the function expression is a type.
+	tv, ok := pass.TypesInfo.Types[call.Fun]
+	if !ok || !tv.IsType() {
+		return nil
+	}
+
+	// A conversion to *T does not instantiate a T value, so only direct
+	// conversions to the named type are constructor-controlled.
+	named, ok := tv.Type.(*types.Named)
+	if !ok {
+		return nil
+	}
+
+	typeName := named.Obj().Name()
+	pkg := named.Obj().Pkg()
+	if pkg == nil {
+		return nil
+	}
+
+	pkgPath := pkg.Path()
+
+	// Check if this type has constructor annotations
+	if !constructors.HasType(pkgPath, typeName) {
+		return nil
+	}
+
+	// Constructors live in the type's own package; only exempt when the type is
+	// declared in the package being analyzed and the enclosing function is one
+	// of its declared constructors.
+	if pass.Pkg.Path() == pkgPath && constructors.Match(pkgPath, currentFunction, typeName) {
+		return nil
+	}
+
+	// Get list of allowed constructors for error message
+	constructorList := constructors.GetAssociated(pkgPath, typeName)
+	reason := fmt.Sprintf("type conversion must be in constructor (allowed: %v)", constructorList)
+
+	return &ConstructorViolation{
+		TypeName: typeName,
+		Code:     codes.ConstructorConversion,
 		Pos:      call.Pos(),
 		Reason:   reason,
 		Node:     call,
@@ -231,8 +301,10 @@ func checkVarDeclaration(
 				continue
 			}
 
-			// Check if we're in one of the allowed constructors
-			if constructors.Match(pkgPath, currentFunction, typeName) {
+			// Constructors live in the type's own package; only exempt when the
+			// type is declared in the package being analyzed and the enclosing
+			// function is one of its declared constructors.
+			if pass.Pkg.Path() == pkgPath && constructors.Match(pkgPath, currentFunction, typeName) {
 				continue
 			}
 

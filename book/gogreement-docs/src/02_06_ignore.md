@@ -44,7 +44,7 @@ package mypackage
 
 ### 2. Block-Level Scope
 
-Place `@ignore` before a declaration to affect that declaration:
+Place `@ignore` before a declaration to affect that **whole declaration**:
 
 ```go
 // @ignore CTOR01
@@ -57,9 +57,24 @@ func createUser() {
 }
 ```
 
+A block `@ignore` written on its own line *inside* a function body instead
+covers only the **single statement that immediately follows it** — fully,
+including any nested or multi-line statement (e.g. an `if`/`for` block):
+
+```go
+func F(u *User) {
+    // @ignore IMM01
+    if cond {
+        u.Name = "x"  // ✅ Suppressed - the whole following statement is covered
+    }
+}
+```
+
 ### 3. Inline Scope
 
-Place `@ignore` on the same line as code to affect just that line:
+Place `@ignore` on the same line as code to affect that statement. If the
+statement spans multiple lines, put the comment on its last line — the whole
+statement is still covered:
 
 ```go
 func modify(p *Point) {
@@ -73,13 +88,14 @@ func modify(p *Point) {
 2. **Case-insensitive**: Codes are normalized to uppercase automatically
 3. **Only affects checking**: Doesn't affect annotation scanning phase
 4. **Module-level option**: Use `--config.exclude-checks` flag for project-wide exclusions
+5. **Comment styles**: Both `// @ignore CODE` and single-line `/* @ignore CODE */` are recognized
 
 ## Supported Annotations
 
 | Annotation | Supported | Codes |
 |------------|-----------|-------|
 | **@immutable** | ✅ Yes | IMM01, IMM02, IMM03, IMM04 |
-| **@constructor** | ✅ Yes | CTOR01, CTOR02, CTOR03 |
+| **@constructor** | ✅ Yes | CTOR01, CTOR02, CTOR03, CTOR04 |
 | **@testonly** | ✅ Yes | TONL01, TONL02, TONL03 |
 | **@packageonly** | ✅ Yes | PKGO01, PKGO02, PKGO03 |
 | **@implements** | ✅ Yes | IMPL01, IMPL02, IMPL03 |
@@ -156,19 +172,23 @@ func batchUpdate(points []*Point) {
 // @ignore ALL
 func debugFunction() {
     // All violations suppressed here
-    var db Database{}  // CTOR violations ignored
-    db.conn = nil      // IMM violations ignored
+    db := Database{}  // CTOR violations ignored
+    db.conn = nil     // IMM violations ignored
 }
 ```
 
 ### ✅ Multiple Codes
 
+Place the directive **before the declaration** to suppress several codes across
+the whole function body. A block `@ignore` written on its own line *inside* the
+body only covers the single statement that immediately follows it.
+
 ```go
+// @ignore IMM01, IMM02, IMM03
 func complexOperation(p *Point) {
-    // @ignore IMM01, IMM02, IMM03
-    p.X = 10
-    p.Y += 5
-    p.X++
+    p.X = 10  // ✅ Suppressed - IMM01
+    p.Y += 5  // ✅ Suppressed - IMM02
+    p.X++     // ✅ Suppressed - IMM03
 }
 ```
 

@@ -16,6 +16,7 @@ import (
 type TestOnlyViolation struct {
 	Pos         token.Pos
 	TestOnlyObj string // Name of the @testonly object being used
+	TypeKey     string // Package-qualified type identity, used to dedup type-usage violations per file
 	Kind        annotations.TestOnlyKind
 	UsedInFile  string // File where @testonly object is used
 	Reason      string

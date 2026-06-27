@@ -2,7 +2,7 @@
 
 Welcome to the GoGreement project documentation!
 
-GoGreement is a static analysis linter that extends Go's capabilities by adding compile-time enforcements for architectural agreements. It helps teams maintain code quality through annotations like immutability, interface implementation contracts, constructor restrictions, and test-only boundaries.
+GoGreement is a static analysis linter that extends Go's capabilities by adding compile-time enforcements for architectural agreements. It helps teams maintain code quality through annotations like immutability, interface implementation contracts, constructor restrictions, test-only boundaries, and package-only boundaries.
 
 ## Why GoGreement?
 
@@ -25,6 +25,7 @@ We add annotations as comments in your Go code:
 // @immutable
 // @testonly
 // @constructor New
+// @packageonly internal/api
 ```
 
 Then run the GoGreement linter as part of your static analysis pipeline. It will report errors if the agreements are violated.

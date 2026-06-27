@@ -64,6 +64,41 @@ func TestCheckPackageOnly_AllowedUsage(t *testing.T) {
 	})
 }
 
+func TestCheckPackageOnly_DotImportEnforced(t *testing.T) {
+	// Dot-imported @packageonly symbols (bare identifiers) must still be enforced.
+	pass := testfacts.CreateTestPassWithFacts(t, "packageonlydotimport", "packageonlysource")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+
+	violations := CheckPackageOnly(cfg, pass, &packageAnnotations, nil)
+
+	codesFound := make(map[string]bool)
+	for _, v := range violations {
+		codesFound[v.GetCode()] = true
+		t.Logf("Violation: %s", v.GetMessage())
+	}
+
+	assert.True(t, codesFound[codes.PackageOnlyTypeUsage],
+		"dot-imported @packageonly type should be flagged")
+	assert.True(t, codesFound[codes.PackageOnlyFunctionCall],
+		"dot-imported @packageonly function should be flagged")
+}
+
+func TestCheckPackageOnly_AllowedListExcludesSource(t *testing.T) {
+	pass := testfacts.CreateTestPassWithFacts(t, "packageonlyviolations", "packageonlysource")
+	cfg := config.Empty()
+	packageAnnotations := annotations.ReadAllAnnotations(cfg, pass)
+
+	violations := CheckPackageOnly(cfg, pass, &packageAnnotations, nil)
+	assert.NotEmpty(t, violations)
+
+	sourcePath := "github.com/a14e/gogreement/testdata/unit/packageonlysource"
+	for _, v := range violations {
+		assert.NotContains(t, v.AllowedPackages, sourcePath,
+			"the defining package must not be listed among the allowed packages")
+	}
+}
+
 func TestPackageOnlyViolation_GetCode(t *testing.T) {
 	tests := []struct {
 		name         string

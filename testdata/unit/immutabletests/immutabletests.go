@@ -178,6 +178,11 @@ func (i *ImmutableInt) Increment() {
 	*i++ // ❌ VIOLATION: cannot reassign immutable receiver
 }
 
+// DecrementParen modifies the receiver via a parenthesized dereference
+func (i *ImmutableInt) DecrementParen() {
+	(*i)-- // ❌ VIOLATION: cannot use -- on immutable receiver (outside constructor)
+}
+
 // ImmutableString is an immutable string type
 // @immutable
 // @constructor NewImmutableString
@@ -260,4 +265,85 @@ func IncrementX(p *Point) {
 // AddToY tries to add to Y
 func AddToY(p *Point, delta int) {
 	p.Y += delta // ❌ VIOLATION: compound assignment
+}
+
+// Test for compound assignment and inc/dec on indexed immutable fields
+
+// Scores holds a numeric slice field
+// @immutable
+// @constructor NewScores
+type Scores struct {
+	values []int
+}
+
+func NewScores() *Scores {
+	s := &Scores{}
+	s.values = make([]int, 3)
+	s.values[0] = 1 // ✅ OK: in constructor
+	return s
+}
+
+func PlainScore(s *Scores, i int) {
+	s.values[i] = 10 // ❌ VIOLATION: index assignment (IMM04)
+}
+
+func CompoundScore(s *Scores, i int) {
+	s.values[i] += 10 // ❌ VIOLATION: compound assignment on indexed element (IMM04)
+}
+
+func IncScore(s *Scores, i int) {
+	s.values[i]++ // ❌ VIOLATION: increment of indexed element (IMM04)
+}
+
+func DecScore(s *Scores, i int) {
+	s.values[i]-- // ❌ VIOLATION: decrement of indexed element (IMM04)
+}
+
+// Test for mutation through an explicit embedded-field path
+
+// EmbeddedInner is embedded into an immutable type but is not itself immutable
+type EmbeddedInner struct {
+	Field int
+}
+
+// Outer embeds EmbeddedInner
+// @immutable
+// @constructor NewOuter
+type Outer struct {
+	EmbeddedInner
+	other int
+}
+
+func NewOuter() *Outer {
+	o := &Outer{}
+	o.Field = 0 // ✅ OK: in constructor
+	return o
+}
+
+func MutateOuterPromoted(o *Outer) {
+	o.Field = 5 // ❌ VIOLATION: promoted field of immutable type (IMM01)
+}
+
+func MutateOuterEmbedded(o *Outer) {
+	o.EmbeddedInner.Field = 5 // ❌ VIOLATION: explicit embedded path of immutable type (IMM01)
+}
+
+// Test that shadowing the receiver name does not produce a false positive
+
+// Shadower is an immutable named type
+// @immutable
+type Shadower int
+
+func (s *Shadower) NoFalsePositive() {
+	{
+		s := new(MutableType) // shadows the receiver with an unrelated pointer
+		*s = MutableType{}    // ✅ OK: reassigns the shadow, not the immutable receiver
+		_ = s
+	}
+}
+
+// Package-level function literal mutating an immutable field must be checked
+// (not panic) and flagged, because it is outside any constructor.
+var _ = func(p *Person) {
+	p.Name = "from-package-literal" // ❌ VIOLATION: mutation in a package-level func literal
 }

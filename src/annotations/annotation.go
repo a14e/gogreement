@@ -3,6 +3,7 @@ package annotations
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 	"regexp"
 	"strings"
 
@@ -494,15 +495,20 @@ func getFuncKindAndReceiver(funcDecl *ast.FuncDecl) (TestOnlyKind, string) {
 	return TestOnlyOnFunc, ""
 }
 
-// ExtractReceiverType extracts the receiver type name from a receiver type expression
-// Examples: *MyStruct -> MyStruct, MyStruct -> MyStruct
+// ExtractReceiverType extracts the receiver type name from a receiver type expression.
+// Examples: *MyStruct -> MyStruct, MyStruct -> MyStruct,
+// generic receivers *Stack[T] / Stack[T] -> Stack, *Pair[K, V] -> Pair.
 func ExtractReceiverType(expr ast.Expr) string {
 	switch t := expr.(type) {
 	case *ast.StarExpr:
-		// Pointer receiver: *MyStruct
-		if ident, ok := t.X.(*ast.Ident); ok {
-			return ident.Name
-		}
+		// Pointer receiver: *MyStruct, *MyStruct[T]
+		return ExtractReceiverType(t.X)
+	case *ast.IndexExpr:
+		// Generic receiver with one type parameter: MyStruct[T]
+		return ExtractReceiverType(t.X)
+	case *ast.IndexListExpr:
+		// Generic receiver with multiple type parameters: MyStruct[K, V]
+		return ExtractReceiverType(t.X)
 	case *ast.Ident:
 		// Value receiver: MyStruct
 		return t.Name
@@ -532,6 +538,15 @@ func ReadAllAnnotations(
 
 	currentPkgPath := pass.Pkg.Path()
 
+	// Resolve each direct import path to its actual package so the import map
+	// records the imported package's real name. Passing pass.Pkg would store the
+	// current package's name for every import and break resolution of versioned
+	// (/vN) and renamed packages in @implements.
+	importsByPath := make(map[string]*types.Package)
+	for _, imported := range pass.Pkg.Imports() {
+		importsByPath[imported.Path()] = imported
+	}
+
 	// Filter files based on configuration (skip test files by default)
 	filesToScan := cfg.FilterFiles(pass)
 
@@ -539,7 +554,11 @@ func ReadAllAnnotations(
 		// Build import map for this file
 		imports := &util.ImportMap{}
 		for _, imp := range file.Imports {
-			imports.Add(imp, pass.Pkg)
+			if imp.Path == nil {
+				continue
+			}
+			importPath := strings.Trim(imp.Path.Value, `"`)
+			imports.Add(imp, importsByPath[importPath])
 		}
 
 		for _, n := range file.Decls {
@@ -558,21 +577,36 @@ func ReadAllAnnotations(
 					continue
 				}
 
-				// docs can be in type or genDecl
-				doc := genDecl.Doc
-				if typeSpec.Doc != nil {
-					doc = typeSpec.Doc
-				}
-
-				if doc == nil {
-					continue
-				}
-
 				typeName := typeSpec.Name.Name
 				pos := typeSpec.Pos()
 
-				for _, comment := range doc.List {
-					text := comment.Text
+				// Annotations may live on the genDecl (above `type (`) or on the
+				// individual spec; gather both so a group-level annotation is not
+				// lost when the spec also has its own doc comment. Identical
+				// comment lines are de-duplicated so an annotation written on both
+				// the group and the spec is not processed twice.
+				var comments []*ast.Comment
+				seenComment := make(map[string]bool)
+				addComments := func(group *ast.CommentGroup) {
+					if group == nil {
+						return
+					}
+					for _, c := range group.List {
+						if seenComment[c.Text] {
+							continue
+						}
+						seenComment[c.Text] = true
+						comments = append(comments, c)
+					}
+				}
+				addComments(genDecl.Doc)
+				addComments(typeSpec.Doc)
+				if len(comments) == 0 {
+					continue
+				}
+
+				for _, comment := range comments {
+					text := util.NormalizeCommentText(comment.Text)
 
 					// Micro-optimization: skip comments without annotations
 					if !matcher.Contains([]byte(text)) {
@@ -644,7 +678,7 @@ func ReadAllAnnotations(
 			kind, receiverType := getFuncKindAndReceiver(funcDecl)
 
 			for _, comment := range funcDecl.Doc.List {
-				text := comment.Text
+				text := util.NormalizeCommentText(comment.Text)
 
 				// Micro-optimization: skip comments without annotations
 				if !matcher.Contains([]byte(text)) {
@@ -710,7 +744,7 @@ func readFieldAnnotationsForType(typeSpec *ast.TypeSpec, typeName string) []Muta
 
 			// Check each comment for @mutable annotation
 			for _, comment := range field.Doc.List {
-				text := comment.Text
+				text := util.NormalizeCommentText(comment.Text)
 
 				// Micro-optimization: skip comments without annotations
 				if !matcher.Contains([]byte(text)) {

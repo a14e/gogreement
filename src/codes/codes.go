@@ -25,6 +25,7 @@ const (
 	ConstructorCompositeLiteral = "CTOR01"
 	ConstructorNewCall          = "CTOR02"
 	ConstructorVarDeclaration   = "CTOR03"
+	ConstructorConversion       = "CTOR04"
 	ConstructorCategoryPrefix   = "CTOR"
 )
 
@@ -67,6 +68,7 @@ var CodesByCategory = map[string][]Code{
 		{ConstructorCompositeLiteral, "Composite literal used outside allowed constructor functions"},
 		{ConstructorNewCall, "new() call used outside allowed constructor functions"},
 		{ConstructorVarDeclaration, "Variable declaration creates zero-initialized instance outside allowed constructor functions"},
+		{ConstructorConversion, "Type conversion used outside allowed constructor functions"},
 	},
 	TestOnlyCategoryPrefix: {
 		{TestOnlyTypeUsage, "TestOnly type used outside test context"},

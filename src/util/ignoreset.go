@@ -46,6 +46,9 @@ type IgnoreSet struct {
 // ensureInitialized initializes the set if it hasn't been initialized yet
 // Safe to call on nil receiver - does nothing if receiver is nil.
 func (s *IgnoreSet) ensureInitialized() {
+	if s == nil {
+		return
+	}
 	if !s.Initialized {
 		s.Markers = make([]IgnoreMarker, 0)
 		s.CodeIndex = make(map[string][]int)
@@ -146,6 +149,9 @@ func (s *IgnoreSet) Len() int {
 // AddModuleIgnore adds ignore for entire module/flag from position 0 to max int
 // This will ignore all violations for the specified codes everywhere
 func (s *IgnoreSet) AddModuleIgnore(codes []string) {
+	if s == nil {
+		return
+	}
 	s.ensureInitialized()
 	s.moduleIgnores = append(s.moduleIgnores, codes...)
 }

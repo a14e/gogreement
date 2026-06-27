@@ -115,3 +115,55 @@ func NewUserWithVar(name string, age int) *User {
 	user.Age = age
 	return &user
 }
+
+// Email is a named type whose construction must go through NewEmail.
+// Building it via a type conversion outside the constructor bypasses validation.
+// @constructor NewEmail
+type Email string
+
+func NewEmail(s string) Email {
+	return Email(s) // ✅ OK: conversion in constructor
+}
+
+func MakeEmailWrong(s string) Email {
+	return Email(s) // ❌ VIOLATION: type conversion outside constructor
+}
+
+// Widget is constructed only via NewWidget.
+// @constructor NewWidget
+type Widget struct {
+	Name string
+}
+
+func NewWidget(name string) *Widget {
+	return &Widget{Name: name} // ✅ OK: in the declared constructor
+}
+
+// Factory has a method whose name collides with Widget's constructor name.
+// A method is never the declared (free-function) constructor, so the literal
+// inside it must still be flagged.
+type Factory struct{}
+
+func (f *Factory) NewWidget() *Widget {
+	return &Widget{Name: "wrong"} // ❌ VIOLATION: a method is not the declared constructor
+}
+
+// MakeUserPtrPtr uses new(*User), which allocates a **User and never
+// instantiates a User, so it must not be flagged.
+func MakeUserPtrPtr() **User {
+	return new(*User) // ✅ OK: new(*User) does not construct a User
+}
+
+// Gadget is constructed only via NewGadget. The package-level instantiation
+// right after the constructor verifies the enclosing-function context does not
+// leak across declarations.
+// @constructor NewGadget
+type Gadget struct {
+	Name string
+}
+
+func NewGadget() *Gadget {
+	return &Gadget{} // ✅ OK: in the declared constructor
+}
+
+var packageGadget = Gadget{Name: "pkg"} // ❌ VIOLATION: package-level instantiation (no constructor leak)

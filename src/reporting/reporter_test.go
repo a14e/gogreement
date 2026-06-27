@@ -2,12 +2,31 @@ package reporting
 
 import (
 	"go/token"
+	"strings"
 	"testing"
 
 	"github.com/a14e/gogreement/src/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/go/analysis"
 )
+
+func TestGetFileLinesLongLine(t *testing.T) {
+	// A single line longer than bufio.Scanner's default 64KB token size must
+	// not truncate the file (which would drop later lines' source snippets).
+	longLine := strings.Repeat("x", 70*1024)
+	content := "package p\n" + longLine + "\nlast := 1\n"
+
+	pass := &analysis.Pass{
+		ReadFile: func(string) ([]byte, error) { return []byte(content), nil },
+	}
+	r := NewReporter(pass, nil)
+
+	lines := r.getFileLines("fake.go")
+	require.GreaterOrEqual(t, len(lines), 3, "all lines must be read, not truncated at the long line")
+	assert.Equal(t, longLine, lines[1], "the >64KB line must be captured intact")
+	assert.Equal(t, "last := 1", lines[2], "lines after the long line must still be present")
+}
 
 // MockViolation implements Violation interface for testing
 type MockViolation struct {

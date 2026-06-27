@@ -41,6 +41,7 @@ Violations of `@constructor` annotations. These can be suppressed with `@ignore`
 | **CTOR01** | Composite literal used outside allowed constructor functions | `db := Database{}` |
 | **CTOR02** | new() call used outside allowed constructor functions | `db := new(Database)` |
 | **CTOR03** | Variable declaration creates zero-initialized instance outside allowed constructor functions | `var db Database` |
+| **CTOR04** | Type conversion used outside allowed constructor functions | `email := Email(input)` |
 
 **Suppress with**:
 - `// @ignore CTOR` - All constructor checks
@@ -173,7 +174,8 @@ ALL
 ├── CTOR (Constructor)
 │   ├── CTOR01 (Composite literal)
 │   ├── CTOR02 (new() call)
-│   └── CTOR03 (Var declaration)
+│   ├── CTOR03 (Var declaration)
+│   └── CTOR04 (Type conversion)
 ├── TONL (TestOnly)
 │   ├── TONL01 (Type usage)
 │   ├── TONL02 (Function call)
@@ -199,7 +201,7 @@ When you suppress a code at any level, all codes below it are also suppressed:
 | Annotation | Description | Codes |
 |------------|-------------|-------|
 | **@immutable** | Prevents field mutations | IMM01, IMM02, IMM03, IMM04 |
-| **@constructor** | Restricts object creation | CTOR01, CTOR02, CTOR03 |
+| **@constructor** | Restricts object creation | CTOR01, CTOR02, CTOR03, CTOR04 |
 | **@testonly** | Limits to test files | TONL01, TONL02, TONL03 |
 | **@packageonly** | Limits to specific packages | PKGO01, PKGO02, PKGO03 |
 | **@implements** | Verifies interface implementation | IMPL01, IMPL02, IMPL03 |

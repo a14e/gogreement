@@ -47,10 +47,11 @@ GoGreement detects the following violations on immutable types:
 1. **Field assignments**: `obj.field = value`
 2. **Compound assignments**: `obj.field += value`, `obj.field -= value`, etc.
 3. **Increment/decrement**: `obj.field++`, `obj.field--`
-4. **Index assignments**: `obj.items[0] = value`, `obj.dict["key"] = value`
+4. **Index assignments**: `obj.items[0] = value`, `obj.dict["key"] = value`, including compound (`obj.items[0] += value`) and increment/decrement (`obj.items[0]++`) of elements
 5. **Receiver operations in methods**: For methods on immutable types:
    - `*receiver = value` (receiver reassignment)
-   - `*receiver++`, `*receiver--` (receiver increment/decrement)
+   - `*receiver++`, `*receiver--` (receiver increment/decrement), including the parenthesized form `(*receiver)--`
+6. **Embedded-field paths**: mutations through an embedded field of an immutable type, e.g. `obj.Embedded.field = value`, are caught the same as the promoted form `obj.field = value`
 
 
 ## Key Behaviors
@@ -302,9 +303,22 @@ func (c *Counter) Increment() {
 func (c *Counter) Reset(newVal int) {
     *c = Counter{value: newVal}  // ❌ [IMM01] cannot reassign immutable receiver (outside constructor)
 }
+```
 
-func (c *Counter) Decrement() {
-    (*c)--  // ❌ [IMM03] cannot use -- on immutable receiver (outside constructor)
+Named numeric types can be mutated through a receiver dereference. Both the
+bare and the parenthesized form (`*s--` and `(*s)--`) are caught:
+
+```go
+// @immutable
+// @constructor NewSeconds
+type Seconds int
+
+func NewSeconds(v int) Seconds {
+    return Seconds(v)
+}
+
+func (s *Seconds) Decrement() {
+    (*s)--  // ❌ [IMM03] cannot use -- on immutable receiver (outside constructor)
 }
 ```
 
@@ -366,7 +380,7 @@ func (m Money) Add(other Money) (Money, error) {
 ```
 
 
-### 5. Document Immutability Intent
+### 4. Document Immutability Intent
 
 ```go
 // @immutable
@@ -385,17 +399,17 @@ type Point struct {
 
 - **Pointer manipulation**: Modifying through `unsafe` pointers
 - **Reflection**: Mutations via `reflect` package
-- **Slice/map element mutations**: Modifying elements inside slices or maps (only index assignment is caught)
+- **Nested element field mutations**: Modifying a field *inside* an element of a slice or map (the direct element write, including compound and inc/dec, is caught; a field of that element is not)
 
 ```go
 // @immutable
 type Data struct {
-    items []Item  // The slice itself can't be reassigned, but elements can be modified
+    items []Item  // The slice itself can't be reassigned, but element fields can be modified
 }
 
 func modify(d Data) {
     d.items = nil           // ❌ ERROR: IMM01 - Assignment
-    d.items[0] = newItem    // ❌ ERROR: IMM04 - Index assignment
+    d.items[0] = newItem    // ❌ ERROR: IMM04 - Index assignment (compound and ++/-- on numeric elements are caught too)
     d.items[0].field = 123  // ✅ No error - element field modification not caught
 }
 ```

@@ -154,17 +154,36 @@ func iterOverPackages[T annotations.AnnotationWrapper](
 			return
 		}
 
-		if pass.ImportPackageFact != nil {
-			var zero T
-			for _, imp := range pass.Pkg.Imports() {
-				fact := zero.CreateEmpty()
-				if pass.ImportPackageFact(imp, fact) {
-					if !yield(imp, fact.GetAnnotations()) {
-						return
-					}
-				}
-			}
+		if pass.ImportPackageFact == nil {
+			return
 		}
 
+		var zero T
+
+		// Walk the full transitive import closure, not just direct imports.
+		// types.Package.Imports() returns only direct imports, but a type
+		// annotated in package C can reach the current package through a direct
+		// import B (e.g. a B function returning a C type), so C's facts must be
+		// loaded too. The analysis framework makes facts available for every
+		// package in the closure.
+		seen := make(map[*types.Package]bool)
+		stack := append([]*types.Package(nil), pass.Pkg.Imports()...)
+		for len(stack) > 0 {
+			imp := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			if imp == nil || seen[imp] {
+				continue
+			}
+			seen[imp] = true
+
+			fact := zero.CreateEmpty()
+			if pass.ImportPackageFact(imp, fact) {
+				if !yield(imp, fact.GetAnnotations()) {
+					return
+				}
+			}
+
+			stack = append(stack, imp.Imports()...)
+		}
 	}
 }

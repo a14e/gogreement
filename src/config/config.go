@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"iter"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -195,7 +196,7 @@ func (c *Config) ShouldSkipFile(pass *analysis.Pass, file *ast.File) bool {
 
 	// Check exclude paths first (always exclude testdata by default)
 	for _, excludePath := range c.ExcludePaths {
-		if strings.Contains(filename, excludePath) {
+		if pathContainsSegments(filename, excludePath) {
 			return true // Skip files in excluded paths
 		}
 	}
@@ -203,6 +204,36 @@ func (c *Config) ShouldSkipFile(pass *analysis.Pass, file *ast.File) bool {
 	// Skip test files when ScanTests is false
 	if !c.ScanTests && strings.HasSuffix(filename, "_test.go") {
 		return true
+	}
+
+	return false
+}
+
+// pathContainsSegments reports whether filename contains excludePath as a
+// contiguous run of whole path segments. Matching on segments (rather than a
+// raw substring of the absolute path) avoids over-exclusion: an exclude of
+// "testdata" must not match "latest.go", and a project rooted under a directory
+// that merely contains the token must not be skipped wholesale.
+func pathContainsSegments(filename, excludePath string) bool {
+	exclude := strings.Trim(filepath.ToSlash(strings.TrimSpace(excludePath)), "/")
+	if exclude == "" {
+		return false
+	}
+
+	fileSegs := strings.Split(filepath.ToSlash(filename), "/")
+	exclSegs := strings.Split(exclude, "/")
+
+	for i := 0; i+len(exclSegs) <= len(fileSegs); i++ {
+		match := true
+		for j := range exclSegs {
+			if fileSegs[i+j] != exclSegs[j] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return true
+		}
 	}
 
 	return false

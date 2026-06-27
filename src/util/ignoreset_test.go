@@ -26,6 +26,18 @@ func (m *mockAnnotation) GetEndPos() token.Pos {
 	return m.endPos
 }
 
+func TestIgnoreSet_NilReceiverSafe(t *testing.T) {
+	var s *IgnoreSet
+
+	ann := &mockAnnotation{codes: []string{"CODE1"}, startPos: token.Pos(1), endPos: token.Pos(2)}
+
+	assert.NotPanics(t, func() { s.Add(ann) },
+		"Add must be safe on a nil receiver, per its documented contract")
+	assert.NotPanics(t, func() { s.AddModuleIgnore([]string{"CODE2"}) },
+		"AddModuleIgnore must be safe on a nil receiver")
+	assert.False(t, s.Contains("CODE1", token.Pos(1)))
+}
+
 func TestIgnoreSet_ZeroValue(t *testing.T) {
 	// Test that zero value IgnoreSet can be used
 	set := &IgnoreSet{}

@@ -2,6 +2,8 @@ package annotations
 
 import (
 	"go/ast"
+	"go/parser"
+	"go/token"
 	"testing"
 
 	"github.com/a14e/gogreement/src/config"
@@ -12,6 +14,113 @@ import (
 
 	"github.com/a14e/gogreement/src/util"
 )
+
+func TestExtractReceiverType(t *testing.T) {
+	src := `package p
+type T struct{}
+type G[A any] struct{}
+type P[K comparable, V any] struct{}
+func (t T) ValueRecv() {}
+func (t *T) PointerRecv() {}
+func (g G[A]) GenericValueRecv() {}
+func (g *G[A]) GenericPointerRecv() {}
+func (p *P[K, V]) GenericMultiRecv() {}
+`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "p.go", src, 0)
+	require.NoError(t, err)
+
+	want := map[string]string{
+		"ValueRecv":          "T",
+		"PointerRecv":        "T",
+		"GenericValueRecv":   "G",
+		"GenericPointerRecv": "G",
+		"GenericMultiRecv":   "P",
+	}
+
+	got := make(map[string]string)
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Recv == nil || len(fn.Recv.List) == 0 {
+			continue
+		}
+		got[fn.Name.Name] = ExtractReceiverType(fn.Recv.List[0].Type)
+	}
+
+	for name, expected := range want {
+		assert.Equal(t, expected, got[name], "receiver type for %s", name)
+	}
+
+	// Non-receiver expressions resolve to empty string.
+	assert.Equal(t, "", ExtractReceiverType(&ast.BasicLit{}))
+}
+
+func TestNormalizeCommentText(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"line comment unchanged", "// @immutable", "// @immutable"},
+		{"line comment with args unchanged", "// @constructor New, Create", "// @constructor New, Create"},
+		{"single-line block comment", "/* @immutable */", "// @immutable"},
+		{"block comment with args", "/* @constructor New */", "// @constructor New"},
+		{"block comment tight", "/*@testonly*/", "// @testonly"},
+		{"regular text unchanged", "plain text", "plain text"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, util.NormalizeCommentText(tt.in))
+		})
+	}
+}
+
+func TestReadAllAnnotationsEdgeCases(t *testing.T) {
+	pass := testutil.CreateTestPass(t, "annotationedgecases")
+	cfg := config.Empty()
+	ann := ReadAllAnnotations(cfg, pass)
+
+	isImmutable := func(onType string) bool {
+		for _, a := range ann.ImmutableAnnotations {
+			if a.OnType == onType {
+				return true
+			}
+		}
+		return false
+	}
+
+	t.Run("group-level @immutable applies despite spec own doc", func(t *testing.T) {
+		assert.True(t, isImmutable("GroupedWithDoc"),
+			"group @immutable should apply even when the spec has its own doc comment")
+	})
+
+	t.Run("@immutable in a block comment is parsed", func(t *testing.T) {
+		assert.True(t, isImmutable("BlockCommented"),
+			"block-comment @immutable should be parsed")
+	})
+
+	t.Run("annotation on both group and spec is counted once", func(t *testing.T) {
+		count := 0
+		for _, a := range ann.ImmutableAnnotations {
+			if a.OnType == "DoubleAnnotated" {
+				count++
+			}
+		}
+		assert.Equal(t, 1, count, "duplicate @immutable on group + spec must not be double-counted")
+	})
+
+	t.Run("@testonly on generic-type methods records the base receiver name", func(t *testing.T) {
+		recv := make(map[string]string)
+		for _, a := range ann.TestonlyAnnotations {
+			if a.Kind == TestOnlyOnMethod {
+				recv[a.ObjectName] = a.ReceiverType
+			}
+		}
+		assert.Equal(t, "Stack", recv["DebugDump"], "single-type-param generic receiver")
+		assert.Equal(t, "Pair", recv["DebugPair"], "multi-type-param generic receiver")
+	})
+}
 
 func TestParseImplementsAnnotation(t *testing.T) {
 	// Create mock import map

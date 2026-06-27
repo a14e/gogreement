@@ -16,14 +16,20 @@ type Container[T any] struct {
 
 ## 2. Import-Based Analysis Only
 
-Due to how the `analysis` framework works, GoGreement only analyzes types and functions that are **imported** by the packages being analyzed.
+Due to how the `analysis` framework works, GoGreement analyzes the packages it is
+run on together with everything reachable through their **imports** — it starts
+from those packages and walks the (transitive) import graph. A package that is
+neither analyzed directly nor reachable through imports is never seen.
 
 This means:
-- If you annotate a type in package A
-- But package B never imports package A
-- Package B won't see the annotations from package A
+- A package's own annotated types are always checked within that package.
+- Cross-package enforcement (catching misuse of a type annotated elsewhere) works
+  as long as the annotated package is reachable in the transitive import closure
+  of the package being analyzed — direct imports are not required.
+- If package B has no import path to package A at all, B cannot see A's annotations.
 
-**Impact**: Cross-package enforcement only works for types that are actually imported.
+**Impact**: Annotations only take effect within the import graph that is actually
+analyzed.
 
 ## 3. Lenient Annotation Parsing
 

@@ -2,7 +2,6 @@ package analyzer
 
 import (
 	"reflect"
-	"sync"
 
 	config "github.com/a14e/gogreement/src/config"
 
@@ -17,23 +16,16 @@ import (
 	"github.com/a14e/gogreement/src/testonly"
 )
 
-// ConfigReader cache to avoid recreating config multiple times
-var (
-	cachedConfig = config.Empty()
-	configOnce   sync.Once
-)
-
-// runConfig reads configuration from environment variables and command line flags
+// runConfig reads configuration from environment variables and command line flags.
+// It parses per pass (rather than caching in a process global via sync.Once) so
+// the configuration reflects the current flags/env. Caching globally froze the
+// config for the whole process and defeated env-only reloads — a test-isolation
+// footgun. Parsing is cheap.
+//
+// Note: multichecker automatically adds the "config." prefix to all flag names
+// (e.g. "scan-tests" becomes "config.scan-tests" on the command line).
 func runConfig(pass *analysis.Pass) (interface{}, error) {
-	// Use sync.Once to ensure config is created only once
-	configOnce.Do(func() {
-		// Use the analyzer's flags that were parsed by multichecker
-		// Note: multichecker automatically adds "config." prefix to all flag names
-		// (e.g., "scan-tests" becomes "config.scan-tests" in command line)
-		cachedConfig = config.ParseFlagsFromFlagSet(&pass.Analyzer.Flags)
-	})
-
-	return cachedConfig, nil
+	return config.ParseFlagsFromFlagSet(&pass.Analyzer.Flags), nil
 }
 
 // ConfigReader reads configuration from environment variables and command line flags

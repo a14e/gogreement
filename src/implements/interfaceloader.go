@@ -17,10 +17,12 @@ type InterfaceModel struct {
 }
 
 // InterfaceMethod
-// FIXME store signature
 // @immutable
 type InterfaceMethod struct {
-	Name    string
+	Name string
+	// Id is the method's qualified identifier (bare name for exported methods,
+	// "pkgpath.name" for unexported ones), used for cross-package-correct matching.
+	Id      string
 	Inputs  []InterfaceType
 	Outputs []InterfaceType
 }
@@ -33,6 +35,9 @@ type InterfaceType struct {
 	TypePackage string
 	IsPointer   bool
 	IsVariadic  bool
+	// Canonical is the full go/types string of the type (captures generic type
+	// arguments and pointer depth lost by the coarse fields above).
+	Canonical string
 }
 
 // LoadInterfaces loads specified interfaces from the analysis pass
@@ -128,6 +133,7 @@ func extractMethodsFromInterface(iface *types.Interface) []InterfaceMethod {
 
 		methods = append(methods, InterfaceMethod{
 			Name:    method.Name(),
+			Id:      method.Id(),
 			Inputs:  extractTypesFromTuple(sig.Params(), sig.Variadic()),
 			Outputs: extractTypesFromTuple(sig.Results(), false),
 		})
@@ -170,6 +176,7 @@ func convertTypesToInterfaceType(t types.Type) InterfaceType {
 	if ptr, ok := t.(*types.Pointer); ok {
 		inner := convertTypesToInterfaceType(ptr.Elem())
 		inner.IsPointer = true
+		inner.Canonical = t.String() // full *T / **T string
 		return inner
 	}
 
@@ -187,6 +194,7 @@ func convertTypesToInterfaceType(t types.Type) InterfaceType {
 			TypePackage: pkgPath,
 			IsPointer:   false,
 			IsVariadic:  false,
+			Canonical:   t.String(),
 		}
 	}
 
@@ -197,6 +205,7 @@ func convertTypesToInterfaceType(t types.Type) InterfaceType {
 			TypePackage: "",
 			IsPointer:   false,
 			IsVariadic:  false,
+			Canonical:   t.String(),
 		}
 	}
 
@@ -205,5 +214,6 @@ func convertTypesToInterfaceType(t types.Type) InterfaceType {
 		TypeName:   t.String(),
 		IsPointer:  false,
 		IsVariadic: false,
+		Canonical:  t.String(),
 	}
 }
